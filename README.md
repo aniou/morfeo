@@ -25,6 +25,8 @@ At this moment emulator was built and tested only on Ubuntu 22.04 LTS.
 1. You need a working copy of [Odin](https://odin-lang.org/docs/install/)
    language - follow link and install Odin in preffered way.
 
+   A ``Makefile`` assumes that ``odin`` binary is in Your ``PATH``!
+
 2. A sdl2 development files: ``apt install libsdl2-dev``
 
 3. Clone repo and run binary:
