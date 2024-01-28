@@ -1,0 +1,6 @@
+[submodule "external/Musashi"]
+	path = external/Musashi
+	url = https://github.com/kstenerud/Musashi
+[submodule "lib/getargs"]
+	path = lib/getargs
+	url = https://github.com/jasonKercher/getargs/
