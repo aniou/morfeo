@@ -58,7 +58,7 @@ core (Musashi) is written in C.
 
 Because I need some fun too.
 
-### Why MCP banner show "C256 Foenix"?
+### Why MCP banner is "C256 Foenix"?
 
 Because a proper ID bits in GABE emulation part are not implemented yet.
 
