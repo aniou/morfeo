@@ -29,11 +29,13 @@ At this moment emulator was built and tested only on Ubuntu 22.04 LTS.
 
 2. A sdl2 development files: ``apt install libsdl2-dev``
 
-3. Clone repo and run binary:
+3. Clone repo, update submodules and run binary:
 
 ```shell
 git clone https://github.com/aniou/morfeo
 cd morfeo
+git submodule init
+git submodule update
 make
 ```
 
