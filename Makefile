@@ -26,8 +26,10 @@ clean:
 
 clean-all: $(musashi_objects)
 	rm -fv $^
+	rm -fv $(musashi_dir)/m68kconf.h
 
-$(musashi_objects):
+$(musashi_objects): external/m68kconf.h
+	cp -vf $? $(musashi_dir)/
 	$(MAKE) -C $(musashi_dir) clean
 	$(MAKE) -C $(musashi_dir)
 
