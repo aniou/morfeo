@@ -85,6 +85,14 @@ In future. I have limited resources and morfe/morfeo were created as
 development platform for system software, thus lack of support in 
 graphics and sound
 
+# Hacking
+
+A crucial for understanding internal code and way in which modules
+are implemented is an [union concept](https://github.com/odin-lang/Odin/blob/master/examples/demo/demo.odin#L577).
+
+See also ``emulator/gpu/gpu.odin``, and routines ``vicky3_make`` 
+and ``vicky3_read`` in ``emulator/gpu/gpu_vicky3.odin`` for samples.
+
 # Included software
 
 That project include:
