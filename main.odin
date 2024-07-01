@@ -45,9 +45,9 @@ read_args :: proc(p: ^platform.Platform) -> (c: ^Config, args_ok: bool = true) {
 
     c = new(Config)
     argp := getargs.make_getargs()
-	getargs.add_arg(&argp, "disk0", "",       .Optional)
-	getargs.add_arg(&argp, "gpu",   "",       .Optional)
-	getargs.add_arg(&argp, "h",     "help",   .None)
+    getargs.add_arg(&argp, "disk0", "",       .Optional)
+    getargs.add_arg(&argp, "gpu",   "",       .Optional)
+    getargs.add_arg(&argp, "h",     "help",   .None)
 
     getargs.read_args(&argp, os.args)
 
@@ -55,10 +55,10 @@ read_args :: proc(p: ^platform.Platform) -> (c: ^Config, args_ok: bool = true) {
         args_ok = false
         fmt.printf("\nUsage: morfeo [--gpu=0 or 1] [--disk0 path-to-image] file1.hex [file2.hex]\n")
         return
-	}
+    }
 
     // GPU number
-	payload      = getargs.get_payload(&argp, "gpu") or_else "1"
+    payload      = getargs.get_payload(&argp, "gpu") or_else "1"
     c.gpu_id, ok = strconv.parse_int(payload)
     if !ok {
         log.errorf("Invalid gpu number (should be 0 or 1)")
@@ -67,20 +67,20 @@ read_args :: proc(p: ^platform.Platform) -> (c: ^Config, args_ok: bool = true) {
     }
 
     // disk0 attach - XXX maybe should be moved to outside?
-	payload, ok = getargs.get_payload(&argp, "disk0")
-	if ok {
+    payload, ok = getargs.get_payload(&argp, "disk0")
+    if ok {
         ok = p.bus.ata0->attach(0, payload)
         if !ok {
             args_ok = false
         }
-	}
+    }
 
     // files to load - XXX maybe should be moved to outside?
     for ; argp.arg_idx < len(os.args) ; argp.arg_idx += 1 {
         platform.read_intel_hex(p.bus, p.cpu, os.args[argp.arg_idx])
     }
 
-	getargs.destroy(&argp)
+    getargs.destroy(&argp)
     return
 }
 
@@ -128,12 +128,12 @@ main_loop :: proc(p: ^platform.Platform) {
 
         // Step 3: handle screen resize
         //
-		if g.screen_resized {
-				gui.x_size = g.screen_x_size
-				gui.y_size = g.screen_y_size
-				g.screen_resized = false
-				update_window_size()
-		}
+        if g.screen_resized {
+                gui.x_size = g.screen_x_size
+                gui.y_size = g.screen_y_size
+                g.screen_resized = false
+                update_window_size()
+        }
 
         // Step 4: call active GPU to render things
         //         XXX: frames should be ticked at Start Of Frame, thus on ->render 
@@ -155,21 +155,21 @@ main_loop :: proc(p: ^platform.Platform) {
 
         // Step 5a: background
         //
-		sdl2.SetRenderDrawColor(gui.renderer, g.bg_color_r, g.bg_color_g, g.bg_color_b, sdl2.ALPHA_OPAQUE)
+        sdl2.SetRenderDrawColor(gui.renderer, g.bg_color_r, g.bg_color_g, g.bg_color_b, sdl2.ALPHA_OPAQUE)
         sdl2.RenderClear(gui.renderer)
 
         // Step 5b: bitmap 0 and 1
         //
-		if g.bitmap_enabled & g.graphic_enabled {
-		    if g.bm0_enabled {
+        if g.bitmap_enabled & g.graphic_enabled {
+            if g.bm0_enabled {
                 sdl2.UpdateTexture(gui.texture_bm0, nil, g.BM0FB, gui.x_size*4)
                 sdl2.RenderCopy(gui.renderer, gui.texture_bm0, nil, nil)
-			}
-		    if g.bm1_enabled {
+            }
+            if g.bm1_enabled {
                 sdl2.UpdateTexture(gui.texture_bm1, nil, g.BM1FB, gui.x_size*4)
                 sdl2.RenderCopy(gui.renderer, gui.texture_bm1, nil, nil)
-			}
-		}
+            }
+        }
 
         // Step 5c: text
         //
@@ -180,7 +180,7 @@ main_loop :: proc(p: ^platform.Platform) {
 
         // Step 5d: border
         //
-		if g.border_enabled do draw_border(g)
+        if g.border_enabled do draw_border(g)
 
         // Step  6: present to screen
         sdl2.RenderPresent(gui.renderer)
