@@ -11,7 +11,8 @@ musashi_objects  += $(musashi_dir)/softfloat/softfloat.o
 build_flags      += -o:speed
 build_flags      += -collection:emulator=emulator
 build_flags      += -collection:lib=lib
-build_flags      += -extra-linker-flags:"-L$(musashi_dir) $(musashi_objects)"
+
+build_flags_m68k += -extra-linker-flags:"-L$(musashi_dir) $(musashi_objects)"
 
 all: run
 
@@ -20,6 +21,7 @@ help:
 	@echo "make release    - build a2560x-like optimized, faster version"
 	@echo "make clean      - clean-up binaries"
 	@echo "make clean-all  - clean-up binaries and object files"
+	@echo "make mini6502   - build and run a simple 6502 computer"
 
 clean:
 	rm -fv morfeo
@@ -34,8 +36,10 @@ $(musashi_objects): external/m68kconf.h
 	$(MAKE) -C $(musashi_dir)
 
 release: $(musashi_objects)
-	odin build . -no-bounds-check -disable-assert $(build_flags)
+	odin build cmd/a2560x -no-bounds-check -disable-assert $(build_flags) $(build_flags_m68k)
 
 run: $(musashi_objects)
-	odin run   . $(build_flags) -- $(morfeo_args)
+	odin run cmd/a2560x $(build_flags) $(build_flags_m68k) -- $(morfeo_args)
 
+mini6502:
+	odin run mini6502.odin -file $(build_flags)
