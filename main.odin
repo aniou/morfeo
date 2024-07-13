@@ -28,17 +28,6 @@ Config :: struct {
 }
 
 
-show_cpu_speed :: proc(cycles: u32) -> (u32, string) {
-        switch {
-        case cycles > 1000000:
-                return cycles / 1000000, "MHz"
-        case cycles > 1000:
-                return cycles / 100, "kHz"
-        case:
-                return cycles, "Hz"
-        }
-}
-
 read_args :: proc(p: ^platform.Platform) -> (c: ^Config, args_ok: bool = true) {
     payload: string
     ok:      bool
@@ -87,9 +76,10 @@ read_args :: proc(p: ^platform.Platform) -> (c: ^Config, args_ok: bool = true) {
 main_loop :: proc(p: ^platform.Platform) {
 
     loops           := u32(0)
-    debug_ticks     := sdl2.GetTicks()
-    ticks           := debug_ticks       // overkill for 1ms precision?
-    current_ticks   := debug_ticks       // helper variable for time calc
+    ms_elapsed      := u32(0)
+    cpu_ticks       := time.tick_now()      // CPU timer
+    gpu_ticks       := time.tick_now()      // GPU timer
+    debug_ticks     := time.tick_now()      // counter for general emulator timer
     CPU_SPEED       := u32(33000)
     desired_cycles  := CPU_SPEED
     gui.should_close = false
@@ -101,10 +91,12 @@ main_loop :: proc(p: ^platform.Platform) {
 
         // Step 1: execute CPU and measure delays
         //
-        current_ticks = sdl2.GetTicks()
-        if current_ticks > ticks {
-            ms_elapsed := current_ticks - ticks
-            ticks = current_ticks
+    
+        // XXX: move cpu_ticks into cpu's own structure, like for GPU
+        ms_elapsed = u32(time.tick_since(cpu_ticks) / time.Millisecond)
+        if ms_elapsed > 1 {
+            cpu_ticks = time.tick_now()
+
             if ms_elapsed < 5 {
                 desired_cycles = ms_elapsed * CPU_SPEED
             } else {
@@ -137,22 +129,23 @@ main_loop :: proc(p: ^platform.Platform) {
 
         // Step 4: call active GPU to render things
         //         XXX: frames should be ticked at Start Of Frame, thus on ->render 
+        //         XXX: now content is rendered without any limits, move it to conditional
+        //              to conserve some calculation power - now it serves as poor man's 
+        //              performance counter (i.e. number of cycles per second)
+        //         XXX: support two windows and rendering of two monitors at once
         g->render()
 
-        current_ticks = sdl2.GetTicks()
-        if current_ticks >  p.bus.gpu0.last_tick + p.bus.gpu0.delay {
-            p.bus.gpu0.frames += 1
-            p.bus.gpu0.last_tick = current_ticks
+        if time.tick_since(p.bus.gpu0.last_tick) >= p.bus.gpu0.delay {
+            p.bus.gpu0.frames    += 1
+            p.bus.gpu0.last_tick  = time.tick_now()
         }
 
-        if current_ticks >  p.bus.gpu1.last_tick + p.bus.gpu1.delay {
-            p.bus.gpu1.frames += 1
-            p.bus.gpu1.last_tick = current_ticks
+        if time.tick_since(p.bus.gpu1.last_tick) >= p.bus.gpu1.delay {
+            p.bus.gpu1.frames    += 1
+            p.bus.gpu1.last_tick  = time.tick_now()
         }
 
         // Step 5 : draw to screen
-        //
-
         // Step 5a: background
         //
         sdl2.SetRenderDrawColor(gui.renderer, g.bg_color_r, g.bg_color_g, g.bg_color_b, sdl2.ALPHA_OPAQUE)
@@ -188,9 +181,9 @@ main_loop :: proc(p: ^platform.Platform) {
 
         // Step  7: print some information
         loops += 1
-        if sdl2.GetTicks() - debug_ticks > 1000 {
-            debug_ticks  = sdl2.GetTicks()
-            speed, unit := show_cpu_speed(p.cpu.cycles)
+        if time.tick_since(debug_ticks) > time.Second {
+            debug_ticks  = time.tick_now()
+            speed, unit := emu.show_cpu_speed(p.cpu.cycles)
             log.debugf("loops %d cpu cycles %d speed %d %s", loops, p.cpu.cycles, speed, unit)
 
             loops        = 0
