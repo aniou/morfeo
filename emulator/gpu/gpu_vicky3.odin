@@ -3,6 +3,7 @@ package gpu
 import "core:fmt"
 import "core:log"
 import "core:os"
+import "core:time"
 
 import "lib:emu"
 
@@ -152,7 +153,7 @@ vicky3_make :: proc(name: string, id: int) -> ^GPU {
     g.bm0_start_addr      = 0x00 // relative from beginning of vram
     g.bm1_start_addr      = 0x00 // relative from beginning of vram
 
-    g.delay               = 16   // 16 milliseconds for ~60Hz
+    g.delay               = 16 * time.Millisecond  // 16 milliseconds for ~60Hz
 
     // fake init
     //v.mem[MASTER_CTRL_REG_L] = 0x01
@@ -396,17 +397,17 @@ vicky3_write_register :: proc(d: ^GPU_Vicky3, size: emu.Request_Size, addr_orig,
                 case 0x00:
                     d.screen_x_size = 640
                     d.screen_y_size = 480
-                    d.delay         = 16    // for 60Hz
+                    d.delay         = 16  * time.Millisecond   // for 60Hz
                 case 0x01:
                     // something is wrong here
                 case 0x02:
                     d.screen_x_size = 800
                     d.screen_y_size = 600
-                    d.delay         = 16    // for 60Hz
+                    d.delay         = 16  * time.Millisecond   // for 60Hz
                 case 0x03:
                     d.screen_x_size = 640
                     d.screen_y_size = 400
-                    d.delay         = 14    // for 70Hz
+                    d.delay         = 14  * time.Millisecond  // for 70Hz
                 }
 
                 vicky3_recalculate_screen(d)
