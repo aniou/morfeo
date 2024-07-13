@@ -67,6 +67,14 @@ GPU :: struct {
     model: union {GPU_Vicky2, GPU_Vicky3}
 }
 
+// not used - it is a separated approach, alternative to vtable
+// when gpu.render(gpu) is called (or simply render, but we need
+// a way to differentiate calls like 'read')
+//
+// so read_gpu :: proc {switch g in gpu...}
+//    read_bus :: proc {switch b in bus...}
+//    read     :: proc {read_bus, read_gpu} ?
+
 render :: #force_inline proc(gpu: ^GPU) {
     switch g in gpu.model {
     case GPU_Vicky3: vicky3_render_text(g)
