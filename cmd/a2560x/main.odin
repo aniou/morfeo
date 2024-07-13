@@ -78,109 +78,39 @@ main_loop :: proc(p: ^platform.Platform) {
     loops           := u32(0)
     ms_elapsed      := u32(0)
     cpu_ticks       := time.tick_now()      // CPU timer
-    gpu_ticks       := time.tick_now()      // GPU timer
     debug_ticks     := time.tick_now()      // counter for general emulator timer
     CPU_SPEED       := u32(33000)
     desired_cycles  := CPU_SPEED
-    gui.should_close = false
-    g               := p.bus.gpu0 if gui.current_gpu == 0 else p.bus.gpu1
-    sdl2.SetWindowTitle(gui.window, fmt.ctprintf("morfeo: gpu%d", gui.current_gpu))
+    should_close    := false
 
     p.cpu->reset()
-    for !gui.should_close {
+    for !should_close {
 
         // Step 1: execute CPU and measure delays
-        //
         // XXX: move cpu_ticks into cpu's own structure, like for GPU
-        ms_elapsed = u32(time.tick_since(cpu_ticks) / time.Millisecond)
-        if ms_elapsed > 1 {
+        // XXX: that algorithm is terrible, do the proper math...
+        //      btw: typical delay on current imp. is abou 1800 micros.
+        ms_elapsed = u32(time.tick_since(cpu_ticks) / time.Microsecond)
+        if ms_elapsed >= 500 {
             cpu_ticks = time.tick_now()
 
-            if ms_elapsed < 5 {
-                desired_cycles = ms_elapsed * CPU_SPEED
+            if ms_elapsed < 1500 {
+                desired_cycles = CPU_SPEED
             } else {
-                desired_cycles =          5 * CPU_SPEED
+                desired_cycles = 2 * CPU_SPEED
             }
             p.cpu->exec(desired_cycles)
         }
 
         // Step 2: process keyboard in (XXX: do it - mouse)
-        //
-        process_input(p)
+        should_close = render_gui(p)
 
-        // Step 2a: handle GPU switching
-        if gui.switch_gpu {
-            gui.current_gpu = 1          if gui.current_gpu == 0 else 0
-            g               = p.bus.gpu0 if gui.current_gpu == 0 else p.bus.gpu1
-            gui.switch_gpu  = false
-            g.screen_resized = true
-            sdl2.SetWindowTitle(gui.window, fmt.ctprintf("morfeo: gpu%d", gui.current_gpu))
-        }
-
-        // Step 3: handle screen resize
-        //
-        if g.screen_resized {
-                gui.x_size = g.screen_x_size
-                gui.y_size = g.screen_y_size
-                g.screen_resized = false
-                update_window_size()
-        }
-
-        // Step 4: call active GPU to render things
-        //         XXX: support two windows and rendering of two monitors at once
-
-        if time.tick_since(p.bus.gpu0.last_tick) >= p.bus.gpu0.delay {
-            if gui.current_gpu   == 0 do g->render()
-            p.bus.gpu0.frames    += 1
-            p.bus.gpu0.last_tick  = time.tick_now()
-        }
-
-        if time.tick_since(p.bus.gpu1.last_tick) >= p.bus.gpu1.delay {
-            if gui.current_gpu   == 1 do g->render()
-            p.bus.gpu1.frames    += 1
-            p.bus.gpu1.last_tick  = time.tick_now()
-        }
-
-        // Step 5 : draw to screen
-        // Step 5a: background
-        //
-        sdl2.SetRenderDrawColor(gui.renderer, g.bg_color_r, g.bg_color_g, g.bg_color_b, sdl2.ALPHA_OPAQUE)
-        sdl2.RenderClear(gui.renderer)
-
-        // Step 5b: bitmap 0 and 1
-        //
-        if g.bitmap_enabled & g.graphic_enabled {
-            if g.bm0_enabled {
-                sdl2.UpdateTexture(gui.texture_bm0, nil, g.BM0FB, gui.x_size*4)
-                sdl2.RenderCopy(gui.renderer, gui.texture_bm0, nil, nil)
-            }
-            if g.bm1_enabled {
-                sdl2.UpdateTexture(gui.texture_bm1, nil, g.BM1FB, gui.x_size*4)
-                sdl2.RenderCopy(gui.renderer, gui.texture_bm1, nil, nil)
-            }
-        }
-
-        // Step 5c: text
-        //
-        if g.text_enabled {
-            sdl2.UpdateTexture(gui.texture_txt, nil, g.TFB, gui.x_size*4)
-            sdl2.RenderCopy(gui.renderer, gui.texture_txt, nil, nil)
-        }
-
-        // Step 5d: border
-        //
-        if g.border_enabled do draw_border(g)
-
-        // Step  6: present to screen
-        sdl2.RenderPresent(gui.renderer)
-
-
-        // Step  7: print some information
+        // Step  3: print some information
         loops += 1
         if time.tick_since(debug_ticks) > time.Second {
             debug_ticks  = time.tick_now()
             speed, unit := emu.show_cpu_speed(p.cpu.cycles)
-            log.debugf("loops %d cpu cycles %d speed %d %s", loops, p.cpu.cycles, speed, unit)
+            log.debugf("loops %d cpu cycles %d speed %d %s ms_elapsed %d desired_cycles %d", loops, p.cpu.cycles, speed, unit, ms_elapsed, desired_cycles)
 
             loops        = 0
             p.cpu.cycles = 0
@@ -195,16 +125,12 @@ main :: proc() {
     context.logger  = log.create_console_logger(opt = logger_options) 
 
     // init -------------------------------------------------------------
-    when TARGET == "a2560x" {
-        p := platform.a2560x_make()
-    } else {
-        #panic("Unknown TARGET")
-    }
+    p := platform.a2560x_make()
 
     config, ok := read_args(p)
     if !ok do os.exit(1)
 
-    init_sdl(config.gpu_id)
+    init_sdl(p, config.gpu_id)
     
     // running ----------------------------------------------------------
     main_loop(p)
