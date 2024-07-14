@@ -7,6 +7,7 @@ localbus: ^bus.Bus               // global bus pointer, needed by external CPU i
 ctx:      runtime.Context
 
 CPU :: struct {
+    delete: proc(^CPU),
     setpc:  proc(^CPU, u32),
     reset:  proc(^CPU),
     exec: proc(^CPU, u32),

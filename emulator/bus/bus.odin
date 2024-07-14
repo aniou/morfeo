@@ -20,6 +20,7 @@ Bus :: struct {
       id:    int,
     read:    proc(^Bus, emu.Request_Size, u32) -> u32,
    write:    proc(^Bus, emu.Request_Size, u32,     u32),
+  delete:    proc(^Bus),
      pic:    ^pic.PIC,
      ps2:    ^ps2.PS2,
     gpu0:    ^gpu.GPU,

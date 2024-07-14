@@ -43,6 +43,10 @@ a2560x_delete :: proc(p: ^Platform) {
      p.bus.ps2->delete()
     p.bus.ram0->delete()
      p.bus.rtc->delete()
+         p.cpu->delete()
+         p.bus->delete()
+
+    free(p);
     return
 }
 
