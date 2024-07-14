@@ -10,11 +10,11 @@ import "emulator:bus"
 import "emulator:cpu"
 import "emulator:gpu"
 
+import "base:runtime"
 import "core:fmt"
 import "core:log"
 import "core:os"
 import "core:prof/spall"
-import "core:runtime"
 import "core:strconv"
 import "core:time"
 

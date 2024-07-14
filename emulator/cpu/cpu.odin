@@ -1,6 +1,6 @@
 package cpu
 
-import "core:runtime"
+import "base:runtime"
 import "emulator:bus"
 
 localbus: ^bus.Bus               // global bus pointer, needed by external CPU implemntation (musashi)

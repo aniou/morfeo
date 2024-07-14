@@ -1,8 +1,8 @@
 package cpu
 
+import "base:runtime"
 import "core:fmt"
 import "core:log"
-import "core:runtime"
 import "emulator:bus"
 import "emulator:pic"
 
