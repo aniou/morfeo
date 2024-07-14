@@ -77,9 +77,10 @@ Register :: enum {
 
 
 foreign import musashi {
-    "external/Musashi/m68kcpu.o",
-    "external/Musashi/m68kdasm.o", 
-    "external/Musashi/m68kops.o",
+    "../../external/Musashi/m68kcpu.o",
+    "../../external/Musashi/m68kdasm.o", 
+    "../../external/Musashi/m68kops.o",
+    "../../external/Musashi/softfloat/softfloat.o",
 }
 
 @(default_calling_convention="c")
@@ -104,6 +105,7 @@ m68k_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
 
     cpu       := new(CPU)
     cpu.name   = name
+    cpu.delete = m68k_delete
     cpu.setpc  = m68k_setpc
     cpu.reset  = m68k_reset
     cpu.exec   = m68k_exec
@@ -121,6 +123,11 @@ m68k_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     m68k_set_cpu_type(c.type)
 
     return cpu
+}
+
+m68k_delete :: proc (cpu: ^CPU) {
+    free(cpu)
+    return
 }
 
 m68k_setpc :: proc(cpu: ^CPU, address: u32) {

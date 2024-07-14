@@ -12,7 +12,8 @@ build_flags      += -o:speed
 build_flags      += -collection:emulator=emulator
 build_flags      += -collection:lib=lib
 
-build_flags_m68k += -extra-linker-flags:"-L$(musashi_dir) $(musashi_objects)"
+# not needed anymore
+#build_flags_m68k += -print-linker-flags -extra-linker-flags:"-L$(musashi_dir) $(musashi_objects)"
 
 all: run
 
@@ -42,4 +43,4 @@ run: $(musashi_objects)
 	odin run cmd/a2560x $(build_flags) $(build_flags_m68k) -- $(morfeo_args)
 
 mini6502:
-	odin run mini6502.odin -file $(build_flags)
+	odin build cmd/mini6502 -debug $(build_flags)
