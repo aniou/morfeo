@@ -96,7 +96,7 @@ foreign musashi {
 CPU_m68k :: struct {
     using cpu: ^CPU, 
 
-	type:	CPU_type
+    type:   CPU_type
 }
 
 
@@ -131,8 +131,8 @@ m68k_delete :: proc (cpu: ^CPU) {
 }
 
 m68k_setpc :: proc(cpu: ^CPU, address: u32) {
-   	m68k_set_reg(Register.M68K_REG_PC, uint(address))
-	return 
+    m68k_set_reg(Register.M68K_REG_PC, uint(address))
+    return 
 }
 
 
