@@ -36,7 +36,7 @@ gui: GUI
 create_texture :: proc() -> ^sdl2.Texture {
     texture := sdl2.CreateTexture(
                gui.renderer,
-               u32(sdl2.PixelFormatEnum.ARGB8888),      // XXX - I'm not so sure about that
+               sdl2.PixelFormatEnum.ARGB8888,
                sdl2.TextureAccess.STREAMING, 
                gui.x_size, 
                gui.y_size
