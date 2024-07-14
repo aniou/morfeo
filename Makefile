@@ -12,9 +12,6 @@ build_flags      += -o:speed
 build_flags      += -collection:emulator=emulator
 build_flags      += -collection:lib=lib
 
-# not needed anymore
-#build_flags_m68k += -print-linker-flags -extra-linker-flags:"-L$(musashi_dir) $(musashi_objects)"
-
 all: run
 
 help:
@@ -37,10 +34,10 @@ $(musashi_objects): external/m68kconf.h
 	$(MAKE) -C $(musashi_dir)
 
 release: $(musashi_objects)
-	odin build cmd/a2560x -no-bounds-check -disable-assert $(build_flags) $(build_flags_m68k)
+	odin build cmd/a2560x -no-bounds-check -disable-assert $(build_flags)
 
 run: $(musashi_objects)
-	odin run cmd/a2560x $(build_flags) $(build_flags_m68k) -- $(morfeo_args)
+	odin run cmd/a2560x $(build_flags) -- $(morfeo_args)
 
 mini6502:
 	odin build cmd/mini6502 -debug $(build_flags)
