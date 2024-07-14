@@ -499,5 +499,6 @@ m68040_clean :: proc(p: ^PIC) {
 }
 
 pic_delete :: proc(d: ^PIC) {
+    free(d.data)
     free(d)
 }

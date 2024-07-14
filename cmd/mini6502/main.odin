@@ -8,11 +8,11 @@ import "emulator:bus"
 import "emulator:cpu"
 import "emulator:gpu"
 
+import "base:runtime"
 import "core:fmt"
 import "core:log"
 import "core:os"
 import "core:prof/spall"
-import "core:runtime"
 import "core:strconv"
 import "core:time"
 
@@ -66,6 +66,10 @@ read_args :: proc(p: ^platform.Platform) -> (c: ^Config, args_ok: bool = true) {
     }
 
     getargs.destroy(&argp)
+
+    // that one may be redundant in future, it comes from
+    // args := _alloc_command_line_arguments() in os package
+    delete(os.args)
     return
 }
 
@@ -143,6 +147,8 @@ main :: proc() {
     //cleanup_sdl()
     p->delete()
     free(config)
+    log.info("Exiting...")
+    log.destroy_console_logger(context.logger)
     os.exit(0)
 }
 

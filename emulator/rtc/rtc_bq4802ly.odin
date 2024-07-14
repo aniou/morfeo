@@ -89,7 +89,8 @@ bq4802_make :: proc(name: string, pic: ^pic.PIC) -> ^RTC {
     r.write    = bq4802_write
     r.shutdown = false 			// used to stop threads
 
-	if t := thread.create_and_start_with_data(r, worker_proc, context); t != nil {
+	//if t := thread.create_and_start_with_data(r, worker_proc, context); t != nil {
+	if t := thread.create_and_start_with_data(r, worker_proc); t != nil {
 		r.clock = t
     } else {
 		log.errorf("%s bq4802 cannot create clock thread", r.name)
@@ -122,16 +123,21 @@ bq4802_write8 :: proc(r: ^RTC, addr: u32, val: u8) {
 bq4802_delete :: proc(r: ^RTC) {
 	r.shutdown = true
 	thread.join(r.clock)
+    free(r.clock)
     free(r)
 }
 
 worker_proc :: proc(p: rawptr) {
+    	logger_options := log.Options{.Level};
+   		context.logger  = log.create_console_logger(opt = logger_options)
+
         r := transmute(^RTC)p
 		for !r.shutdown {
         	//log.debugf("%s bq4802 tick from thread", r.name)
 			time.sleep(100 * time.Millisecond)
 		}
         log.debugf("%s bq4802 shutdown clock thread", r.name)
+        log.destroy_console_logger(context.logger)
 }
 
 bq4802_clock :: proc(r: ^RTC) {

@@ -21,7 +21,7 @@ Platform   :: struct {
 
 a2560x_make :: proc() -> ^Platform {
     p          := new(Platform)
-    pic        := pic.pic_make("pic0")
+    pic        := pic.pic_make("pic0")          // pic is freed from bus code
     p.bus       = bus.a2560x_make("bus0", pic)
     p.bus.ata0  = ata.pata_make("pata0")        // XXX - update to PIC
     p.bus.gpu0  = gpu.vicky3_make("A", 0)
