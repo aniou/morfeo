@@ -77,9 +77,10 @@ Register :: enum {
 
 
 foreign import musashi {
-    "external/Musashi/m68kcpu.o",
-    "external/Musashi/m68kdasm.o", 
-    "external/Musashi/m68kops.o",
+    "../../external/Musashi/m68kcpu.o",
+    "../../external/Musashi/m68kdasm.o", 
+    "../../external/Musashi/m68kops.o",
+    "../../external/Musashi/softfloat/softfloat.o",
 }
 
 @(default_calling_convention="c")

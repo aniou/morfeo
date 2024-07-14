@@ -11,7 +11,9 @@ musashi_objects  += $(musashi_dir)/softfloat/softfloat.o
 build_flags      += -o:speed
 build_flags      += -collection:emulator=emulator
 build_flags      += -collection:lib=lib
-build_flags      += -extra-linker-flags:"-L$(musashi_dir) $(musashi_objects)"
+
+# not needed anymore, left for reference only
+#build_flags      += -extra-linker-flags:"-L$(musashi_dir) $(musashi_objects)"
 
 all: run
 
