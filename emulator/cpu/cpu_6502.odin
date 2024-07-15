@@ -18,7 +18,7 @@ CPU_6502_type :: enum {
 CPU_m6502 :: struct {
     using cpu: ^CPU, 
 
-	type: CPU_6502_type,
+    type: CPU_6502_type,
     pc: u16,             // Program Counter
     sp: u8,              // Stack Pointer
 
@@ -50,7 +50,7 @@ CPU_m6502 :: struct {
     w0:    u16,       // temporary register
     w1:    u16,       // temporary register (2)
 
-	wdm_mode:	bool
+    wdm_mode:   bool
 }
 
 // XXX - parametrize CPU type!
@@ -134,10 +134,10 @@ m6502_execute :: proc(cpu: ^CPU_m6502) -> (cycles: u32) {
 
     m6502_run_opcode(cpu)
 
-	// XXX: create OP table!
+    // XXX: create OP table!
     //cycles    = op_table[cpu.ir].cycles
     //cycles   += op_table[cpu.ir].p         if px else 0
-	return cycles
+    return cycles
 }
 
 // read byte and return it as low part of word
@@ -158,9 +158,25 @@ read_b :: #force_inline proc (addr: u16) ->  u8 {
     return u8(localbus->read(.bits_8, u32(addr)))
 }
 
+// add unsigned byte to word
 @private
-add_wb :: #force_inline proc (a: u16, b: u8) ->  u16 {
-	return a + u16(b)
+addu_b :: #force_inline proc (a: u16, b: u8) ->  u16 {
+    return a + u16(b)
+}
+
+// add signed byte to word
+@private
+adds_b :: #force_inline proc (a: u16, b: u8) ->  u16 {
+    if b >= 0x80 {
+        return a + u16(b) - 0x100
+    } else {
+        return a + u16(b)
+    }
+}
+
+@private
+set_px :: #force_inline proc (a: u16, b: u16) ->  bool {
+    return ((a & 0xFF00) != (b & 0xFF00))
 }
 
 //             LDA $0800
@@ -174,260 +190,361 @@ mode_Absolute               :: #force_inline proc (using c: ^CPU_m6502) {
 //             JMP ($1234,X)
 @private
 mode_Absolute_X_Indirect    :: #force_inline proc (using c: ^CPU_m6502) {
-	w0	  = read_l( pc+1   )
+    w0    = read_l( pc+1   )
     w0   |= read_h( pc+2   )
-    w0   += add_wb( w0,  x )
+    w0   += addu_b( w0,  x )
     ab    = read_l( w0     )
     ab   |= read_h( w0+1   )
     pc   += 2
 }
+
+//              ORA $1234,X
 @private
-mode_Absolute_X             :: #force_inline proc (using c: ^CPU_m6502) { }
+mode_Absolute_X                :: #force_inline proc (using c: ^CPU_m6502) {
+    ab    = read_l( pc+1   )
+    ab   |= read_h( pc+2   )
+    w0    = ab
+    ab   += addu_b( ab,  x )
+    px    = set_px( ab, w0 )
+    pc   += 2
+}
+
+//              ORA $1234,Y
 @private
-mode_Absolute_Y             :: #force_inline proc (using c: ^CPU_m6502) { }
+mode_Absolute_Y             :: #force_inline proc (using c: ^CPU_m6502) {
+    ab    = read_l( pc+1   )
+    ab   |= read_h( pc+2   )
+    w0    = ab
+    ab   += addu_b( ab,  y )
+    px    = set_px( ab, w0 )
+    pc   += 2
+}
+
+//              JMP ($1234)
 @private
-mode_Absolute_Indirect      :: #force_inline proc (using c: ^CPU_m6502) { }
+mode_Absolute_Indirect      :: #force_inline proc (using c: ^CPU_m6502) { 
+    w0    = read_l( pc+1   )
+    w0   |= read_h( pc+2   )
+    ab    = read_l( w0     )
+    ab   |= read_h( w0+1   )
+    pc   += 2
+}
+
+//              INC
 @private
-mode_Accumulator            :: #force_inline proc (using c: ^CPU_m6502) {                           }
+mode_Accumulator            :: #force_inline proc (using c: ^CPU_m6502) {
+}
+
+//              LDX #$12
 @private
-mode_Immediate              :: #force_inline proc (using c: ^CPU_m6502) { }
+mode_Immediate              :: #force_inline proc (using c: ^CPU_m6502) {
+    pc   += 1
+    ab    = pc
+}
+
+//              SEC
 @private
-mode_Implied                :: #force_inline proc (using c: ^CPU_m6502) {                           }
+mode_Implied                :: #force_inline proc (using c: ^CPU_m6502) {
+}
+
+//              BBR 0,$12,$34       - Rockwell 65C02 and WDC 65C02
 @private
-mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_m6502) { }
+mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_m6502) {
+    pc   += 1
+    w0    = read_l( pc     )        // ZP address to read
+    b0    = read_b( w0     )        // preserve for oper_ processing
+
+    pc   += 1
+    b1    = read_b( pc     )        // relative jump size
+    ab    = adds_b( pc, b1 )        // calculate jump - add signed byte
+    px    = set_px( ab, pc )
+}
+
+//              BNE $10
 @private
-mode_PC_Relative            :: #force_inline proc (using c: ^CPU_m6502) { }
+mode_PC_Relative            :: #force_inline proc (using c: ^CPU_m6502) {
+    pc   += 1
+    b1    = read_b( pc     )        // relative jump size
+    ab    = adds_b( pc, b1 )        // calculate jump - add signed byte
+    px    = set_px( ab, pc )
+}
+
+//              LDA $10
 @private
-mode_ZP                     :: #force_inline proc (using c: ^CPU_m6502) { }
+mode_ZP                     :: #force_inline proc (using c: ^CPU_m6502) {
+    pc   += 1
+    ab    = read_l( pc     )
+}
+
+//              STA ($12,X)
 @private
-mode_ZP_X_Indirect          :: #force_inline proc (using c: ^CPU_m6502) { }
+mode_ZP_X_Indirect          :: #force_inline proc (using c: ^CPU_m6502) {
+    pc   += 1
+    w0    = read_l( pc     )  
+    w0    = addu_b( w0,  x )
+    w0   &= 0x00ff              // ZP wrap
+    ab    = read_l( w0     )
+    ab   |= read_h( w0+1   )
+}
+
+//              ASL $12,X
 @private
-mode_ZP_X                   :: #force_inline proc (using c: ^CPU_m6502) { }
+mode_ZP_X                   :: #force_inline proc (using c: ^CPU_m6502) {
+    pc   += 1
+    ab    = read_l( pc     )  
+    ab    = addu_b( ab,  x )
+    ab   &= 0x00ff              // ZP wrap
+}
+
+//              ASL $12,Y
 @private
-mode_ZP_Y                   :: #force_inline proc (using c: ^CPU_m6502) { }
+mode_ZP_Y                   :: #force_inline proc (using c: ^CPU_m6502) {
+    pc   += 1
+    ab    = read_l( pc     )  
+    ab    = addu_b( ab,  y )
+    ab   &= 0x00ff              // ZP wrap
+}
+
+//              AND ($12)
 @private
-mode_ZP_Indirect            :: #force_inline proc (using c: ^CPU_m6502) { }
+mode_ZP_Indirect            :: #force_inline proc (using c: ^CPU_m6502) {
+    pc   += 1
+    w0    = read_l( pc     )  
+    ab    = read_l( w0     )  
+    ab   |= read_h( w0+1   )  
+}
+
+//              AND ($12),Y
 @private
-mode_ZP_Indirect_Y          :: #force_inline proc (using c: ^CPU_m6502) { }
+mode_ZP_Indirect_Y          :: #force_inline proc (using c: ^CPU_m6502) {
+    pc   += 1
+    w0    = read_l( pc     )  
+    ab    = read_l( w0     )  
+    ab   |= read_h( w0+1   )  
+    w0    = ab
+    ab    = addu_b( ab,  y )
+    px    = set_px( ab, w0 )
+}
+
 
 @private
-oper_ADC					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_ADC                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_AND					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_AND                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_ASL					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_ASL                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_ASL_A					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_ASL_A                  :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBR0					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBR0                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBR1					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBR1                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBR2					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBR2                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBR3					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBR3                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBR4					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBR4                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBR5					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBR5                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBR6					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBR6                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBR7					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBR7                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBS0					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBS0                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBS1					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBS1                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBS2					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBS2                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBS3					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBS3                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBS4					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBS4                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBS5					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBS5                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBS6					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBS6                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BBS7					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BBS7                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BCC					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BCC                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BCS					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BCS                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BEQ					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BEQ                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BIT					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BIT                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BIT_IMM				:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BIT_IMM                :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BMI					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BMI                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BNE					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BNE                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BPL					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BPL                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BRA					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BRA                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BRK					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BRK                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BVC					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BVC                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_BVS					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_BVS                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_CLC					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_CLC                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_CLD					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_CLD                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_CLI					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_CLI                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_CLV					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_CLV                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_CMP					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_CMP                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_CPX					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_CPX                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_CPY					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_CPY                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_DEC					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_DEC                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_DEC_A					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_DEC_A                  :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_DEX					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_DEX                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_DEY					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_DEY                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_EOR					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_EOR                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_ILL1					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_ILL1                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_ILL2					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_ILL2                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_ILL3					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_ILL3                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_INC					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_INC                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_INC_A					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_INC_A                  :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_INX					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_INX                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_INY					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_INY                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_JMP					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_JMP                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_JSR					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_JSR                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_LDA					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_LDA                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_LDX					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_LDX                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_LDY					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_LDY                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_LSR					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_LSR                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_LSR_A					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_LSR_A                  :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_NOP					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_NOP                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_ORA					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_ORA                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_PHA					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_PHA                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_PHP					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_PHP                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_PHX					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_PHX                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_PHY					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_PHY                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_PLA					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_PLA                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_PLP					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_PLP                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_PLX					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_PLX                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_PLY					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_PLY                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_RMB0					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_RMB0                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_RMB1					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_RMB1                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_RMB2					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_RMB2                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_RMB3					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_RMB3                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_RMB4					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_RMB4                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_RMB5					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_RMB5                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_RMB6					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_RMB6                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_RMB7					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_RMB7                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_ROL					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_ROL                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_ROL_A					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_ROL_A                  :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_ROR					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_ROR                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_ROR_A					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_ROR_A                  :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_RTI					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_RTI                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_RTS					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_RTS                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_SBC					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_SBC                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_SEC					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_SEC                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_SED					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_SED                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_SEI					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_SEI                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_SMB0					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_SMB0                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_SMB1					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_SMB1                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_SMB2					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_SMB2                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_SMB3					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_SMB3                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_SMB4					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_SMB4                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_SMB5					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_SMB5                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_SMB6					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_SMB6                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_SMB7					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_SMB7                   :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_STA					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_STA                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_STP					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_STP                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_STX					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_STX                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_STY					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_STY                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_STZ					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_STZ                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_TAX					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_TAX                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_TAY					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_TAY                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_TRB					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_TRB                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_TSB					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_TSB                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_TSX					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_TSX                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_TXA					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_TXA                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_TXS					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_TXS                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_TYA					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_TYA                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_WAI					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_WAI                    :: #force_inline proc (using c: ^CPU_m6502) { }
 @private
-oper_WDM					:: #force_inline proc (using c: ^CPU_m6502) { }
+oper_WDM                    :: #force_inline proc (using c: ^CPU_m6502) { }
 
 
 
