@@ -179,17 +179,15 @@ set_px :: #force_inline proc (a: u16, b: u16) ->  bool {
     return ((a & 0xFF00) != (b & 0xFF00))
 }
 
-//             LDA $0800
 @private
-mode_Absolute               :: #force_inline proc (using c: ^CPU_m6502) { 
+mode_Absolute            :: #force_inline proc (using c: ^CPU_m6502) { // LDA $0800
     ab    = read_l( pc+1 )
     ab   |= read_h( pc+2 )
     pc   += 2
 }
 
-//             JMP ($1234,X)
 @private
-mode_Absolute_X_Indirect    :: #force_inline proc (using c: ^CPU_m6502) {
+mode_Absolute_X_Indirect :: #force_inline proc (using c: ^CPU_m6502) { // JMP ($1234,X)
     w0    = read_l( pc+1   )
     w0   |= read_h( pc+2   )
     w0   += addu_b( w0,  x )
@@ -198,9 +196,8 @@ mode_Absolute_X_Indirect    :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 2
 }
 
-//              ORA $1234,X
 @private
-mode_Absolute_X                :: #force_inline proc (using c: ^CPU_m6502) {
+mode_Absolute_X          :: #force_inline proc (using c: ^CPU_m6502) { // ORA $1234,X
     ab    = read_l( pc+1   )
     ab   |= read_h( pc+2   )
     w0    = ab
@@ -209,9 +206,8 @@ mode_Absolute_X                :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 2
 }
 
-//              ORA $1234,Y
 @private
-mode_Absolute_Y             :: #force_inline proc (using c: ^CPU_m6502) {
+mode_Absolute_Y          :: #force_inline proc (using c: ^CPU_m6502) { // ORA $1234,Y
     ab    = read_l( pc+1   )
     ab   |= read_h( pc+2   )
     w0    = ab
@@ -220,9 +216,8 @@ mode_Absolute_Y             :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 2
 }
 
-//              JMP ($1234)
 @private
-mode_Absolute_Indirect      :: #force_inline proc (using c: ^CPU_m6502) { 
+mode_Absolute_Indirect   :: #force_inline proc (using c: ^CPU_m6502) { // JMP ($1234)
     w0    = read_l( pc+1   )
     w0   |= read_h( pc+2   )
     ab    = read_l( w0     )
@@ -230,26 +225,22 @@ mode_Absolute_Indirect      :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 2
 }
 
-//              INC
 @private
-mode_Accumulator            :: #force_inline proc (using c: ^CPU_m6502) {
+mode_Accumulator         :: #force_inline proc (using c: ^CPU_m6502) { // INC
 }
 
-//              LDX #$12
 @private
-mode_Immediate              :: #force_inline proc (using c: ^CPU_m6502) {
+mode_Immediate           :: #force_inline proc (using c: ^CPU_m6502) { // LDX #$12
     pc   += 1
     ab    = pc
 }
 
-//              SEC
 @private
-mode_Implied                :: #force_inline proc (using c: ^CPU_m6502) {
+mode_Implied             :: #force_inline proc (using c: ^CPU_m6502) { // SEC
 }
 
-//              BBR 0,$12,$34       - Rockwell 65C02 and WDC 65C02
 @private
-mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_m6502) {
+mode_ZP_and_Relative     :: #force_inline proc (using c: ^CPU_m6502) { // BBR 0,$12,$34
     pc   += 1
     w0    = read_l( pc     )        // ZP address to read
     b0    = read_b( w0     )        // preserve for oper_ processing
@@ -260,25 +251,22 @@ mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_m6502) {
     px    = set_px( ab, pc )
 }
 
-//              BNE $10
 @private
-mode_PC_Relative            :: #force_inline proc (using c: ^CPU_m6502) {
+mode_PC_Relative         :: #force_inline proc (using c: ^CPU_m6502) { // BNE $10
     pc   += 1
     b1    = read_b( pc     )        // relative jump size
     ab    = adds_b( pc, b1 )        // calculate jump - add signed byte
     px    = set_px( ab, pc )
 }
 
-//              LDA $10
 @private
-mode_ZP                     :: #force_inline proc (using c: ^CPU_m6502) {
+mode_ZP                  :: #force_inline proc (using c: ^CPU_m6502) { // LDA $10
     pc   += 1
     ab    = read_l( pc     )
 }
 
-//              STA ($12,X)
 @private
-mode_ZP_X_Indirect          :: #force_inline proc (using c: ^CPU_m6502) {
+mode_ZP_X_Indirect       :: #force_inline proc (using c: ^CPU_m6502) { // STA ($12,X)
     pc   += 1
     w0    = read_l( pc     )  
     w0    = addu_b( w0,  x )
@@ -287,36 +275,32 @@ mode_ZP_X_Indirect          :: #force_inline proc (using c: ^CPU_m6502) {
     ab   |= read_h( w0+1   )
 }
 
-//              ASL $12,X
 @private
-mode_ZP_X                   :: #force_inline proc (using c: ^CPU_m6502) {
+mode_ZP_X                :: #force_inline proc (using c: ^CPU_m6502) { // ASL $12,X
     pc   += 1
     ab    = read_l( pc     )  
     ab    = addu_b( ab,  x )
     ab   &= 0x00ff              // ZP wrap
 }
 
-//              ASL $12,Y
 @private
-mode_ZP_Y                   :: #force_inline proc (using c: ^CPU_m6502) {
+mode_ZP_Y                :: #force_inline proc (using c: ^CPU_m6502) { // ASL $12,Y
     pc   += 1
     ab    = read_l( pc     )  
     ab    = addu_b( ab,  y )
     ab   &= 0x00ff              // ZP wrap
 }
 
-//              AND ($12)
 @private
-mode_ZP_Indirect            :: #force_inline proc (using c: ^CPU_m6502) {
+mode_ZP_Indirect         :: #force_inline proc (using c: ^CPU_m6502) { // AND ($12)
     pc   += 1
     w0    = read_l( pc     )  
     ab    = read_l( w0     )  
     ab   |= read_h( w0+1   )  
 }
 
-//              AND ($12),Y
 @private
-mode_ZP_Indirect_Y          :: #force_inline proc (using c: ^CPU_m6502) {
+mode_ZP_Indirect_Y       :: #force_inline proc (using c: ^CPU_m6502) { // AND ($12),Y
     pc   += 1
     w0    = read_l( pc     )  
     ab    = read_l( w0     )  
