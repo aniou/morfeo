@@ -140,33 +140,57 @@ m6502_execute :: proc(cpu: ^CPU_m6502) -> (cycles: u32) {
     return cycles
 }
 
+// --------------------------------------------------------------------
+// procedures for memory transfer - there are two
+// of any kind, addresed by 16 a 8-bit addresses
+// XXX: maybe such conversion should be made on bus
+// level?
+
 // read byte and return it as low part of word
-@private
-read_l :: #force_inline proc (addr: u16) -> u16 {
+read_lw :: #force_inline proc (addr: u16) -> u16 {
     return u16(localbus->read(.bits_8, u32(addr)))
 }
 
+read_lb :: #force_inline proc (addr:  u8) -> u16 {
+    return u16(localbus->read(.bits_8, u32(addr)))
+}
+
+read_l  :: proc {read_lw, read_lb}
+
 // read byte and return it as high part of word
-@private
-read_h :: #force_inline proc (addr: u16) -> u16 {
+read_hw :: #force_inline proc (addr: u16) -> u16 {
     return u16(localbus->read(.bits_8, u32(addr))) << 8
 }
 
+read_hb :: #force_inline proc (addr:  u8) -> u16 {
+    return u16(localbus->read(.bits_8, u32(addr))) << 8
+}
+
+read_h  :: proc {read_hw, read_hb}
+
 // just read read byte and return it...
-@private
-read_b :: #force_inline proc (addr: u16) ->  u8 {
+read_bw :: #force_inline proc (addr: u16) ->  u8 {
     return u8(localbus->read(.bits_8, u32(addr)))
 }
 
-// add unsigned byte to word
-@private
-addu_b :: #force_inline proc (a: u16, b: u8) ->  u16 {
+read_bb :: #force_inline proc (addr:  u8) ->  u8 {
+    return u8(localbus->read(.bits_8, u32(addr)))
+}
+
+read_b  :: proc {read_bw, read_bb}
+
+// add unsigned byte to word or byte
+addu_w :: #force_inline proc (a: u16, b: u8) ->  u16 {
     return a + u16(b)
 }
 
+addu_b :: #force_inline proc (a: u8, b: u8) ->  u8 {
+    return a + b
+}
+
+
 // add signed byte to word
-@private
-adds_b :: #force_inline proc (a: u16, b: u8) ->  u16 {
+adds_w :: #force_inline proc (a: u16, b: u8) ->  u16 {
     if b >= 0x80 {
         return a + u16(b) - 0x100
     } else {
@@ -174,13 +198,11 @@ adds_b :: #force_inline proc (a: u16, b: u8) ->  u16 {
     }
 }
 
-@private
 set_px :: #force_inline proc (a: u16, b: u16) ->  bool {
     return ((a & 0xFF00) != (b & 0xFF00))
 }
 
 //             LDA $0800
-@private
 mode_Absolute               :: #force_inline proc (using c: ^CPU_m6502) { 
     ab    = read_l( pc+1 )
     ab   |= read_h( pc+2 )
@@ -188,40 +210,36 @@ mode_Absolute               :: #force_inline proc (using c: ^CPU_m6502) {
 }
 
 //             JMP ($1234,X)
-@private
 mode_Absolute_X_Indirect    :: #force_inline proc (using c: ^CPU_m6502) {
     w0    = read_l( pc+1   )
     w0   |= read_h( pc+2   )
-    w0   += addu_b( w0,  x )
+    w0   += addu_w( w0,  x )
     ab    = read_l( w0     )
     ab   |= read_h( w0+1   )
     pc   += 2
 }
 
 //              ORA $1234,X
-@private
 mode_Absolute_X                :: #force_inline proc (using c: ^CPU_m6502) {
     ab    = read_l( pc+1   )
     ab   |= read_h( pc+2   )
     w0    = ab
-    ab   += addu_b( ab,  x )
+    ab   += addu_w( ab,  x )
     px    = set_px( ab, w0 )
     pc   += 2
 }
 
 //              ORA $1234,Y
-@private
 mode_Absolute_Y             :: #force_inline proc (using c: ^CPU_m6502) {
     ab    = read_l( pc+1   )
     ab   |= read_h( pc+2   )
     w0    = ab
-    ab   += addu_b( ab,  y )
+    ab   += addu_w( ab,  y )
     px    = set_px( ab, w0 )
     pc   += 2
 }
 
 //              JMP ($1234)
-@private
 mode_Absolute_Indirect      :: #force_inline proc (using c: ^CPU_m6502) { 
     w0    = read_l( pc+1   )
     w0   |= read_h( pc+2   )
@@ -231,12 +249,10 @@ mode_Absolute_Indirect      :: #force_inline proc (using c: ^CPU_m6502) {
 }
 
 //              INC
-@private
 mode_Accumulator            :: #force_inline proc (using c: ^CPU_m6502) {
 }
 
 //              LDX #$12
-@private
 mode_Immediate              :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 1
     ab    = pc
@@ -256,7 +272,7 @@ mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_m6502) {
 
     pc   += 1
     b1    = read_b( pc     )        // relative jump size
-    ab    = adds_b( pc, b1 )        // calculate jump - add signed byte
+    ab    = adds_w( pc, b1 )        // calculate jump - add signed byte
     px    = set_px( ab, pc )
 }
 
@@ -265,7 +281,7 @@ mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_m6502) {
 mode_PC_Relative            :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 1
     b1    = read_b( pc     )        // relative jump size
-    ab    = adds_b( pc, b1 )        // calculate jump - add signed byte
+    ab    = adds_w( pc, b1 )        // calculate jump - add signed byte
     px    = set_px( ab, pc )
 }
 
@@ -280,11 +296,11 @@ mode_ZP                     :: #force_inline proc (using c: ^CPU_m6502) {
 @private
 mode_ZP_X_Indirect          :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 1
-    w0    = read_l( pc     )  
-    w0    = addu_b( w0,  x )
-    w0   &= 0x00ff              // ZP wrap
-    ab    = read_l( w0     )
-    ab   |= read_h( w0+1   )
+    b0    = read_b( pc     )  
+    b0    = addu_b( b0,  x )
+    ab    = read_l( b0     )
+    b0   += 1
+    ab   |= read_h( b0     )
 }
 
 //              ASL $12,X
@@ -292,7 +308,7 @@ mode_ZP_X_Indirect          :: #force_inline proc (using c: ^CPU_m6502) {
 mode_ZP_X                   :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 1
     ab    = read_l( pc     )  
-    ab    = addu_b( ab,  x )
+    ab    = addu_w( ab,  x )
     ab   &= 0x00ff              // ZP wrap
 }
 
@@ -301,7 +317,7 @@ mode_ZP_X                   :: #force_inline proc (using c: ^CPU_m6502) {
 mode_ZP_Y                   :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 1
     ab    = read_l( pc     )  
-    ab    = addu_b( ab,  y )
+    ab    = addu_w( ab,  y )
     ab   &= 0x00ff              // ZP wrap
 }
 
@@ -322,7 +338,7 @@ mode_ZP_Indirect_Y          :: #force_inline proc (using c: ^CPU_m6502) {
     ab    = read_l( w0     )  
     ab   |= read_h( w0+1   )  
     w0    = ab
-    ab    = addu_b( ab,  y )
+    ab    = addu_w( ab,  y )
     px    = set_px( ab, w0 )
 }
 
