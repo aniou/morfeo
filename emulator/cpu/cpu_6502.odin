@@ -188,6 +188,17 @@ addu_b :: #force_inline proc (a: u8, b: u8) ->  u8 {
     return a + b
 }
 
+// special form of unsigned add, "low part only": adding without carry, 
+// - ZP, X
+// - ZP, Y
+// - buggy behaviour of NMOS JMP ($1234)
+addu_l :: #force_inline proc (a: u16, b: u8) -> (result: u16) {
+    result  = a & 0xff00   // preserve high byte
+         a += b
+         a  = a & 0x00ff   // wrapped, sum w/o carry 
+    result |= a
+}
+
 
 // add signed byte to word
 adds_w :: #force_inline proc (a: u16, b: u8) ->  u16 {
@@ -203,56 +214,89 @@ set_px :: #force_inline proc (a: u16, b: u16) ->  bool {
 }
 
 //             LDA $0800
+@private
 mode_Absolute               :: #force_inline proc (using c: ^CPU_m6502) { 
-    ab    = read_l( pc+1 )
-    ab   |= read_h( pc+2 )
-    pc   += 2
+    pc   += 1
+    ab    = read_l( pc     )
+    ab   |= read_h( pc+1   )
+    pc   += 1
 }
 
 //             JMP ($1234,X)
+@private
 mode_Absolute_X_Indirect    :: #force_inline proc (using c: ^CPU_m6502) {
-    w0    = read_l( pc+1   )
-    w0   |= read_h( pc+2   )
-    w0   += addu_w( w0,  x )
+    pc   += 1
+    w0    = read_l( pc     )
+    w0   |= read_h( pc+1   )
+    w0    = addu_w( w0,  x )
     ab    = read_l( w0     )
     ab   |= read_h( w0+1   )
-    pc   += 2
+    pc   += 1
 }
 
 //              ORA $1234,X
+@private
 mode_Absolute_X                :: #force_inline proc (using c: ^CPU_m6502) {
-    ab    = read_l( pc+1   )
-    ab   |= read_h( pc+2   )
+    pc   += 1
+    ab    = read_l( pc     )
+    ab   |= read_h( pc+1   )
     w0    = ab
-    ab   += addu_w( ab,  x )
+    ab    = addu_w( ab,  x )
     px    = set_px( ab, w0 )
-    pc   += 2
+    pc   += 1
 }
 
 //              ORA $1234,Y
+@private
 mode_Absolute_Y             :: #force_inline proc (using c: ^CPU_m6502) {
-    ab    = read_l( pc+1   )
-    ab   |= read_h( pc+2   )
+    pc   += 1
+    ab    = read_l( pc     )
+    ab   |= read_h( pc+1   )
     w0    = ab
-    ab   += addu_w( ab,  y )
+    ab    = addu_w( ab,  y )
     px    = set_px( ab, w0 )
-    pc   += 2
+    pc   += 1
 }
 
+// Note that on the 65C816, as on the 65C02, (absolute) addressing does not
+// wrap at a page boundary, i.e. for a JMP ($12FF) the low byte of the
+// destination address is taken from $12FF and the high byte of the destination
+// address is taken from $1300. On the NMOS 6502, (absolute) addressing did
+// wrap on a page boundary, which was unintentional (i.e. a bug); there, a JMP
+// ($12FF) took the low byte of the destination address from $12FF but took the
+// high byte of the destination address from $1200 (rather than $1300) [65c816opcodes]
+//
 //              JMP ($1234)
+@private
 mode_Absolute_Indirect      :: #force_inline proc (using c: ^CPU_m6502) { 
-    w0    = read_l( pc+1   )
-    w0   |= read_h( pc+2   )
+    pc   += 1
+    w0    = read_l( pc     )
+    w0   |= read_h( pc+1   )
     ab    = read_l( w0     )
     ab   |= read_h( w0+1   )
-    pc   += 2
+    pc   += 1
+}
+
+//              JMP ($1234) - buggy NMOS version
+@private
+mode_Absolute_Indirect_NMOS :: #force_inline proc (using c: ^CPU_m6502) { 
+    pc   += 1
+    w0    = read_l( pc     )
+    w0   |= read_h( pc+1   )
+
+    ab    = read_l( w0     )
+    w0    = addu_l( w0,  1 )        // special case - page wrap 
+    ab   |= read_h( w0     )
+    pc   += 1
 }
 
 //              INC
+@private
 mode_Accumulator            :: #force_inline proc (using c: ^CPU_m6502) {
 }
 
 //              LDX #$12
+@private
 mode_Immediate              :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 1
     ab    = pc
@@ -299,8 +343,7 @@ mode_ZP_X_Indirect          :: #force_inline proc (using c: ^CPU_m6502) {
     b0    = read_b( pc     )  
     b0    = addu_b( b0,  x )
     ab    = read_l( b0     )
-    b0   += 1
-    ab   |= read_h( b0     )
+    ab   |= read_h( b0+1   )
 }
 
 //              ASL $12,X
@@ -308,35 +351,35 @@ mode_ZP_X_Indirect          :: #force_inline proc (using c: ^CPU_m6502) {
 mode_ZP_X                   :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 1
     ab    = read_l( pc     )  
-    ab    = addu_w( ab,  x )
-    ab   &= 0x00ff              // ZP wrap
+    ab    = addu_l( ab,  x )        // add to low byte only, with page wrap
 }
 
 //              ASL $12,Y
+//
+// XXX: maybe I should provide add with/without carry, like in cpu?
 @private
 mode_ZP_Y                   :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 1
     ab    = read_l( pc     )  
-    ab    = addu_w( ab,  y )
-    ab   &= 0x00ff              // ZP wrap
+    ab    = addu_l( ab,  y )        // add to low byte only, with page wrap
 }
 
 //              AND ($12)
 @private
 mode_ZP_Indirect            :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 1
-    w0    = read_l( pc     )  
-    ab    = read_l( w0     )  
-    ab   |= read_h( w0+1   )  
+    b0    = read_l( pc     )
+    ab    = read_l( b0     )
+    ab   |= read_h( b0+1   )
 }
 
 //              AND ($12),Y
 @private
 mode_ZP_Indirect_Y          :: #force_inline proc (using c: ^CPU_m6502) {
     pc   += 1
-    w0    = read_l( pc     )  
-    ab    = read_l( w0     )  
-    ab   |= read_h( w0+1   )  
+    b0    = read_l( pc     )
+    ab    = read_l( b0     )
+    ab   |= read_h( b0+1   )
     w0    = ab
     ab    = addu_w( ab,  y )
     px    = set_px( ab, w0 )
