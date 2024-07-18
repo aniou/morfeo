@@ -266,10 +266,10 @@ https://www.masswerk.at/6502/6502_instruction_set.html
 [3] Branch offsets are signed 8-bit values, -128 ... +127, negative offsets in two's complement.
     Page transitions may occur and add an extra cycle to the exucution. 
 */
-
+   
+//
 // CPU: all
-// 
-//                OPC $LLHH         operand is address $HHLL [1]
+// OPC $LLHH      operand is address $HHLL [1]
 mode_Absolute               :: #force_inline proc (using c: ^CPU_6502) { 
     pc   += 1
     ab    = read_l( pc     )
@@ -277,10 +277,10 @@ mode_Absolute               :: #force_inline proc (using c: ^CPU_6502) {
     ab   |= read_h( pc     )
 }
 
-// CPU: all, except MOS 6502
 //
-//                OPC ($LLHH, X)       operand is address; effective address 
-//                                     is word in (HHLL + X), inc. with carry: C.w($HHLL + X)
+// CPU: all, except MOS 6502
+// OPC ($LLHH,X)  operand is address; 
+//                effective address is word in (HHLL+X), inc. with carry: C.w($HHLL+X)
 mode_Absolute_X_Indirect       :: #force_inline proc (using c: ^CPU_6502) {
     pc   += 1
     w0    = read_l( pc     )
@@ -292,14 +292,15 @@ mode_Absolute_X_Indirect       :: #force_inline proc (using c: ^CPU_6502) {
 }
 
 // CPU: all
+// OPC $LLHH,X    operand is address; 
+//                effective address is address incremented by X with carry [2]
 //
 // MOS 6502: The value at the specified address, ignoring the addressing 
 // mode's X offset, is read (and discarded) before the final address is read. 
-// This may cause side effects in I/O registers: XXX - implement that variant
+// This may cause side effects in I/O registers 
 //
+// XXX - implement that variant
 //
-//                OPC $LLHH,X          operand is address; effective address 
-//                                     is address incremented by X with carry [2]
 mode_Absolute_X                :: #force_inline proc (using c: ^CPU_6502) {
     pc   += 1
     ab    = read_l( pc     )
@@ -310,14 +311,14 @@ mode_Absolute_X                :: #force_inline proc (using c: ^CPU_6502) {
     px    = test_p( ab, w0 )
 }
 
+//
 // CPU: all
+// OPC $LLHH,Y    operand is address; 
+//                effective address is address incremented by Y with carry [2]
 //
 // MOS 6502: The value at the specified address, ignoring the addressing 
 // mode's X offset, is read (and discarded) before the final address is read. 
 // This may cause side effects in I/O registers: XXX - implement that variant
-//
-//                OPC $LLHH,Y          operand is address; effective address 
-//                                     is address incremented by Y with carry [2]
 mode_Absolute_Y                :: #force_inline proc (using c: ^CPU_6502) {
     pc   += 1
     ab    = read_l( pc     )
@@ -328,18 +329,20 @@ mode_Absolute_Y                :: #force_inline proc (using c: ^CPU_6502) {
     px    = test_p( ab, w0 )
 }
 
+//
+// CPU: all, except MOS 6502
+// OPC ($LLHH)    operand is address; 
+//                effective address is contents of word at address: C.w($HHLL)
+//
 // Note that on the 65C816, as on the 65C02, (absolute) addressing does not
 // wrap at a page boundary, i.e. for a JMP ($12FF) the low byte of the
 // destination address is taken from $12FF and the high byte of the destination
 // address is taken from $1300. On the NMOS 6502, (absolute) addressing did
 // wrap on a page boundary, which was unintentional (i.e. a bug); there, a JMP
 // ($12FF) took the low byte of the destination address from $12FF but took the
-// high byte of the destination address from $1200 (rather than $1300) [65c816opcodes]
-
-// CPU: all, except MOS 6502
+// high byte of the destination address from $1200 (rather than $1300) 
+// [65c816opcodes]
 //
-//                OPC ($LLHH)       operand is address; effective address is 
-//                                  contents of word at address: C.w($HHLL)
 mode_Absolute_Indirect      :: #force_inline proc (using c: ^CPU_6502) { 
     pc   += 1
     w0    = read_l( pc     )
@@ -350,13 +353,14 @@ mode_Absolute_Indirect      :: #force_inline proc (using c: ^CPU_6502) {
     ab   |= read_h( w0+1   )
 }
 
-// CPU: only MOS 6502 
 //
-//              
-//                OPC ($LLHH) v2    operand is address; effective address is 
-//                                  contents of word at address: C.w($HHLL)
-//                                  BUT LL is incremented without carry set,
-//                                  C.w($12ff) and C.w($1200) not C.w($1300)
+// CPU: only MOS 6502 
+// OPC ($LLHH)    operand is address; 
+//                effective address is contents of word at address: C.w($HHLL)
+//                BUT LL is incremented without carry set,
+//                C.w($12ff) and C.w($1200) not C.w($1300)
+//
+//                It is a known bug in MOS 6502 family
 mode_Absolute_Indirect_MOS  :: #force_inline proc (using c: ^CPU_6502) { 
     pc   += 1
     w0    = read_l( pc     )
@@ -368,33 +372,31 @@ mode_Absolute_Indirect_MOS  :: #force_inline proc (using c: ^CPU_6502) {
     ab   |= read_h( w0     )
 }
 
+//
 // CPU: all
-// 
-//                OPC A             operand is AC (implied single byte instruction)
+// OPC A          operand is AC (implied single byte instruction)
 mode_Accumulator            :: #force_inline proc (using c: ^CPU_6502) {
 }
 
 
-// CPU: all
 //
-//                OPC #$BB          operand is byte BB
+// CPU: all
+// OPC #$BB       operand is byte BB
 mode_Immediate              :: #force_inline proc (using c: ^CPU_6502) {
     pc   += 1
     ab    = pc
 }
 
-// CPU: all
 //
-//                OPC               operand implied
+// CPU: all
+// OPC            operand implied
 mode_Implied                :: #force_inline proc (using c: ^CPU_6502) {
 }
 
-// CPU: R65C02, CSG 65CE02, WDC 65C02S
 //
-//                OPC OP, LL, BB    OP denotes bit number to check
-//                                  LL is a ZP address to check
-//                                  BB denotes signed relative branch, 
-//                                  calculated from current PC
+// CPU: R65C02, CSG 65CE02, WDC 65C02S
+// OPC OP,LL,BB   OP denotes bit number to check LL is a ZP address to check
+//                BB denotes signed relative branch, calculated from current PC
 mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_6502) {
     pc   += 1
     w0    = read_l( pc     )        // ZP address to read
@@ -407,9 +409,9 @@ mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_6502) {
 }
 
 
-// CPU: all
 //
-//                OPC $BB           branch target is PC + signed offset BB [3]
+// CPU: all
+// OPC $BB       branch target is PC + signed offset BB [3]
 mode_PC_Relative            :: #force_inline proc (using c: ^CPU_6502) {
     pc   += 1
     b1    = read_b( pc     )        // relative jump size
@@ -421,7 +423,6 @@ mode_PC_Relative            :: #force_inline proc (using c: ^CPU_6502) {
 // CPU: all
 // OPC $LL        operand is zeropage address, hi-byte is zero address 
 //                $00LL      data 
-//
 mode_ZP                     :: #force_inline proc (using c: ^CPU_6502) {
     pc   += 1
     ab    = read_l( pc     )
@@ -432,7 +433,6 @@ mode_ZP                     :: #force_inline proc (using c: ^CPU_6502) {
 // OPC ($LL,X)    operand is zeropage address; effective address is word 
 //                $00LL+X    data lo
 //                $00LL+X+1  data hi
-//
 mode_ZP_X_Indirect          :: #force_inline proc (using c: ^CPU_6502) {
     pc   += 1
     b0    = read_b( pc     )  
@@ -441,32 +441,30 @@ mode_ZP_X_Indirect          :: #force_inline proc (using c: ^CPU_6502) {
     ab   |= read_h( b0+1   )
 }
 
-// CPU: all
 //
-//              OPC $LL,X           operand is zeropage address; 
-//                                  effective address is address 
-//                                  incremented by X without carry [2]
+// CPU: all
+// OPC $LL,X     operand is zeropage address; 
+//               effective address is address incremented by X without carry [2]
 mode_ZP_X                   :: #force_inline proc (using c: ^CPU_6502) {
     pc   += 1
     ab    = read_l( pc     )  
     ab    = addu_l( ab,  x )        // add to low byte only, with page wrap
 }
 
-// CPU: all
 //
-//              OPC $LL,Y           operand is zeropage address; 
-//                                  effective address is address 
-//                                  incremented by Y without carry [2]
+// CPU: all
+// OPC $LL,Y      operand is zeropage address; 
+//                effective address is address incremented by Y without carry [2]
 mode_ZP_Y                   :: #force_inline proc (using c: ^CPU_6502) {
     pc   += 1
     ab    = read_l( pc     )  
     ab    = addu_l( ab,  y )        // add to low byte only, with page wrap
 }
 
-// CPU: all, except MOS 6502
 //
-//                OPC ($LL)         operand is zeropage address; effective address 
-//                                  is word in (LL):  C.w($00LL)
+// CPU: all, except MOS 6502
+// OPC ($LL)      operand is zeropage address; 
+//                effective address is word in (LL):  C.w($00LL)
 mode_ZP_Indirect            :: #force_inline proc (using c: ^CPU_6502) {
     pc   += 1
     b0    = read_b( pc     )
@@ -474,11 +472,11 @@ mode_ZP_Indirect            :: #force_inline proc (using c: ^CPU_6502) {
     ab   |= read_h( b0+1   )
 }
 
-// CPU: all
 //
-//                OPC ($LL),Y       operand is zeropage address; effective address 
-//                                  is word in (LL, LL + 1) incremented by Y with 
-//                                  carry: C.w($00LL) + Y
+// CPU: all
+// OPC ($LL),Y    operand is zeropage address; 
+//                effective address is word in (LL, LL + 1) 
+//                incremented by Y with carry: C.w($00LL) + Y
 mode_ZP_Indirect_Y          :: #force_inline proc (using c: ^CPU_6502) {
     pc   += 1
     b0    = read_b( pc     )
@@ -489,8 +487,11 @@ mode_ZP_Indirect_Y          :: #force_inline proc (using c: ^CPU_6502) {
     px    = test_p( ab, w0 )
 }
 
+// ----------------------------------------------------------------------------
+// XXX: opcodes routines should be moved to separate files for testing, or only 
+// case / execute part of them?
 
-@private
+
 oper_ADC                    :: #force_inline proc (using c: ^CPU_6502) { }
 
 oper_AND                    :: #force_inline proc (using c: ^CPU_6502) {
@@ -773,6 +774,18 @@ oper_TAY                    :: #force_inline proc (using c: ^CPU_6502) {
     Z     = test_z( y )
     pc   += 1
 }
+
+// test for future 65c816
+/*   
+oper_TAY                    :: #force_inline proc (using c: ^CPU_6502) { 
+    if 
+    y     = a
+    N     = test_n( y )
+    Z     = test_z( y )
+    pc   += 1
+}
+*/
+
 
 @private
 oper_TRB                    :: #force_inline proc (using c: ^CPU_6502) { }
