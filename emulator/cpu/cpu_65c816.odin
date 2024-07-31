@@ -14,9 +14,13 @@ import "core:prof/spall"
 byte :: true
 word :: false
 
+// there are two options
+// a) two different register types and procedure overloadin (add/load)
+// b) explicite different procedures for operations
+
 DataRegister_65C816 :: struct {
      val:    u16,    // register value
-    high:    u16,    // high byte of register value
+     arg:    u16,    // temporary argument
     size:    bool,   // 0 == 16 bit, 1 == 8 bit
 }
 
@@ -74,11 +78,8 @@ CPU_65C816 :: struct {
     ppc:    u16,       // previous PC - for debug purposes
     cycle:  int,       // number of cycless for this command
 
-    f0:     bool,      // temporary flag
-    b0:     u8,        // temporary register
-    b1:     u8,        // secondary temporary register
-    w0:     u16,       // temporary register
-    w1:     u16,       // temporary register (2)
+    data0:  u16,       // temporary register
+    data1:  u16,       // temporary register (2)
 }
 
 // XXX - parametrize CPU type!
@@ -166,7 +167,7 @@ w65C816_exec :: proc(cpu: ^CPU, ticks: u32 = 1000) {
 
 w65C816_execute :: proc(cpu: ^CPU_65C816) -> (cycles: u32) {
     cpu.px    = false
-    cpu.ir    = u8(load_m(byte, cpu.pc)) // XXX: u16?
+    cpu.ir    = u8(load_d(cpu.pc, byte)) // XXX: u16?
 
     //w65C816_run_opcode(cpu)
 
@@ -176,36 +177,60 @@ w65C816_execute :: proc(cpu: ^CPU_65C816) -> (cycles: u32) {
     return cycles
 }
 
-// special form of unsigned add, "low part only": adding without carry,
-// - ZP, X
-// - ZP, Y
-// - buggy behaviour of NMOS JMP ($1234)
-xaddu_l :: #force_inline proc (a: u16, b: u8) -> (result: u16) {
-    result  = a & 0xff00   // preserve high byte
-      arg1 := a
-      arg1 += u16(b)
-      arg1  = arg1 & 0x00ff   // wrapped, sum w/o carry
-    result |= arg1
-    return result
-}
-
-add__u :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (result: u16) {
+// add unsigned to index register
+addu_d :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (result: u16) {
     result = dr.val + a
-    if dr.size {
-        result &= 0xff
+    if dr.size == byte {
+        result &= 0x00FF
     }
     return
 }
 
-sub__u :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (result: u16) {
+// add unsigned to accumulator
+addu_a :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (result: u16) {
+    result  = dr.val + a
+    if dr.size == byte {
+        result &= 0x00FF
+        result |= dr.val & 0xFF00
+    }
+    return
+}
+
+subu_d :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (result: u16) {
     result = dr.val - a
     if dr.size {
-        result &= 0xff
+        result &= 0x00FF
     }
     return
 }
 
-load_m :: #force_inline proc (size: bool, ar: AddresRegister_65C816) -> (result: u16) {
+subu_a :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (result: u16) {
+    result  = dr.val - a
+    if dr.size == byte {
+        result &= 0x00FF
+        result |= dr.val & 0xFF00
+    }
+    return
+}
+load_a :: #force_inline proc (ar: AddresRegister_65C816, dr: DataRegister_65C816) -> (result: u16) {
+    ea     := u32(ar.addr) + u32(ar.idx)
+    ea     &= 0x0000_ffff if ar.wrap else 0xffff_ffff
+    ea     |= u32(ar.bank) << 16
+    low    := u16(localbus->read(.bits_8, ea))
+    result  = dr.val & 0xFF00
+
+    if dr.size == word {
+        ea      = u32(ar.addr) + u32(ar.idx) + 1
+        ea     &= 0x0000_ffff if ar.wrap else 0xffff_ffff
+        ea     |= u32(ar.bank) << 16
+        result  = u16(localbus->read(.bits_8, ea)) << 8
+    } 
+
+    result  |= low
+    return
+}
+
+load_d :: #force_inline proc (ar: AddresRegister_65C816, size: bool) -> (result: u16) {
     ea     := u32(ar.addr) + u32(ar.idx)
     ea     &= 0x0000_ffff if ar.wrap else 0xffff_ffff
     ea     |= u32(ar.bank) << 16
@@ -220,35 +245,64 @@ load_m :: #force_inline proc (size: bool, ar: AddresRegister_65C816) -> (result:
     return
 }
 
-stor_m :: #force_inline proc (size: bool, ar: AddresRegister_65C816, value: u16) -> bool {
+// store content of data register in memory
+stor_r :: #force_inline proc (ar: AddresRegister_65C816, dr: DataRegister_65C816) -> bool {
     ea     := u32(ar.addr) + u32(ar.idx)
     ea     &= 0x0000_FFFF if ar.wrap else 0xFFFF_FFFF
     ea     |= u32(ar.bank) << 16
-    u16(localbus->write(.bits_8, ea, u32(value & 0xFF)))
+    localbus->write(.bits_8, ea, u32(dr.val & 0x00FF))
 
-    if size == word {
+    if dr.size == word {
         ea      = u32(ar.addr) + u32(ar.idx) + 1
         ea     &= 0x0000_FFFF if ar.wrap else 0xFFFF_FFFF
         ea     |= u32(ar.bank) << 16
-        u16(localbus->read(.bits_8, ea, u32(value & 0xFF00) >> 8)
+        localbus->write(.bits_8, ea, u32(dr.val & 0xFF00) >> 8)
     }
 
     return false
 }
 
-// add signed value to word
-// XXX - double-check relative addressing mode
-add__s :: #force_inline proc (size: bool, a, b: u16) -> (result: u16) {
-    switch {
-    case size == byte && b >= 0x80:
-        result  = a + b - 0x100
-    case size == word && b >= 0x8000:
-        result  = a + b - 0xffff    // because not -0x10000 for u16
-        result -= 1
-    case:
+adds_b :: #force_inline proc (a, b: u16) -> (result: u16) {
+    if b >= 0x80   {
+        result = a + b - 0x100
+    } else {
+        result = a + b
+    }
+    return
+}
+
+adds_w :: #force_inline proc (a, b: u16) -> (result: u16) {
+    if b >= 0x8000 {
+        result  = a + b - 0xFFFF
+        result -= 1                 // because -0x1_0000 doesn't fit in u16
+    } else {
         result  = a + b
     }
     return
+}
+
+// move index register to accumulator register
+mov_ia :: #force_inline proc (ir: DataRegister_65C816, ar: DataRegister_65C816) -> (result: u16) {
+    switch ar.size {
+    case byte:
+        tmp    := ar.val & 0xFF00        // preserve high A
+        result  = ir.val & 0x00FF        // only low byte from index reg
+        result |= tmp                    // restore  high A
+    case word:
+        result = ir.val                  // in i8 -> a16 high byte in i is always 0 
+    }
+    return result
+}
+
+// move accumulator register to index register
+mov_ai :: #force_inline proc (ar: DataRegister_65C816, ir: DataRegister_65C816) -> (result: u16) {
+    switch ir.size {
+    case byte:
+        result = ar.val & 0x00FF        // only low byte from acc
+    case word:
+        result = ir.val                  // always full transfer from acc.
+    }
+    return result
 }
 
 // detection of page crossing, used for cycle cost calculations
@@ -259,17 +313,19 @@ test_p :: #force_inline proc (ar: AddresRegister_65C816) ->  bool {
 // negative flag test
 test_n :: #force_inline proc (dr: DataRegister_65C816)    -> (result: bool) {
     switch dr.size {
-    case byte:
-        result = (dr.val &   0x80) ==   0x80
-    case word:
-        result = (dr.val & 0x8000) == 0x8000
+    case byte: result = (dr.val &   0x80) ==   0x80
+    case word: result = (dr.val & 0x8000) == 0x8000
     }
     return result
 }
 
 // zero value test
-test_z :: #force_inline proc (dr: DataRegister_65C816)    -> bool {
-    return dr.val == 0
+test_z :: #force_inline proc (dr: DataRegister_65C816)    -> (result: bool) {
+    switch dr.size {
+    case byte: result = dr.val & 0xFF == 0x00
+    case word: result = dr.val        == 0x00
+    }
+    return result
 }
 
 // bit 0 test - for LSR, ROR...
@@ -278,12 +334,10 @@ test_0 :: #force_inline proc (dr: DataRegister_65C816)    -> bool {
 }         
 
 // special case for single command, BIT - testing second highest
-testsh :: #force_inline proc (dr: DataRegister_65C816)    -> (result: bool) {
+test_s :: #force_inline proc (dr: DataRegister_65C816)    -> (result: bool) {
     switch dr.size {
-    case byte:
-        result          = dr.val &   0x40 ==   0x40
-    case word:
-        result          = dr.val & 0x4000 == 0x4000
+    case byte: result = dr.val &   0x40 ==   0x40
+    case word: result = dr.val & 0x4000 == 0x4000
     }
     return result
 }
@@ -324,7 +378,7 @@ test_v :: #force_inline proc(size: bool, a, b, s: u16) -> (result: bool) {
 //
 mode_Absolute_DBR           :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
-    ab.addr   = load_m( word, pc )
+    ab.addr   = load_d( pc, word )
     ab.bank   = dbr
     ab.wrap   = false
     pc.addr  += 1
@@ -338,7 +392,7 @@ mode_Absolute_DBR           :: #force_inline proc (using c: ^CPU_65C816) {
 //
 mode_Absolute_PBR           :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
-    ab.addr   = load_m( word, pc )
+    ab.addr   = load_d( pc, word )
     ab.bank   = k
     ab.wrap   = false
     pc.addr  += 1
@@ -356,7 +410,7 @@ mode_Absolute_PBR           :: #force_inline proc (using c: ^CPU_65C816) {
 //
 mode_Absolute_X                :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
-    ab.addr   = load_m( word, pc )
+    ab.addr   = load_d( pc, word )
     ab.bank   = dbr
     ab.wrap   = false
     ab.idx    = x.val
@@ -374,7 +428,7 @@ mode_Absolute_X                :: #force_inline proc (using c: ^CPU_65C816) {
 // This may cause side effects in I/O registers: XXX - implement that variant
 mode_Absolute_Y                :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
-    ab.addr   = load_m( word, pc )
+    ab.addr   = load_d( pc, word )
     ab.bank   = dbr
     ab.wrap   = false
     ab.idx    = y.val
@@ -389,13 +443,13 @@ mode_Absolute_Y                :: #force_inline proc (using c: ^CPU_65C816) {
 //                $00LL+X+1  data hi
 mode_DP_X_Indirect          :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
-    ab.addr   = load_m( byte, pc   )  // 0 | D + LL + X
+    ab.addr   = load_d( pc, byte )  // 0 | D + LL + X
     ab.addr  += d
     ab.bank   = 0
     ab.idx    = x.val
     ab.wrap   = true
 
-    ab.addr   = load_m( word, ab   )  // dbr hh ll
+    ab.addr   = load_d( ab, word )  // dbr hh ll
     ab.bank   = dbr
     ab.idx    = 0
     ab.wrap   = false
@@ -407,12 +461,12 @@ mode_DP_X_Indirect          :: #force_inline proc (using c: ^CPU_65C816) {
 //                effective address is word in (LL):  C.w($00LL)
 mode_DP_Indirect            :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
-    ab.addr   = load_m( byte, pc   )  // 0 | D + LL
+    ab.addr   = load_d( pc, byte )  // 0 | D + LL
     ab.addr  += d
     ab.bank   = 0
     ab.wrap   = true
 
-    ab.addr   = load_m( word, ab   )  // dbr hh ll
+    ab.addr   = load_d( ab, word )  // dbr hh ll
     ab.bank   = dbr
     ab.wrap   = false
 }
@@ -424,12 +478,12 @@ mode_DP_Indirect            :: #force_inline proc (using c: ^CPU_65C816) {
 //                incremented by Y with carry: C.w($00LL) + Y
 mode_DP_Indirect_Y          :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
-    ab.addr   = load_m( byte, pc   )  // 0 | D + LL
+    ab.addr   = load_d( pc, byte )  // 0 | D + LL
     ab.addr  += d
     ab.bank   = 0
     ab.wrap   = true
 
-    ab.addr   = load_m( word, ab   )  // dbr hh ll + Y
+    ab.addr   = load_d( ab, word )  // dbr hh ll + Y
     ab.bank   = dbr
     ab.idx    = y.val
     ab.wrap   = false
@@ -438,12 +492,12 @@ mode_DP_Indirect_Y          :: #force_inline proc (using c: ^CPU_65C816) {
 
 mode_S_Relative_Indirect_Y  :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
-    ab.addr   = load_m( byte, pc   )  // 0 | S + LL
+    ab.addr   = load_d( pc, byte )  // 0 | S + LL
     ab.addr  += sp.addr
     ab.bank   = 0
     ab.wrap   = true
 
-    ab.addr   = load_m( word, ab   )  // dbr hh ll + Y
+    ab.addr   = load_d( ab, word )  // dbr hh ll + Y
     ab.bank   = dbr
     ab.idx    = y.val
     ab.wrap   = false
@@ -455,32 +509,32 @@ mode_S_Relative_Indirect_Y  :: #force_inline proc (using c: ^CPU_65C816) {
 //                effective address is word in (LL):  C.w($00LL)
 mode_DP_Indirect_Long       :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1 
-    ta.addr   = load_m( byte, pc   )  // 0 | D + LL
+    ta.addr   = load_d( pc, byte )  // 0 | D + LL
     ta.addr  += d
     ta.bank   = 0
     ta.wrap   = true
 
-    ab.addr   = load_m( word, ta   )  // hh ll
+    ab.addr   = load_d( ta, word )  // hh ll
     ta.addr  += 2
-    ab.bank   = load_m( byte, ta   )  // top
+    ab.bank   = load_d( ta, byte )  // top
     ab.wrap   = false
 }
 
 // OPC $BBHHLL
 mode_Absolute_Long          :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1 
-    ab.addr   = load_m( word, pc   )  // HH LL
+    ab.addr   = load_d( pc, word )  // HH LL
     pc.addr  += 2
-    ab.bank   = load_m( byte, pc   )  // BB
+    ab.bank   = load_d( pc, byte )  // BB
     ab.wrap   = true
 }
 
 // OPC $BBHHLL, X
 mode_Absolute_Long_X        :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1 
-    ab.addr   = load_m( word, pc   )  // HH LL
+    ab.addr   = load_d( pc, word )  // HH LL
     pc.addr  += 2
-    ab.bank   = load_m( byte, pc   )  // BB
+    ab.bank   = load_d( pc, byte )  // BB
     ab.wrap   = true
     ab.idx    = x.val
 }
@@ -489,15 +543,15 @@ mode_Absolute_Long_X        :: #force_inline proc (using c: ^CPU_65C816) {
 // OPC $LL
 mode_PC_Relative            :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1 
-    ab.addr   = load_m( byte, pc              )
-    ab.addr   = add__s( byte, pc.addr, ab.addr)
+    ab.addr   = load_d( pc, byte )
+    ab.addr   = adds_b( pc.addr, ab.addr)
     ab.bank   = k
 }
 
 mode_PC_Relative_Long       :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1 
-    ab.addr   = load_m( word, pc              )
-    ab.addr   = add__s( word, pc.addr, ab.addr)
+    ab.addr   = load_d( pc, word )
+    ab.addr   = adds_w( pc.addr, ab.addr)
     ab.bank   = k
     pc.addr  += 1 
 }
@@ -508,7 +562,7 @@ mode_PC_Relative_Long       :: #force_inline proc (using c: ^CPU_65C816) {
 //                $00LL      data
 mode_DP                     :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   += 1
-    ab.addr    = load_m( byte, pc )
+    ab.addr    = load_d( pc, byte )
     ab.addr   += d
     ab.bank    = 0
     ab.idx     = 0
@@ -520,7 +574,7 @@ mode_DP                     :: #force_inline proc (using c: ^CPU_65C816) {
 //               effective address is address incremented by X without carry [2]
 mode_DP_X                   :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   += 1
-    ab.addr    = load_m( byte, pc )
+    ab.addr    = load_d( pc, byte )
     ab.addr   += d
     ab.bank    = 0
     ab.idx     = x.val
@@ -533,7 +587,7 @@ mode_DP_X                   :: #force_inline proc (using c: ^CPU_65C816) {
 //                effective address is address incremented by Y without carry [2]
 mode_DP_Y                   :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   += 1
-    ab.addr    = load_m( byte, pc )
+    ab.addr    = load_d( pc, byte )
     ab.addr   += d
     ab.bank    = 0
     ab.idx     = y.val
@@ -542,7 +596,7 @@ mode_DP_Y                   :: #force_inline proc (using c: ^CPU_65C816) {
 
 mode_S_Relative             :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   += 1
-    ab.addr    = load_m( byte, pc )
+    ab.addr    = load_d( pc, byte )
     ab.bank    = 0
     ab.idx     = sp.addr         // XXX after change to DataRegister move to .val
     ab.wrap    = true
@@ -555,23 +609,23 @@ mode_S_Relative             :: #force_inline proc (using c: ^CPU_65C816) {
 //                effective address is word in (HHLL+X), inc. with carry: C.w($HHLL+X)
 mode_Absolute_X_Indirect       :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
-    ab.addr   = load_m( word, pc   )  // K | D + HH + LL + X
+    ab.addr   = load_d( pc, word )  // K | D + HH + LL + X
     ab.bank   = k
     ab.idx    = x.val
     ab.wrap   = true
 
-    ab.addr   = load_m( word, ab   )  // k hh ll
+    ab.addr   = load_d( ab, word )  // k hh ll
     ab.idx    = 0
     pc.addr  += 1
 }
 
 mode_Absolute_Indirect         :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
-    ab.addr   = load_m( word, pc   )  // 0 | D + HH + LL 
+    ab.addr   = load_d( pc, word )  // 0 | D + HH + LL 
     ab.bank   = 0
     ab.wrap   = true
 
-    ab.addr   = load_m( word, ab   )  // k hh ll
+    ab.addr   = load_d( ab, word )  // k hh ll
     ab.bank   = k
     pc.addr  += 1
 }
@@ -626,14 +680,14 @@ mode_Absolute_Indirect_MOS  :: #force_inline proc (using c: ^CPU_65C816) {
 
 mode_Absolute_Indirect_Long  :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1 
-    ta.addr   = load_m( word, pc   )  // 0 | HH LL
+    ta.addr   = load_d( pc, word )  // 0 | HH LL
     ta.bank   = 0
     ta.wrap   = true
     pc.addr  += 1 
 
-    ab.addr   = load_m( word, ta   )  // hh ll
+    ab.addr   = load_d( ta, word )  // hh ll
     ta.addr  += 2
-    ab.bank   = load_m( byte, ta   )  // top
+    ab.bank   = load_d( ta, byte )  // top
     ab.wrap   = false
 }
 
@@ -647,10 +701,15 @@ mode_Accumulator            :: #force_inline proc (using c: ^CPU_65C816) {
 //
 // CPU: all
 // OPC #$BB       operand is byte BB
-// XXX: IMPORTANT NOTE: also used for MVN/MVP because mode is the same
-//      ie. address of first argument is an address pc+1, thus second
 mode_Immediate              :: #force_inline proc (using c: ^CPU_65C816) {
-    pc.addr  += 1 
+    ab        = pc
+    ab.addr  += 1
+    pc.addr  += 1 if a.size == byte else 2
+}
+
+// only for MVN/MVP
+mode_SrcDest                :: #force_inline proc (using c: ^CPU_65C816) {
+    pc.addr  += 1
     ab        = pc
 }
 
@@ -682,16 +741,6 @@ mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_65C816) {
 // XXX: opcodes routines should be moved to separate files for testing, or only
 // case / execute part of them?
 
-//oper_ADC                    :: #force_inline proc (using c: ^CPU_65C816) { }
-//
-//oper_AND                    :: #force_inline proc (using c: ^CPU_65C816) {
-//    b0    = read_b( ab     )
-//    a    &= b0
-//    N     = test_n( a )
-//    Z     = test_z( a )
-//    pc   += 1
-//}
-//
 // C <- [76543210] <- 0  (mem)               nv*bdizc
 //                                           m.....mm
 //oper_ASL                    :: #force_inline proc (using c: ^CPU_65C816) {
@@ -716,16 +765,27 @@ mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_65C816) {
 //}
 
 oper_ADC                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_AND                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_AND_A                  :: #force_inline proc (using c: ^CPU_65C816) { }
+
+oper_AND                    :: #force_inline proc (using c: ^CPU_65C816) {
+    t          = a
+    data0      = load_d( ab, t.size )
+    t.val     &= data0
+    a.val      = mov_ia( t,  a )
+    f.N        = test_n( a     )
+    f.Z        = test_z( a     )
+    pc.addr   += 1
+}
+
+
 oper_ASL                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_ASL_A                  :: #force_inline proc (using c: ^CPU_65C816) { }
+
+oper_ASL_A                  :: #force_inline proc (using c: ^CPU_65C816) {
+}
     
 oper_BCC                    :: #force_inline proc (using c: ^CPU_65C816) {
     if ! f.C {
         pc.addr   = ab.addr
-        cycle    += 1
-        cycle    += 1       if f.E && px else 0
+        cycle    += 2       if f.E && px else 1
     }
     pc.addr   += 1
 }
@@ -733,8 +793,7 @@ oper_BCC                    :: #force_inline proc (using c: ^CPU_65C816) {
 oper_BCS                    :: #force_inline proc (using c: ^CPU_65C816) {
     if   f.C {
         pc.addr   = ab.addr
-        cycle    += 1
-        cycle    += 1       if f.E && px else 0
+        cycle    += 2       if f.E && px else 1
     }
     pc.addr   += 1
 }
@@ -742,36 +801,35 @@ oper_BCS                    :: #force_inline proc (using c: ^CPU_65C816) {
 oper_BEQ                    :: #force_inline proc (using c: ^CPU_65C816) {
     if   f.Z {
         pc.addr   = ab.addr
-        cycle    += 1
-        cycle    += 1       if f.E && px else 0
+        cycle    += 2       if f.E && px else 1
     }
     pc.addr   += 1
 
 }
 
-oper_BIT                    :: #force_inline proc (using c: ^CPU_65C816) {
-    t.val      = load_m( a.size, ab )
+oper_BIT                     :: #force_inline proc (using c: ^CPU_65C816) {
+    t.val      = load_d( ab, a.size )
     t.size     = a.size
     f.N        = test_n( t )
-    f.V        = testsh( t )            // second highest byte 
+    f.V        = test_s( t )            // second highest bit
     t.val     &= a.val
     f.Z        = test_z( t )
-    pc.addr   += 1 if a.size else 2
+    pc.addr   += 1
 }
 
-oper_BIT_IMM                :: #force_inline proc (using c: ^CPU_65C816) {
-    t.val      = load_m( a.size, ab )
+// Immediate does not set N nor V
+oper_BIT_IMM                  :: #force_inline proc (using c: ^CPU_65C816) {
+    t.val      = load_d( ab, a.size )
     t.size     = a.size
     t.val     &= a.val
     f.Z        = test_z( t )
-    pc.addr   += 1 if a.size else 2
+    pc.addr   += 1
 }
 
 oper_BMI                    :: #force_inline proc (using c: ^CPU_65C816) {
     if   f.N {
         pc.addr   = ab.addr
-        cycle    += 1
-        cycle    += 1       if f.E && px else 0
+        cycle    += 2       if f.E && px else 1
     }
     pc.addr   += 1
 }
@@ -779,8 +837,7 @@ oper_BMI                    :: #force_inline proc (using c: ^CPU_65C816) {
 oper_BNE                    :: #force_inline proc (using c: ^CPU_65C816) {
     if ! f.Z {
         pc.addr   = ab.addr
-        cycle    += 1
-        cycle    += 1       if f.E && px else 0
+        cycle    += 2       if f.E && px else 1
     }
     pc.addr   += 1
 }
@@ -788,20 +845,19 @@ oper_BNE                    :: #force_inline proc (using c: ^CPU_65C816) {
 oper_BPL                    :: #force_inline proc (using c: ^CPU_65C816) {
     if ! f.N {
         pc.addr   = ab.addr
-        cycle    += 1
-        cycle    += 1       if f.E && px else 0
+        cycle    += 2       if f.E && px else 1
     }
     pc.addr   += 1
 }
 
 oper_BRA                    :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   = ab.addr
-    cycle    += 1
-    cycle    += 1          if f.E && px else 0
+    cycle    += 2          if f.E && px else 1
     pc.addr  += 1
 }
 
 oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) { }
+oper_BRK_E                  :: #force_inline proc (using c: ^CPU_65C816) { }
 
 oper_BRL                    :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   = ab.addr
@@ -811,8 +867,7 @@ oper_BRL                    :: #force_inline proc (using c: ^CPU_65C816) {
 oper_BVC                    :: #force_inline proc (using c: ^CPU_65C816) {
     if ! f.V {
         pc.addr   = ab.addr
-        cycle    += 1
-        cycle    += 1       if f.E && px else 0
+        cycle    += 2       if f.E && px else 1
     }
     pc.addr   += 1
 }
@@ -820,8 +875,7 @@ oper_BVC                    :: #force_inline proc (using c: ^CPU_65C816) {
 oper_BVS                    :: #force_inline proc (using c: ^CPU_65C816) {
     if   f.V {
         pc.addr   = ab.addr
-        cycle    += 1
-        cycle    += 1       if f.E && px else 0
+        cycle    += 2       if f.E && px else 1
     }
     pc.addr   += 1
 }
@@ -848,26 +902,27 @@ oper_CLV                    :: #force_inline proc (using c: ^CPU_65C816) {
 
 oper_CMP                    :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_COP                    :: #force_inline proc (using c: ^CPU_65C816) { }
+oper_COP_E                  :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_CPX                    :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_CPY                    :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_DEC                    :: #force_inline proc (using c: ^CPU_65C816) { }
 
 oper_DEC_A                  :: #force_inline proc (using c: ^CPU_65C816) {
-    a.val     = sub__u( a, 1 )
+    a.val     = subu_a( a, 1 )
     f.N       = test_n( a    )
     f.Z       = test_z( a    )   // or Z = x.val == 0 ?
     pc.addr  += 1
 }
 
 oper_DEX                    :: #force_inline proc (using c: ^CPU_65C816) {
-    x.val     = sub__u( x, 1 )
+    x.val     = subu_d( x, 1 )
     f.N       = test_n( x    )
     f.Z       = test_z( x    )   // or Z = x.val == 0 ?
     pc.addr  += 1
 }
 
 oper_DEY                    :: #force_inline proc (using c: ^CPU_65C816) {
-    y.val     = sub__u( y, 1 )
+    y.val     = subu_d( y, 1 )
     f.N       = test_n( y    )
     f.Z       = test_z( y    )   // or Z = x.val == 0 ?
     pc.addr  += 1
@@ -876,34 +931,34 @@ oper_DEY                    :: #force_inline proc (using c: ^CPU_65C816) {
 oper_EOR                    :: #force_inline proc (using c: ^CPU_65C816) { }
 
 oper_INC                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    t.val      = load_m( a.size, ab        )
+    t.val      = load_d( ab, a.size )
     t.size     = a.size
-    t.val      = add__u( t, 1 )
-    f.N        = test_n( t    )
-    f.Z        = test_z( t    )
-    _          = stor_m( t.size, ab, t.val )  // convert it to writing proc for register
-    pc.addr   += 1 if a.size else 2           // XX - change a.size from bool to enum 1/2 
+    t.val      = addu_d( t, 1  )
+    f.N        = test_n( t     )
+    f.Z        = test_z( t     )
+    _          = stor_r( ab, t )
+    pc.addr   += 1
 
 }
 
 oper_INC_A                  :: #force_inline proc (using c: ^CPU_65C816) {
-    a.val     = add__u( a, 1 )
+    a.val     = addu_a( a, 1 )
     f.N       = test_n( a    )
-    f.Z       = test_z( a    )   // or Z = x.val == 0 ?
+    f.Z       = test_z( a    )
     pc.addr  += 1
 }
 
 oper_INX                    :: #force_inline proc (using c: ^CPU_65C816) {
-    x.val     = add__u( x, 1 )
+    x.val     = addu_d( x, 1 )
     f.N       = test_n( x    )
-    f.Z       = test_z( x    )   // or Z = x.val == 0 ?
+    f.Z       = test_z( x    )
     pc.addr  += 1
 }
 
 oper_INY                    :: #force_inline proc (using c: ^CPU_65C816) {
-    y.val     = add__u( y, 1 )
+    y.val     = addu_d( y, 1 )
     f.N       = test_n( y    )
-    f.Z       = test_z( y    )   // or Z = x.val == 0 ?
+    f.Z       = test_z( y    )
     pc.addr  += 1
 }
 
@@ -967,23 +1022,115 @@ oper_STP                    :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_STX                    :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_STY                    :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_STZ                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_TAX                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_TAY                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_TCD                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_TCS                    :: #force_inline proc (using c: ^CPU_65C816) { }
+
+oper_TAX                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    x.val     = mov_ai( a, x )
+    f.N       = test_n( x    )
+    f.Z       = test_z( x    )
+    pc.addr  += 1
+}
+
+oper_TAY                    :: #force_inline proc (using c: ^CPU_65C816) {
+    y.val     = mov_ai( a, y )
+    f.N       = test_n( y    )
+    f.Z       = test_z( y    )
+    pc.addr  += 1
+}
+
+oper_TCD                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    d         = a.val
+    f.N       = d & 0x8000 == 0x8000 // test_n2?
+    f.Z       = d == 0
+    pc.addr  += 1
+}
+
+// "However, when the e flag is 1, SH is forced to $01"
+oper_TCD_E                  :: #force_inline proc (using c: ^CPU_65C816) { 
+    d         = a.val  & 0x00FF
+    d        |= 0x0100
+    f.N       = d & 0x80 == 0x80 // test_n2?
+    f.Z       = d == 0
+    pc.addr  += 1
+}
+
+oper_TCS                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    sp.addr   = a.val
+    f.N       = test_n( a )    // should be SP, but value is the same
+    f.Z       = sp.addr == 0
+    pc.addr  += 1
+}
+
+// check if Z is set from 16bit or 8bit?
+oper_TCS_E                  :: #force_inline proc (using c: ^CPU_65C816) { 
+    sp.addr   = a.val  & 0x00FF
+    sp.addr  |= 0x0100
+    f.N       = sp.addr & 0x80 == 0x80 // test_n2?
+    f.Z       = sp.addr == 0
+    pc.addr  += 1
+}
+
 oper_TDC                    :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_TRB                    :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_TSB                    :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_TSC                    :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_TSX                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_TXA                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_TXS                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_TXY                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_TYA                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_TYX                    :: #force_inline proc (using c: ^CPU_65C816) { }
+
+oper_TXA                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    a.val     = mov_ia( y, a )
+    f.N       = test_n( a    )
+    f.Z       = test_z( a    )
+    pc.addr  += 1
+}
+
+
+oper_TXS                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    sp.addr   = x.val
+    pc.addr  += 1
+}
+
+// emulation mode
+// "When the e flag is 1, SH is forced to $01, so in effect, TXS is an 8-bit
+// transfer in this case since XL is transferred to SL and SH remains $01."
+oper_TXS_E                  :: #force_inline proc (using c: ^CPU_65C816) { 
+    sp.addr   = x.val & 0x00FF
+    sp.addr  |= 0x0100
+    pc.addr  += 1
+}
+
+oper_TXY                    :: #force_inline proc (using c: ^CPU_65C816) {
+    y.val     = x.val
+    f.N       = test_n( y    )
+    f.Z       = test_z( y    )
+    pc.addr  += 1
+}
+
+oper_TYA                    :: #force_inline proc (using c: ^CPU_65C816) {
+    a.val     = mov_ia( x, a )
+    f.N       = test_n( a    )
+    f.Z       = test_z( a    )
+    pc.addr  += 1
+}
+
+oper_TYX                    :: #force_inline proc (using c: ^CPU_65C816) {
+    x.val     = y.val
+    f.N       = test_n( x    )
+    f.Z       = test_z( x    )
+    pc.addr  += 1
+}
+
 oper_WAI                    :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_WDM                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_XBA                    :: #force_inline proc (using c: ^CPU_65C816) { }
+
+// The n and z flags are always based on an 8-bit result, no matter what the
+// value of the m flag is. 
+oper_XBA                    :: #force_inline proc (using c: ^CPU_65C816) {
+    t.val     = a.val  & 0xFF00
+    a.val     = a.val << 8
+    a.val    |= t.val >> 8
+    f.N       = a.val  & 0x80 == 0x80       // always test 8bit
+    f.Z       = a.val  & 0xFF == 0x00       // always test 8bit
+    pc.addr  += 1
+}
 
 oper_XCE                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.E       = f.C
