@@ -651,14 +651,16 @@ vicky3_render_text :: proc(gpu: ^GPU) {
         g         := &gpu.model.(GPU_Vicky3)
 
         cursor_x, cursor_y: u32 // row and column of cursor
-        text_x, text_y:     u32 // row and column of text
         text_row_pos:       u32 // beginning of current text row in text memory
         fb_row_pos:         u32 // beginning of current FB   row in memory
         font_pos:           u32 // position in font array (char * 64 + char_line * 8)
         fb_pos:             u32 // position in destination framebuffer
-        font_line:          u32 // line in current font
         font_row_pos:       u32 // position of line in current font (=font_line*8 because every line has 8 bytes)
-        i:                  u32 // counter
+
+        // that particular counters are used in loops and are mentione here for reference
+        //i:                  u32 // counter
+        //text_x, text_y:     u32 // row and column of text
+        //font_line:          u32 // line in current font
 
         // placeholders recalculated per row of text, holds values for text_cols loop
         // current max size is 128 columns for 1024x768
