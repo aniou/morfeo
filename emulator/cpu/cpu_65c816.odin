@@ -93,6 +93,7 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.reset      = w65c816_reset
     cpu.exec       = w65c816_exec
     cpu.clear_irq  = w65c816_clear_irq
+    cpu.delete     = w65c816_delete
     cpu.bus        = bus
     cpu.cycles     = 0
     c             := CPU_65C816{cpu = cpu, type = CPU_65C816_type.W65C816S}
@@ -123,6 +124,11 @@ w65c816_reset :: proc(cpu: ^CPU) {
     return
 }
 
+w65c816_delete :: proc(cpu: ^CPU) {
+    free(cpu)
+    return
+}
+
 w65c816_clear_irq :: proc(cpu: ^CPU) {
     //if localbus.pic.irq_clear {
     //    log.debugf("%s IRQ clear", cpu.name)
@@ -138,8 +144,9 @@ w65c816_exec :: proc(cpu: ^CPU, ticks: u32 = 1000) {
     current_ticks : u32 = 0
 
     if ticks == 0 {
-        cycles        := w65c816_execute(c)
-        c.cycles      += cycles
+        //cycles        := w65c816_execute(c)
+        //c.cycles      += cycles
+        return
     }
 
     for current_ticks < ticks {
