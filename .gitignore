@@ -6,6 +6,9 @@
 *.dylib
 *.o
 
+# Tag files
+tags
+
 # Editor files
 *.swp
 
@@ -14,3 +17,4 @@
 
 # built binaries
 morfeo
+test816
