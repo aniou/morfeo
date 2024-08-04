@@ -100,7 +100,7 @@ verify_test :: proc(p: ^platform.Platform, state: CPU_State) -> (err: bool) {
 
     a := cpu.read_r( c.a, cpu.word )
     if state.a != a {
-        log.errorf("A      %04x expected   %04x", a, state.a)
+        log.errorf("A     %04x expected   %04x", a, state.a)
         err = true
     }
 
@@ -205,8 +205,8 @@ verify_test :: proc(p: ^platform.Platform, state: CPU_State) -> (err: bool) {
 
 print_state :: proc(state: CPU_State, c: ^cpu.CPU) {
     c    := &c.model.(cpu.CPU_65C816)
-    log.errorf("PC %02x:%04x SP %04x A %04x X %04x Y %04x DBR %02x AB %02x:%04x %04x wrap: %t",
-        state.pbr, state.pc, state.s, state.a, state.x, state.y, state.dbr, 
+    log.errorf("data: PC %02x:%04x|SP %04x|A %04x|X %04x|Y %04x|DBR %02x|D: %02x|AB %02x:%04x %04x|wrap: %t",
+        state.pbr, state.pc, state.s, state.d, state.a, state.x, state.y, state.dbr, 
         c.ab.bank, c.ab.addr, c.ab.index, c.ab.wrap)
     for mem in state.ram {
         log.errorf("addr: %06x %02x", mem[0], mem[1])
@@ -214,16 +214,20 @@ print_state :: proc(state: CPU_State, c: ^cpu.CPU) {
 }
 
 
-main_loop :: proc(p: ^platform.Platform) {
-
+do_test :: proc(p: ^platform.Platform, name: string) -> (ok: bool) {
     // raw data
-    log.info("reading file...")
-    data, ok := os.read_entire_file_from_filename("/home/aniou/a2560x/src/65816/v1/a9.n.json")
-    if !ok {
+
+    ok = true
+    fname := fmt.aprintf("external/65816/v1/%s.n.json", name)
+    log.info("reading file...", fname)
+    data, status := os.read_entire_file_from_filename(fname)
+    if !status {
         log.error("Failed to load the file!")
+        ok = false
         return
     }
     defer delete(data)
+    defer delete(fname)
 
     // parsed tests
     log.info("parsing...")
@@ -231,7 +235,8 @@ main_loop :: proc(p: ^platform.Platform) {
     err := json.unmarshal(data, &tests, .MJSON)             // so, !err or !ok?
     if err != nil {
         log.error("Error in json.unmarshal:", err)
-        return
+        ok = false
+        return 
     }
     defer delete(tests)
 
@@ -246,11 +251,25 @@ main_loop :: proc(p: ^platform.Platform) {
             log.error("test: ", test.name)
             print_state(test.initial, p.cpu)
             print_state(test.final, p.cpu)
+            ok = false
             break
         }
         count += 1
     }
     log.infof("%d tests passed", count)
+    return
+}
+
+main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
+
+    codes :: [?]string {
+        "a1", "a3", "a5", "a7", "a9", "ad", "af",
+        "b1", "b2", "b3", "b5", "b7", "b9", "bd", "bf"}
+
+    for name in codes {
+        do_test(p, name) or_break
+    }
+
     return
 }
 

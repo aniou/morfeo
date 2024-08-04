@@ -157,6 +157,7 @@ w65c816_execute :: proc(cpu: ^CPU_65C816) -> (cycles: u32) {
     cpu.ir    = u8(read_m(cpu.pc, byte)) // XXX: u16?
     tmp      := read_m(cpu.pc, byte)
     cpu.cycle = 0
+    cpu.ab.index = 0    // XXX: move to addressing modes?
 
     //log.infof("execute, PC %04x opcode %02x (%04x)", cpu.pc.addr, cpu.ir, tmp)
     w65c816_run_opcode(cpu)
@@ -187,13 +188,15 @@ subu_r :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (result: u
 read_m :: #force_inline proc (ar: AddresRegister_65C816, size: bool) -> (result: u16) {
     ea     := u32(ar.addr) + u32(ar.index)
     ea     &= 0x0000_ffff if ar.wrap else 0xffff_ffff
-    ea     |= u32(ar.bank) << 16
+    ea     += u32(ar.bank) << 16
+    ea     &= 0x00ff_ffff
     result  = u16(localbus->read(.bits_8, ea))
 
     if size == word {
         ea      = u32(ar.addr) + u32(ar.index) + 1
         ea     &= 0x0000_ffff if ar.wrap else 0xffff_ffff
-        ea     |= u32(ar.bank) << 16
+        ea     += u32(ar.bank) << 16
+        ea     &= 0x00ff_ffff
         result |= u16(localbus->read(.bits_8, ea)) << 8
     }
     return
@@ -332,7 +335,7 @@ mode_Absolute_DBR           :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr   = read_m( pc, word )
     ab.bank   = dbr
     ab.wrap   = false
-    pc.addr  += 1
+    pc.addr  += 2
 }
 
 // jesli pc będzie register
@@ -346,7 +349,7 @@ mode_Absolute_PBR           :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr   = read_m( pc, word )
     ab.bank   = pc.bank
     ab.wrap   = false
-    pc.addr  += 1
+    pc.addr  += 2
 }
 
 // CPU: all
@@ -364,9 +367,9 @@ mode_Absolute_X                :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr   = read_m( pc, word )
     ab.bank   = dbr
     ab.wrap   = false
-    ab.index    = x.val
+    ab.index  = x.val
     px        = test_p( ab )
-    pc.addr  += 1
+    pc.addr  += 2
 }
 
 //
@@ -382,9 +385,9 @@ mode_Absolute_Y                :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr   = read_m( pc, word )
     ab.bank   = dbr
     ab.wrap   = false
-    ab.index    = y.val
+    ab.index  = y.val
     px        = test_p( ab )
-    pc.addr  += 1
+    pc.addr  += 2
 }
 
 // XXX
@@ -401,6 +404,7 @@ mode_Absolute_Y                :: #force_inline proc (using c: ^CPU_65C816) {
 mode_DP_X_Indirect          :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, byte )  // 0 | D + LL + X
+    pc.addr  += 1
     ab.addr  += d
     ab.bank   = 0
     ab.index    = x.val
@@ -408,7 +412,7 @@ mode_DP_X_Indirect          :: #force_inline proc (using c: ^CPU_65C816) {
 
     ab.addr   = read_m( ab, word )  // dbr hh ll
     ab.bank   = dbr
-    ab.index    = 0
+    ab.index  = 0
     ab.wrap   = false
 }
 
@@ -419,6 +423,7 @@ mode_DP_X_Indirect          :: #force_inline proc (using c: ^CPU_65C816) {
 mode_DP_Indirect            :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, byte )  // 0 | D + LL
+    pc.addr  += 1
     ab.addr  += d
     ab.bank   = 0
     ab.wrap   = true
@@ -436,13 +441,14 @@ mode_DP_Indirect            :: #force_inline proc (using c: ^CPU_65C816) {
 mode_DP_Indirect_Y          :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, byte )  // 0 | D + LL
+    pc.addr  += 1
     ab.addr  += d
     ab.bank   = 0
     ab.wrap   = true
 
     ab.addr   = read_m( ab, word )  // dbr hh ll + Y
     ab.bank   = dbr
-    ab.index  = y.val
+    ab.index  = read_r( y, y.size)
     ab.wrap   = false
     px        = test_p( ab )
 }
@@ -450,13 +456,14 @@ mode_DP_Indirect_Y          :: #force_inline proc (using c: ^CPU_65C816) {
 mode_S_Relative_Indirect_Y  :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, byte )  // 0 | S + LL
+    pc.addr  += 1
     ab.addr  += sp.addr
     ab.bank   = 0
     ab.wrap   = true
 
     ab.addr   = read_m( ab, word )  // dbr hh ll + Y
     ab.bank   = dbr
-    ab.index    = y.val
+    ab.index  = y.val
     ab.wrap   = false
 }
 
@@ -467,10 +474,10 @@ mode_S_Relative_Indirect_Y  :: #force_inline proc (using c: ^CPU_65C816) {
 mode_DP_Indirect_Long       :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1 
     ta.addr   = read_m( pc, byte )  // 0 | D + LL
+    pc.addr  += 1
     ta.addr  += d
     ta.bank   = 0
     ta.wrap   = true
-    pc.addr  += 1
 
     ab.addr   = read_m( ta, word )  // hh ll
     ta.addr  += 2
@@ -481,6 +488,7 @@ mode_DP_Indirect_Long       :: #force_inline proc (using c: ^CPU_65C816) {
 mode_DP_Indirect_Long_Y    :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1 
     ta.addr   = read_m( pc, byte )  // 0 | D + LL
+    pc.addr  += 1
     ta.addr  += d
     ta.bank   = 0
     ta.wrap   = true
@@ -499,6 +507,7 @@ mode_Absolute_Long          :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr   = read_m( pc, word )  // HH LL
     pc.addr  += 2
     ab.bank   = read_m( pc, byte )  // BB
+    pc.addr  += 1 
     ab.wrap   = true
 }
 
@@ -508,8 +517,9 @@ mode_Absolute_Long_X        :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr   = read_m( pc, word )  // HH LL
     pc.addr  += 2
     ab.bank   = read_m( pc, byte )  // BB
-    ab.wrap   = true
-    ab.index    = x.val
+    pc.addr  += 1 
+    ab.wrap   = false
+    ab.index  = x.val
 }
 
 // PC relative mode: value is added to PC that already points at NEXT OP
@@ -535,9 +545,10 @@ mode_PC_Relative_Long       :: #force_inline proc (using c: ^CPU_65C816) {
 mode_DP                     :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   += 1
     ab.addr    = read_m( pc, byte )
+    pc.addr   += 1
     ab.addr   += d
     ab.bank    = 0
-    ab.index     = 0
+    ab.index   = 0
     ab.wrap    = true
 }
 //
@@ -547,9 +558,10 @@ mode_DP                     :: #force_inline proc (using c: ^CPU_65C816) {
 mode_DP_X                   :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   += 1
     ab.addr    = read_m( pc, byte )
+    pc.addr   += 1
     ab.addr   += d
     ab.bank    = 0
-    ab.index     = x.val
+    ab.index   = x.val
     ab.wrap    = true
 }
 
@@ -560,17 +572,19 @@ mode_DP_X                   :: #force_inline proc (using c: ^CPU_65C816) {
 mode_DP_Y                   :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   += 1
     ab.addr    = read_m( pc, byte )
+    pc.addr   += 1
     ab.addr   += d
     ab.bank    = 0
-    ab.index     = y.val
+    ab.index   = y.val
     ab.wrap    = true
 }
 
 mode_S_Relative             :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   += 1
     ab.addr    = read_m( pc, byte )
+    pc.addr   += 1
     ab.bank    = 0
-    ab.index     = sp.addr         // XXX after change to DataRegister move to .val
+    ab.index   = sp.addr         // XXX after change to DataRegister move to .val
     ab.wrap    = true
 }
 
@@ -588,7 +602,7 @@ mode_Absolute_X_Indirect       :: #force_inline proc (using c: ^CPU_65C816) {
 
     ab.addr   = read_m( ab, word )  // k hh ll
     ab.index  = 0
-    pc.addr  += 1
+    pc.addr  += 2
 }
 
 mode_Absolute_Indirect         :: #force_inline proc (using c: ^CPU_65C816) {
@@ -599,7 +613,7 @@ mode_Absolute_Indirect         :: #force_inline proc (using c: ^CPU_65C816) {
 
     ab.addr   = read_m( ab, word )  // k hh ll
     ab.bank   = pc.bank
-    pc.addr  += 1
+    pc.addr  += 2
 }
 
 

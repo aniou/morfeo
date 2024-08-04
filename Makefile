@@ -42,7 +42,8 @@ release: $(musashi_objects)
 	odin build cmd/a2560x -no-bounds-check -disable-assert $(build_flags)
 
 run: $(musashi_objects)
-	odin run cmd/a2560x $(build_flags) -- $(morfeo_args)
+#	odin run cmd/a2560x $(build_flags) -- $(morfeo_args)
+	odin run cmd/test816 $(build_flags)
 
 mini6502:
 	odin build cmd/mini6502 -debug $(build_flags)
