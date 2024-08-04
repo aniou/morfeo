@@ -525,15 +525,17 @@ mode_Absolute_Long_X        :: #force_inline proc (using c: ^CPU_65C816) {
 // PC relative mode: value is added to PC that already points at NEXT OP
 // OPC $LL
 mode_PC_Relative            :: #force_inline proc (using c: ^CPU_65C816) {
-    pc.addr  += 2
+    pc.addr  += 1
     ab.addr   = read_m( pc, byte )              // relative calculated form pc of next cmd
+    pc.addr  += 1
     ab.addr   = adds_b( pc.addr, ab.addr)
     ab.bank   = pc.bank
 }
 
 mode_PC_Relative_Long       :: #force_inline proc (using c: ^CPU_65C816) {
-    pc.addr  += 3
+    pc.addr  += 1
     ab.addr   = read_m( pc, word )
+    pc.addr  += 2 
     ab.addr   = adds_w( pc.addr, ab.addr)
     ab.bank   = pc.bank
 }
@@ -829,7 +831,6 @@ oper_BVC                    :: #force_inline proc (using c: ^CPU_65C816) {
         pc.addr   = ab.addr
         cycle    += 2       if f.E && px else 1
     }
-    pc.addr   += 1
 }
 
 oper_BVS                    :: #force_inline proc (using c: ^CPU_65C816) {
