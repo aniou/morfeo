@@ -470,6 +470,7 @@ mode_DP_Indirect_Long       :: #force_inline proc (using c: ^CPU_65C816) {
     ta.addr  += d
     ta.bank   = 0
     ta.wrap   = true
+    pc.addr  += 1
 
     ab.addr   = read_m( ta, word )  // hh ll
     ta.addr  += 2
