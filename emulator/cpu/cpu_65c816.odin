@@ -116,7 +116,8 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
 
 w65c816_setpc :: proc(cpu: ^CPU, address: u32) {
     c         := &cpu.model.(CPU_65C816)
-    c.pc.addr  = u16(address)
+    c.pc.addr  = u16( address & 0x0000_FFFF       )
+    c.pc.k     = u16((address & 0x00FF_0000) >> 16)
     return
 }
 
