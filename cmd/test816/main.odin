@@ -218,7 +218,7 @@ do_test :: proc(p: ^platform.Platform, name: string) -> (ok: bool) {
     // raw data
 
     ok = true
-    fname := fmt.aprintf("external/65816/v1/%s.n.json", name)
+    fname := fmt.aprintf("external/tests-65816/v1/%s.n.json", name)
     log.info("reading file...", fname)
     data, status := os.read_entire_file_from_filename(fname)
     if !status {

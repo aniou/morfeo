@@ -4,3 +4,6 @@
 [submodule "external/Musashi"]
 	path = external/Musashi
 	url = https://github.com/kstenerud/Musashi
+[submodule "external/tests-65816"]
+	path = external/tests-65816
+	url = https://github.com/SingleStepTests/65816
