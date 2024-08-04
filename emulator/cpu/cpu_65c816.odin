@@ -40,7 +40,7 @@ CPU_65C816 :: struct {
 
     type: 	CPU_65C816_type,
 
-    pc:     AddresRegister_65C816,
+    pc:     AddresRegister_65C816,      // pc.bank act as K register
     sp:     AddresRegister_65C816,      // XXX: check it should be Data or Address?
     ab:     AddresRegister_65C816,
     ta:     AddresRegister_65C816,      // temporary, internal register
@@ -51,7 +51,7 @@ CPU_65C816 :: struct {
     y:      DataRegister_65C816,
 
     dbr:    u16,      // Data    Bank Register  (u8)
-    k:      u16,      // Program Bank Register  (u8)
+    //k:      u16,      // Program Bank Register  (u8)   - inside pc.bank
     d:      u16,      // Direct registera       (u16)
 
                       // flag set for 65C816:  nvmxdizc e
@@ -78,7 +78,7 @@ CPU_65C816 :: struct {
     wdm:    bool,      // support for non-standard WDM (0x42) command
     abort:  bool,      // emulator should abort?
     ppc:    u16,       // previous PC - for debug purposes
-    cycle:  int,       // number of cycless for this command
+    cycle:  u32,       // number of cycless for this command
 
     data0:  u16,       // temporary register
     data1:  u16,       // temporary register (2)
@@ -117,7 +117,7 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
 w65c816_setpc :: proc(cpu: ^CPU, address: u32) {
     c         := &cpu.model.(CPU_65C816)
     c.pc.addr  = u16( address & 0x0000_FFFF       )
-    c.k        = u16((address & 0x00FF_0000) >> 16)
+    c.pc.bank  = u16((address & 0x00FF_0000) >> 16)
     return
 }
 
@@ -145,46 +145,20 @@ w65c816_exec :: proc(cpu: ^CPU, ticks: u32 = 1000) {
     current_ticks : u32 = 0
 
     if ticks == 0 {
-        //cycles        := w65c816_execute(c)
-        //c.cycles      += cycles
+        c.cycle        = w65c816_execute(c)
         return
     }
 
-    for current_ticks < ticks {
-        // 1. check if there is irq to clear
-        //if localbus.pic.irq_clear {
-        //    log.debugf("%s IRQ clear", cpu.name)
-        //    localbus.pic.irq_clear  = false
-        //    localbus.pic.irq_active = false
-        //    localbus.pic.current    = pic.IRQ.NONE
-        //    m68k_set_irq(uint(pic.IRQ.NONE))
-        //}
-
-        // 2. recalculate interupts
-        // XXX: implement it
-
-        // 3. check if there is a pending irq?
-        //if localbus.pic.irq_active == false && localbus.pic.current != pic.IRQ.NONE {
-        //    log.debugf("%s IRQ should be set!", cpu.name)
-        //    localbus.pic.irq_active = true
-        //    log.debugf("IRQ active from exec %v irq %v", localbus.pic.irq_active, localbus.pic.irq)
-        //    m68k_set_irq(localbus.pic.irq)
-        //}
-
-        cycles        := w65c816_execute(c)
-        c.cycles      += cycles
-        current_ticks += cycles
-        //log.debugf("%s execute %d cycles", cpu.name, current_ticks)
-    }
-    //log.debugf("%s execute %d cycles", cpu.name, cpu.cycles)
     return
 }
 
 w65c816_execute :: proc(cpu: ^CPU_65C816) -> (cycles: u32) {
     cpu.px    = false
     cpu.ir    = u8(read_m(cpu.pc, byte)) // XXX: u16?
+    tmp      := read_m(cpu.pc, byte)
     cpu.cycle = 0
 
+    //log.infof("execute, PC %04x opcode %02x (%04x)", cpu.pc.addr, cpu.ir, tmp)
     w65c816_run_opcode(cpu)
 
     // XXX: create OP table!
@@ -226,7 +200,7 @@ read_m :: #force_inline proc (ar: AddresRegister_65C816, size: bool) -> (result:
 }
 
 read_r :: #force_inline proc (reg: DataRegister_65C816, size: bool) -> (result: u16) {
-    switch reg.size {
+    switch size {
     case byte:
         result =  reg.val & 0x00FF
     case word:
@@ -370,7 +344,7 @@ mode_Absolute_DBR           :: #force_inline proc (using c: ^CPU_65C816) {
 mode_Absolute_PBR           :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )
-    ab.bank   = k
+    ab.bank   = pc.bank
     ab.wrap   = false
     pc.addr  += 1
 }
@@ -543,14 +517,14 @@ mode_PC_Relative            :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 2
     ab.addr   = read_m( pc, byte )              // relative calculated form pc of next cmd
     ab.addr   = adds_b( pc.addr, ab.addr)
-    ab.bank   = k
+    ab.bank   = pc.bank
 }
 
 mode_PC_Relative_Long       :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 3
     ab.addr   = read_m( pc, word )
     ab.addr   = adds_w( pc.addr, ab.addr)
-    ab.bank   = k
+    ab.bank   = pc.bank
 }
 
 //
@@ -607,7 +581,7 @@ mode_S_Relative             :: #force_inline proc (using c: ^CPU_65C816) {
 mode_Absolute_X_Indirect       :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )  // K | D + HH + LL + X
-    ab.bank   = k
+    ab.bank   = pc.bank
     ab.index    = x.val
     ab.wrap   = true
 
@@ -623,7 +597,7 @@ mode_Absolute_Indirect         :: #force_inline proc (using c: ^CPU_65C816) {
     ab.wrap   = true
 
     ab.addr   = read_m( ab, word )  // k hh ll
-    ab.bank   = k
+    ab.bank   = pc.bank
     pc.addr  += 1
 }
 
@@ -701,7 +675,7 @@ mode_Accumulator            :: #force_inline proc (using c: ^CPU_65C816) {
 mode_Immediate              :: #force_inline proc (using c: ^CPU_65C816) {
     ab        = pc
     ab.addr  += 1
-    pc.addr  += 1 if a.size == byte else 2  // and all routines can have +1, even immediate with 16bit
+    pc.addr  += 2 if a.size == byte else 3
 }
 
 // only for MVN/MVP
@@ -714,6 +688,7 @@ mode_BlockMove              :: #force_inline proc (using c: ^CPU_65C816) {
 // CPU: all
 // OPC            operand implied
 mode_Implied                :: #force_inline proc (using c: ^CPU_65C816) {
+    pc.addr  += 1
 }
 
 //
@@ -1009,7 +984,6 @@ oper_MVN                    :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_MVP                    :: #force_inline proc (using c: ^CPU_65C816) { }
 
 oper_NOP                    :: #force_inline proc (using c: ^CPU_65C816) {
-    pc.addr  += 1
 }
 
 oper_ORA                    :: #force_inline proc (using c: ^CPU_65C816) {
