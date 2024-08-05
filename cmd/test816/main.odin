@@ -14,6 +14,7 @@ import "core:fmt"
 import "core:log"
 import "core:os"
 import "core:prof/spall"
+import "core:slice"
 import "core:strconv"
 import "core:time"
 
@@ -208,9 +209,22 @@ print_state :: proc(state: CPU_State, c: ^cpu.CPU) {
     log.errorf("data: PC %02x:%04x|SP %04x|A %04x|X %04x|Y %04x|DBR %02x|D: %02x|AB %02x:%04x %04x|wrap: %t",
         state.pbr, state.pc, state.s, state.d, state.a, state.x, state.y, state.dbr, 
         c.ab.bank, c.ab.addr, c.ab.index, c.ab.wrap)
-    for mem in state.ram {
-        log.errorf("addr: %06x %02x", mem[0], mem[1])
+
+    addr := make([dynamic]u32, 0)
+    mem  := make(map[u32]u32)
+
+    for m in state.ram {
+        append(&addr, m[0])
+        mem[m[0]] = m[1]
     }
+    slice.sort(addr[:])
+
+    for m in addr {
+        log.errorf("addr: %06x %02x", m, mem[m])
+    }
+
+    delete(addr)
+    delete(mem)
 }
 
 
@@ -232,7 +246,7 @@ do_test :: proc(p: ^platform.Platform, name: string) -> (ok: bool) {
     // parsed tests
     log.info("parsing...")
     tests: [dynamic]CPU_Test
-    err := json.unmarshal(data, &tests, .MJSON)             // so, !err or !ok?
+    err := json.unmarshal(data, &tests, .MJSON)             // XXX: memleak here
     if err != nil {
         log.error("Error in json.unmarshal:", err)
         ok = false
@@ -262,9 +276,13 @@ do_test :: proc(p: ^platform.Platform, name: string) -> (ok: bool) {
 
 main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
 
+    //codes :: [?]string {
+    //    "a1", "a3", "a5", "a7", "a9", "ad", "af",
+    //    "b1", "b2", "b3", "b5", "b7", "b9", "bd", "bf"}
     codes :: [?]string {
-        "a1", "a3", "a5", "a7", "a9", "ad", "af",
-        "b1", "b2", "b3", "b5", "b7", "b9", "bd", "bf"}
+        // "90", "b0", "f0", "30", "d0", "10", "80", "50", "70", "82"
+        "a2", "a6", "ae", "b6", "be", "a0", "a4", "ac", "b4", "bc"
+    }
 
     for name in codes {
         do_test(p, name) or_break
