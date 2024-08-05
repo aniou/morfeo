@@ -41,7 +41,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_PHP                      (cpu)
 
     case 0x09:                                    // ORA #$54
-        mode_Immediate                (cpu)
+        mode_Immediate_flag_M         (cpu)
         oper_ORA                      (cpu)
 
     case 0x0a:                                    // ASL
@@ -169,7 +169,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_PLP                      (cpu)
 
     case 0x29:                                    // AND #$54
-        mode_Immediate                (cpu)
+        mode_Immediate_flag_M         (cpu)
         oper_AND                      (cpu)
 
     case 0x2a:                                    // ROL
@@ -297,7 +297,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_PHA                      (cpu)
 
     case 0x49:                                    // EOR #$54
-        mode_Immediate                (cpu)
+        mode_Immediate_flag_M         (cpu)
         oper_EOR                      (cpu)
 
     case 0x4a:                                    // LSR
@@ -425,7 +425,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_PLA                      (cpu)
 
     case 0x69:                                    // ADC #$54
-        mode_Immediate                (cpu)
+        mode_Immediate_flag_M         (cpu)
         oper_ADC                      (cpu)
 
     case 0x6a:                                    // ROR
@@ -553,7 +553,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_DEY                      (cpu)
 
     case 0x89:                                    // BIT #$54
-        mode_Immediate                (cpu)
+        mode_Immediate_flag_M         (cpu)
         oper_BIT                      (cpu)
 
     case 0x8a:                                    // TXA
@@ -645,7 +645,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_STA                      (cpu)
 
     case 0xa0:                                    // LDY #$54
-        mode_Immediate                (cpu)
+        mode_Immediate_flag_X         (cpu)
         oper_LDY                      (cpu)
 
     case 0xa1:                                    // LDA ($10,X)
@@ -653,7 +653,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_LDA                      (cpu)
 
     case 0xa2:                                    // LDX #$54
-        mode_Immediate                (cpu)
+        mode_Immediate_flag_X         (cpu)
         oper_LDX                      (cpu)
 
     case 0xa3:                                    // LDA $32,S
@@ -681,7 +681,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_TAY                      (cpu)
 
     case 0xa9:                                    // LDA #$54
-        mode_Immediate                (cpu)
+        mode_Immediate_flag_M         (cpu)
         oper_LDA                      (cpu)
 
     case 0xaa:                                    // TAX
@@ -773,7 +773,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_LDA                      (cpu)
 
     case 0xc0:                                    // CPY #$54
-        mode_Immediate                (cpu)
+        mode_Immediate_flag_X         (cpu)
         oper_CPY                      (cpu)
 
     case 0xc1:                                    // CMP ($10,X)
@@ -809,7 +809,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_INY                      (cpu)
 
     case 0xc9:                                    // CMP #$54
-        mode_Immediate                (cpu)
+        mode_Immediate_flag_M         (cpu)
         oper_CMP                      (cpu)
 
     case 0xca:                                    // DEX
@@ -901,7 +901,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_CMP                      (cpu)
 
     case 0xe0:                                    // CPX #$54
-        mode_Immediate                (cpu)
+        mode_Immediate_flag_X         (cpu)
         oper_CPX                      (cpu)
 
     case 0xe1:                                    // SBC ($10,X)
@@ -937,7 +937,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_INX                      (cpu)
 
     case 0xe9:                                    // SBC #$54
-        mode_Immediate                (cpu)
+        mode_Immediate_flag_M         (cpu)
         oper_SBC                      (cpu)
 
     case 0xea:                                    // NOP

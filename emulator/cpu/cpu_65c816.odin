@@ -692,7 +692,19 @@ mode_Accumulator            :: #force_inline proc (using c: ^CPU_65C816) {
 mode_Immediate              :: #force_inline proc (using c: ^CPU_65C816) {
     ab        = pc
     ab.addr  += 1
-    pc.addr  += 2 if a.size == byte else 3
+    pc.addr  += 2
+}
+
+mode_Immediate_flag_M       :: #force_inline proc (using c: ^CPU_65C816) {
+    ab        = pc
+    ab.addr  += 1
+    pc.addr  += 2 if f.M == byte else 3
+}
+
+mode_Immediate_flag_X       :: #force_inline proc (using c: ^CPU_65C816) {
+    ab        = pc
+    ab.addr  += 1
+    pc.addr  += 2 if f.X == byte else 3
 }
 
 // only for MVN/MVP
