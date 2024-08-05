@@ -46,7 +46,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
 
     case 0x0a:                                    // ASL
         mode_Accumulator              (cpu)
-        oper_ASL                      (cpu)
+        oper_ASL_A                    (cpu)
 
     case 0x0b:                                    // PHD
         mode_Implied                  (cpu)
@@ -110,7 +110,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
 
     case 0x1a:                                    // INC
         mode_Accumulator              (cpu)
-        oper_INC                      (cpu)
+        oper_INC_A                    (cpu)
 
     case 0x1b:                                    // TCS
         mode_Implied                  (cpu)
@@ -174,7 +174,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
 
     case 0x2a:                                    // ROL
         mode_Accumulator              (cpu)
-        oper_ROL                      (cpu)
+        oper_ROL_A                    (cpu)
 
     case 0x2b:                                    // PLD
         mode_Implied                  (cpu)
@@ -238,7 +238,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
 
     case 0x3a:                                    // DEC
         mode_Accumulator              (cpu)
-        oper_DEC                      (cpu)
+        oper_DEC_A                    (cpu)
 
     case 0x3b:                                    // TSC
         mode_Implied                  (cpu)
@@ -302,7 +302,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
 
     case 0x4a:                                    // LSR
         mode_Accumulator              (cpu)
-        oper_LSR                      (cpu)
+        oper_LSR_A                    (cpu)
 
     case 0x4b:                                    // PHK
         mode_Implied                  (cpu)
@@ -430,7 +430,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
 
     case 0x6a:                                    // ROR
         mode_Accumulator              (cpu)
-        oper_ROR                      (cpu)
+        oper_ROR_A                    (cpu)
 
     case 0x6b:                                    // RTL
         mode_Implied                  (cpu)

@@ -217,13 +217,15 @@ stor_m :: #force_inline proc (ar: AddresRegister_65C816, dr: DataRegister_65C816
 
     ea     := u32(ar.addr) + u32(ar.index)
     ea     &= 0x0000_FFFF if ar.wrap else 0xFFFF_FFFF
-    ea     |= u32(ar.bank) << 16
+    ea     += u32(ar.bank) << 16
+    ea     &= 0x00ff_ffff
     localbus->write(.bits_8, ea, value & 0xFF)
 
     if dr.size == word {
         ea      = u32(ar.addr) + u32(ar.index) + 1
         ea     &= 0x0000_FFFF if ar.wrap else 0xFFFF_FFFF
-        ea     |= u32(ar.bank) << 16
+        ea     += u32(ar.bank) << 16
+        ea     &= 0x00ff_ffff
         localbus->write(.bits_8, ea, (value & 0xFF00) >> 8)
     }
 
@@ -309,7 +311,7 @@ set__h :: #force_inline proc (dr: DataRegister_65C816, a: bool)    -> (result: u
     if a {
         result = dr.val | (0x80 if dr.size else 0x8000)
     } else {
-        result = dr.val & (0x7F if dr.size else 0x7F00)
+        result = dr.val & (0x7F if dr.size else 0x7FFF)
     }
     return result
 }
@@ -683,6 +685,7 @@ mode_Absolute_Indirect_Long  :: #force_inline proc (using c: ^CPU_65C816) {
 // CPU: all
 // OPC A          operand is AC (implied single byte instruction)
 mode_Accumulator            :: #force_inline proc (using c: ^CPU_65C816) {
+    pc.addr  += 1
 }
 
 
@@ -761,7 +764,7 @@ oper_ASL                  :: #force_inline proc (using c: ^CPU_65C816) {
 // C <- [76543210] <- 0  (acc)               nv*bdizc
 //                                           m.....mm
 oper_ASL_A                 :: #force_inline proc (using c: ^CPU_65C816) {
-    t.val     = a.val
+    t.val     = read_r( a, a.size )
     f.C       = test_n( t         )
     t.val   <<= 1
     f.N       = test_n( t         )
@@ -999,7 +1002,7 @@ oper_LSR                    :: #force_inline proc (using c: ^CPU_65C816) {
 // 0 -> [76543210] -> C  (acc)               nv*bdizc
 //                                           0.....mm
 oper_LSR_A                  :: #force_inline proc (using c: ^CPU_65C816) {
-    t.val     = a.val
+    t.val     = read_r( a, a.size )
     f.C       = test_0( t          )
     t.val   >>= 1
     t.val     = set__h( t,  false  )
@@ -1079,14 +1082,14 @@ oper_ROL                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_ROL_A                  :: #force_inline proc (using c: ^CPU_65C816) { 
-    t.val     = a.val
+    t.val     = read_r( a, a.size )
     f.T       = test_n( t          )        // temporary flag...
     t.val   <<= 1
     t.val    |= 1  if f.C    else 0 
     f.N       = test_n( t          )
     f.Z       = test_z( t          )
     f.C       = f.T                         // lowest bit to C
-    _         = stor_m( ab, t      )
+    a.val     = read_r( t, a.size )         // a.val and 0x00FF in short mode
 }
 
 // C -> [76543210] -> C
@@ -1098,12 +1101,12 @@ oper_ROR                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.N       = test_n( t          )
     f.Z       = test_z( t          )
     f.C       = f.T                         // lowest bit to C
-    a.val     = read_r( t, a.size )         // a.val and 0x00FF in short mode
+    _         = stor_m( ab, t      )
 }
 
 // C -> [76543210] -> C
 oper_ROR_A                  :: #force_inline proc (using c: ^CPU_65C816) { 
-    t.val     = a.val
+    t.val     = read_r( a, a.size )
     f.T       = test_0( t          )        // temporary flag...
     t.val   >>= 1
     t.val     = set__h( t,  f.C    )
