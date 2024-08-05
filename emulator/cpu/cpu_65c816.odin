@@ -668,10 +668,10 @@ mode_Absolute_Indirect_MOS  :: #force_inline proc (using c: ^CPU_65C816) {
 
 mode_Absolute_Indirect_Long  :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1 
-    ta.addr   = read_m( pc, word )  // 0 | HH LL
+    ta.addr   = read_m( pc, word )
+    pc.addr  += 1                   // innefective, just for completness
     ta.bank   = 0
     ta.wrap   = true
-    pc.addr  += 1 
 
     ab.addr   = read_m( ta, word )  // hh ll
     ta.addr  += 2
@@ -959,7 +959,8 @@ oper_INY                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_JMP                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    pc        = ab
+    pc.bank   = ab.bank
+    pc.addr   = ab.addr
 }
 
 oper_JSL                    :: #force_inline proc (using c: ^CPU_65C816) { }
