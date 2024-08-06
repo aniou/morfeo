@@ -1123,17 +1123,14 @@ oper_SBC                    :: #force_inline proc (using c: ^CPU_65C816) { }
 
 oper_SEC                    :: #force_inline proc (using c: ^CPU_65C816) { 
     f.C       = true
-    pc.addr  += 1
 }
 
 oper_SED                    :: #force_inline proc (using c: ^CPU_65C816) { 
     f.D       = true
-    pc.addr  += 1
 }
 
 oper_SEI                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.I       = true
-    pc.addr  += 1
 }
 
 oper_SEP                    :: #force_inline proc (using c: ^CPU_65C816) { }
