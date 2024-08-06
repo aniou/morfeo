@@ -873,10 +873,10 @@ oper_CLV                    :: #force_inline proc (using c: ^CPU_65C816) {
 
 oper_CMP                    :: #force_inline proc (using c: ^CPU_65C816) {
     t.val      = read_m( ab, t.size )
-    f.C        = a.val >= t.val
-    t.val      = subu_r(  t, a.val  )
-    f.N        = test_n( t          )
-    f.Z        = test_z( t          )
+    t.val      = subu_r(  a, t.val  )
+    f.N        = test_n(  t         )
+    f.Z        = test_z(  t         )
+    f.C        = read_r(  a, a.size )  >= t.val    // I wish I had a getter
 }
 
 oper_COP                    :: #force_inline proc (using c: ^CPU_65C816) { }
@@ -885,21 +885,21 @@ oper_COP_E                  :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_CPX                    :: #force_inline proc (using c: ^CPU_65C816) { 
     t.size     = x.size
     t.val      = read_m( ab, t.size )
-    f.C        = x.val >= t.val
-    t.val      = subu_r( t,  x.val  )
-    f.N        = test_n( t          )
-    f.Z        = test_z( t          )
-    t.size     = a.size                   // restore standard behaviour
+    t.val      = subu_r(  x, t.val  )
+    f.N        = test_n(  t         )
+    f.Z        = test_z(  t         )
+    f.C        = read_r(  x, x.size )  >= t.val    // I wish I had a getter
+    t.size     = a.size                            // restore standard behaviour
 }
 
 oper_CPY                    :: #force_inline proc (using c: ^CPU_65C816) {
     t.size     = y.size
     t.val      = read_m( ab, t.size )
-    f.C        = y.val >= t.val
-    t.val      = subu_r( t,  x.val  )
-    f.N        = test_n( t          )
-    f.Z        = test_z( t          )
-    t.size     = a.size                   // restore standard behaviour
+    t.val      = subu_r(  y, t.val  )
+    f.N        = test_n(  t         )
+    f.Z        = test_z(  t         )
+    f.C        = read_r(  y, y.size )  >= t.val    // I wish I had a getter
+    t.size     = a.size                            // restore standard behaviour
 }
 
 oper_DEC                    :: #force_inline proc (using c: ^CPU_65C816) { 
