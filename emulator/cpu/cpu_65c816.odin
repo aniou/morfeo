@@ -27,7 +27,7 @@ DataRegister_65C816 :: struct {
 AddresRegister_65C816 :: struct {
     bank:      u16,                  // data bank (u8)
     addr:      u16,                  // address within bank
-     index:      u16,                  // for indexed operations
+   index:      u16,                  // for indexed operations
     wrap:      bool,                 // does read wrap on bank boundary?
 }
 
@@ -51,8 +51,8 @@ CPU_65C816 :: struct {
     y:      DataRegister_65C816,
 
     dbr:    u16,      // Data    Bank Register  (u8)
+    d:      u16,      // Direct register       (u16)
     //k:      u16,      // Program Bank Register  (u8)   - inside pc.bank
-    d:      u16,      // Direct registera       (u16)
 
                       // flag set for 65C816:  nvmxdizc e
                       // flag set for 65xx     nv1bdizc
@@ -212,6 +212,17 @@ read_r :: #force_inline proc (reg: DataRegister_65C816, size: bool) -> (result: 
     return result
 }
 
+read_a :: #force_inline proc (reg: AddresRegister_65C816, size: bool) -> (result: u16) {
+    switch size {
+    case byte:
+        result = reg.addr & 0x00FF
+    case word:
+        result = reg.addr
+    }
+    return result
+}
+
+
 stor_m :: #force_inline proc (ar: AddresRegister_65C816, dr: DataRegister_65C816) -> bool {
     value  := u32( read_r( dr, dr.size ) )
 
@@ -257,7 +268,10 @@ test_p :: #force_inline proc (ar: AddresRegister_65C816) ->  bool {
 }
 
 // negative flag test
-test_n :: #force_inline proc (dr: DataRegister_65C816)    -> (result: bool) {
+// XXX
+// there is a possibility to make single routine test_n(val, size)
+//
+test_n_reg :: #force_inline proc (dr: DataRegister_65C816)    -> (result: bool) {
     switch dr.size {
     case byte: result = (dr.val &   0x80) ==   0x80
     case word: result = (dr.val & 0x8000) == 0x8000
@@ -265,14 +279,34 @@ test_n :: #force_inline proc (dr: DataRegister_65C816)    -> (result: bool) {
     return result
 }
 
+test_n_val :: #force_inline proc (val: u16, size: bool)    -> (result: bool) {
+    switch size {
+    case byte: result = (val &   0x80) ==   0x80
+    case word: result = (val & 0x8000) == 0x8000
+    }
+    return result
+}
+
+test_n :: proc { test_n_reg, test_n_val }
+
 // zero value test
-test_z :: #force_inline proc (dr: DataRegister_65C816)    -> (result: bool) {
+test_z_reg :: #force_inline proc (dr: DataRegister_65C816)    -> (result: bool) {
     switch dr.size {
     case byte: result = dr.val & 0xFF == 0x00
     case word: result = dr.val        == 0x00
     }
     return result
 }
+
+test_z_val :: #force_inline proc (val: u16, size: bool)    -> (result: bool) {
+    switch size {
+    case byte: result = val & 0xFF == 0x00
+    case word: result = val        == 0x00
+    }
+    return result
+}
+
+test_z :: proc { test_z_reg, test_z_val }
 
 // bit 0 test - for LSR, ROR...
 test_0 :: #force_inline proc (dr: DataRegister_65C816)    -> bool {
@@ -1164,50 +1198,64 @@ oper_TAY                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 // bad
-oper_TCD                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_TCD_bad                :: #force_inline proc (using c: ^CPU_65C816) { 
-    d         = a.val  // XXX here check size
+oper_TCD                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    d         = read_r( a, word )
+    f.N       = test_n( d, word )
+    f.Z       = test_z( d, word )
+    /*
     f.N       = d & 0x8000 == 0x8000 // test_n2?
     f.Z       = d == 0
+    */
 }
 
 // "However, when the e flag is 1, SH is forced to $01"
 oper_TCD_E                  :: #force_inline proc (using c: ^CPU_65C816) { 
     d         = a.val  & 0x00FF
     d        |= 0x0100
-    f.N       = d & 0x80 == 0x80 // test_n2?
-    f.Z       = d == 0
+    f.N       = test_n( d, byte )
+    f.Z       = test_z( d, byte )
 }
 
-oper_TCS                        :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_TCS_bad                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    sp.addr   = a.val
-    f.N       = test_n( a )    // should be SP, but value is the same
-    f.Z       = sp.addr == 0
+oper_TCS                        :: #force_inline proc (using c: ^CPU_65C816) { 
+    sp.addr   = read_r( a, word )
 }
 
 // check if Z is set from 16bit or 8bit?
 oper_TCS_E                  :: #force_inline proc (using c: ^CPU_65C816) { 
     sp.addr   = a.val  & 0x00FF
     sp.addr  |= 0x0100
-    f.N       = sp.addr & 0x80 == 0x80 // test_n2?
-    f.Z       = sp.addr == 0
+    f.N       = test_n( sp.addr, byte )
+    f.Z       = test_z( sp.addr, byte )
 }
 
-oper_TDC                    :: #force_inline proc (using c: ^CPU_65C816) { }
+// TDC is always 16-bit
+oper_TDC                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    a.val     = d
+    a.b       = d  & 0xFF00
+    f.N       = test_n( a.val, word )
+    f.Z       = test_z( a.val, word )
+
+}
+
 oper_TRB                    :: #force_inline proc (using c: ^CPU_65C816) { }
 oper_TSB                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_TSC                    :: #force_inline proc (using c: ^CPU_65C816) { }
 
-// that is a workaround for lack 'read_a' (address bus routine)
-// XXX: add read_a, if neccessary in future
+// TSC is always 16-bit
+oper_TSC                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    a.val     = sp.addr
+    a.b       = sp.addr & 0xFF00
+    f.N       = test_n( a.val, word )
+    f.Z       = test_z( a.val, word )
+}
+
 oper_TSX                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    t.val     = sp.addr
-    x.val     = read_r( t, x.size )
+    x.val     = read_a( sp, x.size  )
+    f.N       = test_n( x           )
+    f.Z       = test_z( x           )
 }
 
 oper_TXA                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    a.val     = read_r( y, a.size )
+    a.val     = read_r( x, a.size )
     f.N       = test_n( a         )
     f.Z       = test_z( a         )
 }
@@ -1231,7 +1279,7 @@ oper_TXY                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_TYA                    :: #force_inline proc (using c: ^CPU_65C816) {
-    a.val     = read_r( x, a.size )
+    a.val     = read_r( y, a.size )
     f.N       = test_n( a         )
     f.Z       = test_z( a         )
 }
@@ -1243,7 +1291,9 @@ oper_TYX                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_WAI                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_WDM                    :: #force_inline proc (using c: ^CPU_65C816) { }
+
+oper_WDM                    :: #force_inline proc (using c: ^CPU_65C816) { 
+}
 
 // The n and z flags are always based on an 8-bit result, no matter what the
 // value of the m flag is. 
@@ -1257,6 +1307,7 @@ oper_XBA                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.Z       = a.val  & 0xFF == 0x00       // always test 8bit
 }
  
+// XXX: bad
 oper_XCE                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.E       = f.C
 }
