@@ -24,11 +24,12 @@ DataRegister_65C816 :: struct {
     size:    bool,   // 0 == 16 bit, 1 == 8 bit
 }
 
-AddresRegister_65C816 :: struct {
+AddressRegister_65C816 :: struct {
     bank:      u16,                  // data bank (u8)
     addr:      u16,                  // address within bank
    index:      u16,                  // for indexed operations
     wrap:      bool,                 // does read wrap on bank boundary?
+    size:      bool,                 // 0 == 16 bit, 1 == 8 bit
 }
 
 CPU_65C816_type :: enum {
@@ -40,10 +41,10 @@ CPU_65C816 :: struct {
 
     type: 	CPU_65C816_type,
 
-    pc:     AddresRegister_65C816,      // pc.bank act as K register
-    sp:     AddresRegister_65C816,      // XXX: check it should be Data or Address?
-    ab:     AddresRegister_65C816,
-    ta:     AddresRegister_65C816,      // temporary, internal register
+    pc:     AddressRegister_65C816,      // pc.bank act as K register
+    sp:     AddressRegister_65C816,      // XXX: check it should be Data or Addresss?
+    ab:     AddressRegister_65C816,
+    ta:     AddressRegister_65C816,      // temporary, internal register
 
     a:      DataRegister_65C816,
     t:      DataRegister_65C816,        // temporary, internal register, size same as a(!)
@@ -100,10 +101,10 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     c.a            = DataRegister_65C816{}
     c.x            = DataRegister_65C816{}
     c.y            = DataRegister_65C816{}
-    c.pc           = AddresRegister_65C816{wrap = true}
-    c.sp           = AddresRegister_65C816{wrap = true}
-    c.ab           = AddresRegister_65C816{wrap = true}
-    c.ta           = AddresRegister_65C816{wrap = true}
+    c.pc           = AddressRegister_65C816{wrap = true}
+    c.sp           = AddressRegister_65C816{wrap = true}
+    c.ab           = AddressRegister_65C816{wrap = true}
+    c.ta           = AddressRegister_65C816{wrap = true}
     cpu.model      = c
 
 
@@ -169,23 +170,72 @@ w65c816_execute :: proc(cpu: ^CPU_65C816) -> (cycles: u32) {
 }
 
 // add unsigned to index register
-addu_r :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (result: u16) {
-    result = dr.val + a
+addu_r_reg :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (result: u16) {
     if dr.size == byte {
+        high   := dr.val & 0xFF00
+        result  = dr.val + a
         result &= 0x00FF
+        result |= high
+    } else {
+        result = dr.val + a
     }
     return
 }
 
-subu_r :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (result: u16) {
-    result = dr.val - a
-    if dr.size {
+addu_r_addr :: #force_inline proc (ar: AddressRegister_65C816, size: bool)     -> (result: u16) {
+    a : u16
+    if size == byte {
+        a = u16(1)
+    } else {
+        a = u16(2)
+    }
+
+    if ar.size == byte {
+        high   := ar.addr & 0xFF00
+        result  = ar.addr + a
         result &= 0x00FF
+        result |= high
+    } else {
+        result = ar.addr + a
     }
     return
 }
 
-read_m :: #force_inline proc (ar: AddresRegister_65C816, size: bool) -> (result: u16) {
+subu_r_reg :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (result: u16) {
+    if dr.size == byte {
+        high   := dr.val & 0xFF00
+        result  = dr.val - a
+        result &= 0x00FF
+        result |= high
+    } else {
+        result = dr.val - a
+    }
+    return
+}
+
+subu_r_addr :: #force_inline proc (ar: AddressRegister_65C816, size: bool)     -> (result: u16) {
+    a : u16
+    if size == byte {
+        a = u16(1)
+    } else {
+        a = u16(2)
+    }
+
+    if ar.size == byte {
+        high   := ar.addr & 0xFF00
+        result  = ar.addr - a
+        result &= 0x00FF
+        result |= high
+    } else {
+        result = ar.addr - a
+    }
+    return
+}
+
+subu_r :: proc { subu_r_reg, subu_r_addr }
+addu_r :: proc { addu_r_reg, addu_r_addr }
+
+read_m :: #force_inline proc (ar: AddressRegister_65C816, size: bool) -> (result: u16) {
     ea     := u32(ar.addr) + u32(ar.index)
     ea     &= 0x0000_ffff if ar.wrap else 0xffff_ffff
     ea     += u32(ar.bank) << 16
@@ -212,7 +262,7 @@ read_r :: #force_inline proc (reg: DataRegister_65C816, size: bool) -> (result: 
     return result
 }
 
-read_a :: #force_inline proc (reg: AddresRegister_65C816, size: bool) -> (result: u16) {
+read_a :: #force_inline proc (reg: AddressRegister_65C816, size: bool) -> (result: u16) {
     switch size {
     case byte:
         result = reg.addr & 0x00FF
@@ -222,8 +272,36 @@ read_a :: #force_inline proc (reg: AddresRegister_65C816, size: bool) -> (result
     return result
 }
 
+push_r :: #force_inline proc (ar: AddressRegister_65C816, dr: DataRegister_65C816) -> bool {
+    value   := u32( read_r( dr, dr.size ) )
+    ar      := ar
 
-stor_m :: #force_inline proc (ar: AddresRegister_65C816, dr: DataRegister_65C816) -> bool {
+
+    if dr.size == word {
+        localbus->write(.bits_8, u32(ar.addr), (value & 0xFF00) >> 8)
+        ar.addr = subu_r(ar, byte)
+        localbus->write(.bits_8, u32(ar.addr), value & 0xFF)
+    } else {
+        localbus->write(.bits_8, u32(ar.addr), value & 0xFF)
+    }
+    return false
+}
+
+pull_v :: #force_inline proc (ar: AddressRegister_65C816, size: bool) -> (result: u16) {
+    ar      := ar
+
+    ar.addr = addu_r(ar, byte)
+    result = u16(localbus->read(.bits_8, u32(ar.addr)))
+
+    if ar.size == word {
+        ar.addr  = addu_r(ar, byte)
+        result  |= u16(localbus->read(.bits_8, u32(ar.addr))) << 8
+    }
+    return 
+}
+
+
+stor_m :: #force_inline proc (ar: AddressRegister_65C816, dr: DataRegister_65C816) -> bool {
     value  := u32( read_r( dr, dr.size ) )
 
     ea     := u32(ar.addr) + u32(ar.index)
@@ -263,7 +341,7 @@ adds_w :: #force_inline proc (a, b: u16) -> (result: u16) {
 }
 
 // detection of page crossing, used for cycle cost calculations
-test_p :: #force_inline proc (ar: AddresRegister_65C816) ->  bool {
+test_p :: #force_inline proc (ar: AddressRegister_65C816) ->  bool {
     return ((ar.addr & 0xFF00) != ((ar.addr+ar.index) & 0xFF00))
 }
 
@@ -1088,19 +1166,120 @@ oper_PER                    :: #force_inline proc (using c: ^CPU_65C816) {
 
 oper_PER_ALT                 :: #force_inline proc (using c: ^CPU_65C816) { }
 
-oper_PHA                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_PHB                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_PHD                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_PHK                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_PHP                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_PHX                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_PHY                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_PLA                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_PLB                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_PLD                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_PLP                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_PLX                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_PLY                    :: #force_inline proc (using c: ^CPU_65C816) { }
+oper_PHA                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    _         = push_r( sp, a      )
+    sp.addr   = subu_r( sp, a.size )
+}
+
+// XXX - convert DBR to register
+oper_PHB                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.size    = byte
+    t.val     = dbr
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+    t.size    = a.size
+}
+
+oper_PHD                    :: #force_inline proc (using c: ^CPU_65C816) {
+    t.size    = word
+    t.val     = d
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+    t.size    = a.size
+}
+
+oper_PHK                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.size    = byte
+    t.val     = pc.bank
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+    t.size    = a.size
+}
+
+oper_PHP                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.size    = byte
+    t.val     = 0
+    t.val    |= 0x80 if f.N else 0
+    t.val    |= 0x40 if f.V else 0
+    t.val    |= 0x20 if f.M else 0
+    t.val    |= 0x10 if f.X else 0
+    t.val    |= 0x08 if f.D else 0
+    t.val    |= 0x04 if f.I else 0
+    t.val    |= 0x02 if f.Z else 0
+    t.val    |= 0x01 if f.C else 0
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+    t.size    = a.size
+}
+
+oper_PHX                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    _         = push_r( sp, x      )
+    sp.addr   = subu_r( sp, x.size )
+}
+
+oper_PHY                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    _         = push_r( sp, y      )
+    sp.addr   = subu_r( sp, y.size )
+}
+
+oper_PLA                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    a.val     = pull_v( sp, a.size )
+    sp.addr   = addu_r( sp, a.size )
+    f.N       = test_n( a          )
+    f.Z       = test_z( a          )
+}
+
+oper_PLB                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    dbr       = pull_v(  sp, byte  )
+    sp.addr   = addu_r(  sp, byte  )
+    f.N       = test_n( dbr, byte  )
+    f.Z       = test_z( dbr, byte  )
+}
+
+oper_PLD                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    d         = pull_v(  sp, word  )
+    sp.addr   = addu_r(  sp, word  )
+    f.N       = test_n(   d, word  )
+    f.Z       = test_z(   d, word  )
+}
+
+oper_PLP                    :: #force_inline proc (using c: ^CPU_65C816) {
+    t.val     = pull_v(  sp, byte  )
+    sp.addr   = addu_r(  sp, byte  )
+    f.N       = t.val & 0x80 == 0x80
+    f.V       = t.val & 0x40 == 0x40
+    f.M       = t.val & 0x20 == 0x20
+    f.X       = t.val & 0x10 == 0x10
+    f.D       = t.val & 0x08 == 0x08
+    f.I       = t.val & 0x04 == 0x04
+    f.Z       = t.val & 0x02 == 0x02
+    f.C       = t.val & 0x01 == 0x01
+
+    // internal part
+    a.size    = f.M
+    t.size    = f.M
+    x.size    = f.X
+    y.size    = f.X
+    if f.X == byte {
+        x.val = x.val & 0x00FF
+        y.val = y.val & 0x00FF
+    }
+}
+
+oper_PLX                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    x.val     = pull_v( sp, x.size )
+    sp.addr   = addu_r( sp, x.size )
+    f.N       = test_n( x          )
+    f.Z       = test_z( x          )
+}
+
+oper_PLY                    :: #force_inline proc (using c: ^CPU_65C816) {
+    y.val     = pull_v( sp, y.size )
+    sp.addr   = addu_r( sp, y.size )
+    f.N       = test_n( y          )
+    f.Z       = test_z( y          )
+}
+
 oper_REP                    :: #force_inline proc (using c: ^CPU_65C816) { }
 
 // C <- [76543210] <- C
@@ -1150,9 +1329,31 @@ oper_ROR_A                  :: #force_inline proc (using c: ^CPU_65C816) {
     a.val     = read_r( t, a.size )         // a.val and 0x00FF in short mode
 }
 
-oper_RTI                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_RTL                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_RTS                    :: #force_inline proc (using c: ^CPU_65C816) { }
+// XXX pull PLP content to subroutine?
+oper_RTI                    :: #force_inline proc (using c: ^CPU_65C816) {
+    oper_PLP(c)
+    pc.addr   = pull_v( sp, word )
+    sp.addr   = addu_r( sp, word )
+
+    pc.bank   = pull_v( sp, byte )
+    sp.addr   = addu_r( sp, byte )
+}
+
+oper_RTL                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    pc.addr   = pull_v( sp, word )
+    pc.addr  += 1
+    sp.addr   = addu_r( sp, word )
+
+    pc.bank   = pull_v( sp, byte )
+    sp.addr   = addu_r( sp, byte )
+}
+
+oper_RTS                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    pc.addr   = pull_v( sp, word )
+    pc.addr  += 1
+    sp.addr   = addu_r( sp, word )
+}
+
 oper_SBC                    :: #force_inline proc (using c: ^CPU_65C816) { }
 
 oper_SEC                    :: #force_inline proc (using c: ^CPU_65C816) { 
