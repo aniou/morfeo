@@ -397,7 +397,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_ADC                      (cpu)
 
     case 0x62:                                    // PER LABEL
-        mode_Immediate                (cpu)
+        mode_PC_Relative_Long         (cpu)
         oper_PER                      (cpu)
 
     case 0x63:                                    // ADC $32,S

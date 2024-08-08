@@ -334,7 +334,8 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
         //"48", "da", "5a",                                   // pha, phx, phy
         //"68", "fa", "7a",                                   // pla, plx, ply
         //"8b", "0b", "4b", "08", "ab", "2b", "28"            //phb, phd, phk, php, plb, pld, plp
-        "6b", "60", "40"                                    // rtl, rts, rti
+        //"6b", "60", "40"                                    // rtl, rts, rti
+        "f4", "d4", "62"                                    // pea, pei, per
     }
 
     for name in codes {

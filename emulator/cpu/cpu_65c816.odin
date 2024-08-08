@@ -1137,30 +1137,28 @@ oper_ORA                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.Z       = test_z( a     )
 }
 
-// XXX: check SP step for that particular mode
 oper_PEA                    :: #force_inline proc (using c: ^CPU_65C816) { 
     t.size    = word
     t.val     = read_m( ab, t.size )
-    _         = stor_m( sp, t      )  // push to stack
-    sp.addr  -= 2
-    t.size    = a.size                // restore original
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+    pc.addr  += 1                        // Immediate mode sets pc of 1 byte
+    t.size    = a.size
 }
 
-// XXX: upewnić sie, że nowrap nawet jeśli E=1
-oper_PEI                        :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_PEI_bad                    :: #force_inline proc (using c: ^CPU_65C816) { 
+oper_PEI                        :: #force_inline proc (using c: ^CPU_65C816) {
     t.size    = word
     t.val     = read_m( ab, t.size )
-    _         = stor_m( sp, t      )  // push to stack
-    sp.addr  -= 2
-    t.size    = a.size                // restore original
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+    t.size    = a.size                  // restore original
 }
 
 oper_PER                    :: #force_inline proc (using c: ^CPU_65C816) { 
     t.size    = word
     t.val     = ab.addr               // calculated relative address
-    _         = stor_m( sp, t      )  // push to stack
-    sp.addr  -= 2
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
     t.size    = a.size                // restore original
 }
 
