@@ -554,7 +554,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
 
     case 0x89:                                    // BIT #$54
         mode_Immediate_flag_M         (cpu)
-        oper_BIT                      (cpu)
+        oper_BIT_IMM                  (cpu)
 
     case 0x8a:                                    // TXA
         mode_Implied                  (cpu)

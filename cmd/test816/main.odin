@@ -240,7 +240,7 @@ do_test :: proc(p: ^platform.Platform, name: string) -> (ok: bool) {
 
     ok = true
     fname := fmt.aprintf("external/tests-65816/v1/%s.n.json", name)
-    log.info("reading file...", fname)
+    log.infof("reading file %s ", fname)
     data, status := os.read_entire_file_from_filename(fname)
     if !status {
         log.error("Failed to load the file!")
@@ -251,7 +251,7 @@ do_test :: proc(p: ^platform.Platform, name: string) -> (ok: bool) {
     defer delete(fname)
 
     // parsed tests
-    log.info("parsing...")
+    //log.info("parsing...")
     tests: [dynamic]CPU_Test
     err := json.unmarshal(data, &tests, .MJSON)             // XXX: memleak here
     if err != nil {
@@ -263,7 +263,7 @@ do_test :: proc(p: ^platform.Platform, name: string) -> (ok: bool) {
     defer delete(tests)
 
     // do work
-    log.info("testing...")
+    //log.info("testing...")
     count := 0
     for test in tests {
         prepare_test(p, test.initial)
@@ -285,39 +285,25 @@ do_test :: proc(p: ^platform.Platform, name: string) -> (ok: bool) {
 main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
 
     codes :: [?]string {
-        // LDA
-        // "a1", "a3", "a5", "a7", "a9", "ad", "af",
-        // "b1", "b2", "b3", "b5", "b7", "b9", "bd", "bf"
-
-        // B** jumps
-        // "90", "b0", "f0", "30", "d0", "10", "80", "50", "70", "82"
-
-        // LDX/LDY
-        // "a2", "a6", "ae", "b6", "be", "a0", "a4", "ac", "b4", "bc"
-        
-        // JMP
-        //"4c", "5c", "6c", "7c", "dc"
-
-        // EOR
-        // "41", "43", "45", "47", "49", "4d", "4f", "51", "52", "53", "55",
-        // "57", "59", "5d", "5f"
-        
-        // ORA
-        // "01", "03", "05", "07", "09", "0d", "0f", "11", "12", "13", "15",
-        // "17", "19", "1d", "1f"
-
-        // ORA
-        // "21", "23", "25", "27", "29", "2d", "2f", "31", "32", "33", "35",
-        // "37", "39", "3d", "3f"
-
-        //"06", "0a", "0e", "16", "1e",  // asl
-        //"26", "2a", "2e", "36", "3e",  // rol
-        //"46", "4a", "4e", "56", "5e",  // lsr
-        //"66", "6a", "6e", "76", "7e",  // ror
-
-        //"1a", "e6", "ee", "f6", "fe", "e8", "c8" // inc, inx, iny
-        //"3a", "36", "ce", "d6", "de", "ca", "88" // dec, dex, dey
-        
+        //"a1", "a3", "a5", "a7", "a9", "ad", "af",           // lda
+        //"b1", "b2", "b3", "b5", "b7", "b9", "bd", "bf",     // lda
+        //"90", "b0", "f0", "30", "d0",                       // bcc, bcs, beq, bmi, bne 
+        //"10", "80", "50", "70", "82",                       // bpl, bra, bvc, bvs, brl
+        //"a2", "a6", "ae", "b6", "be",                       // ldx 
+        //"a0", "a4", "ac", "b4", "bc",                       // ldy
+        //"4c", "5c", "6c", "7c", "dc"                        // jmp
+        //"41", "43", "45", "47", "49", "4d", "4f",           // eor
+        //"51", "52", "53", "55", "57", "59", "5d", "5f"      // eor
+        //"01", "03", "05", "07", "09", "0d", "0f",           // ora
+        //"11", "12", "13", "15", "17", "19", "1d", "1f"      // ora
+        //"21", "23", "25", "27", "29", "2d", "2f",           // and
+        //"31", "32", "33", "35", "37", "39", "3d", "3f"      // and
+        //"06", "0a", "0e", "16", "1e",                       // asl
+        //"26", "2a", "2e", "36", "3e",                       // rol
+        //"46", "4a", "4e", "56", "5e",                       // lsr
+        //"66", "6a", "6e", "76", "7e",                       // ror
+        //"1a", "e6", "ee", "f6", "fe", "e8", "c8"            // inc, inx, iny
+        //"3a", "36", "ce", "d6", "de", "ca", "88"            // dec, dex, dey
         //"c1", "c3", "c5", "c7", "c9", "cd", "cf",           // cmp
         //"d1", "d2", "d3", "d5", "d7", "d9", "dd", "df",     // cmp
         //"e0", "e4", "ec",                                   // cpx
@@ -333,9 +319,10 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
         //"5b", "1b", "7b", "3b"                              // tcd, tcs, tdc, tsc
         //"48", "da", "5a",                                   // pha, phx, phy
         //"68", "fa", "7a",                                   // pla, plx, ply
-        //"8b", "0b", "4b", "08", "ab", "2b", "28"            //phb, phd, phk, php, plb, pld, plp
+        //"8b", "0b", "4b", "08", "ab", "2b", "28"            // phb, phd, phk, php, plb, pld, plp
         //"6b", "60", "40"                                    // rtl, rts, rti
-        "f4", "d4", "62"                                    // pea, pei, per
+        //"f4", "d4", "62"                                    // pea, pei, per
+        "24", "2c", "34", "3c", "89"                        // bit
     }
 
     for name in codes {
