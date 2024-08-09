@@ -292,6 +292,7 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
         //"a2", "a6", "ae", "b6", "be",                       // ldx 
         //"a0", "a4", "ac", "b4", "bc",                       // ldy
         //"4c", "5c", "6c", "7c", "dc"                        // jmp
+        //"22", "20", "fc",                                   // jsl, jsr
         //"41", "43", "45", "47", "49", "4d", "4f",           // eor
         //"51", "52", "53", "55", "57", "59", "5d", "5f"      // eor
         //"01", "03", "05", "07", "09", "0d", "0f",           // ora
@@ -322,7 +323,11 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
         //"8b", "0b", "4b", "08", "ab", "2b", "28"            // phb, phd, phk, php, plb, pld, plp
         //"6b", "60", "40"                                    // rtl, rts, rti
         //"f4", "d4", "62"                                    // pea, pei, per
-        "24", "2c", "34", "3c", "89"                        // bit
+        //"24", "2c", "34", "3c", "89"                        // bit
+        //"00", "02",                                         // brk, cop
+        //"ea", "42",                                         // nop, wdm
+        //"14", "1c", "04", "0c",                               // trb, tsb
+        "c2", "e2",                                          // rep, sep
     }
 
     for name in codes {

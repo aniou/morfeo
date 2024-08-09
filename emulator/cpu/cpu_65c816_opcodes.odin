@@ -133,7 +133,7 @@ w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
         oper_ORA                      (cpu)
 
     case 0x20:                                    // JSR $1234
-        mode_Absolute_DBR             (cpu)
+        mode_Absolute_PBR             (cpu)
         oper_JSR                      (cpu)
 
     case 0x21:                                    // AND ($10,X)

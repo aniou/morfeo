@@ -452,12 +452,6 @@ mode_Absolute_DBR           :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 2
 }
 
-// jesli pc będzie register
-//          to ustawimy mu od razu bank na k
-//          i wrap na true - i wtedy zawsze to się uda!
-// pc.b = k    // always bank K for pc
-// pc.w = true   // always wrap for   PC
-//
 mode_Absolute_PBR           :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )
@@ -946,7 +940,29 @@ oper_BRA                    :: #force_inline proc (using c: ^CPU_65C816) {
     cycle    += 2          if f.E && px else 1
 }
 
-oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) { }
+oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.size    = byte
+    t.val     = pc.bank
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+
+    t.size    = word
+    t.val     = pc.addr
+    t.val    += 1                      // specification say "+2" but mode_ sets +1
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+
+    oper_PHP(c)
+
+    f.I       = true
+    f.D       = false
+    ab.bank   = 0
+    ab.addr   = 0xFFE6
+    pc.bank   = 0
+    pc.addr   = read_m( ab, word )
+    t.size    = a.size
+}
+
 oper_BRK_E                  :: #force_inline proc (using c: ^CPU_65C816) { }
 
 oper_BRL                    :: #force_inline proc (using c: ^CPU_65C816) {
@@ -991,7 +1007,27 @@ oper_CMP                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.C        = read_r(  a, a.size )  >= t.val    // I wish I had a getter
 }
 
-oper_COP                    :: #force_inline proc (using c: ^CPU_65C816) { }
+oper_COP                    :: #force_inline proc (using c: ^CPU_65C816) {
+    t.size    = byte
+    t.val     = pc.bank
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+
+    t.size    = word
+    t.val     = pc.addr
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+
+    oper_PHP(c)
+
+    f.I       = true
+    f.D       = false
+    ab.bank   = 0
+    ab.addr   = 0xFFE4
+    pc.bank   = 0
+    pc.addr   = read_m( ab, word )
+    t.size    = a.size
+}
 oper_COP_E                  :: #force_inline proc (using c: ^CPU_65C816) { }
 
 oper_CPX                    :: #force_inline proc (using c: ^CPU_65C816) { 
@@ -1078,9 +1114,37 @@ oper_JMP                    :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   = ab.addr
 }
 
-oper_JSL                    :: #force_inline proc (using c: ^CPU_65C816) { }
+// XXX: jsl and jsr workaround due to lack specialized push_*
+// XXX: specialized word-sized registers?
+// XXX: or specialized push_procedures?
+// XXX: should mode_* set commands to next operand or not
+//      here we need to sp.addr -= 1 and that is unnatural
+//      but fits nice for relative jump operands...
+oper_JSL                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.size    = byte
+    t.val     = pc.bank
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
 
-oper_JSR                    :: #force_inline proc (using c: ^CPU_65C816) { }
+    t.size    = word
+    t.val     = pc.addr
+    t.val    -= 1                          // mode_ sets pc to next command
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+    pc.bank   = ab.bank
+    pc.addr   = ab.addr
+    t.size    = a.size
+}
+
+oper_JSR                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.size    = word
+    t.val     = pc.addr
+    t.val    -= 1                          // mode_ sets pc to next command
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+    pc.addr   = ab.addr
+    t.size    = a.size
+}
 
 oper_LDA                    :: #force_inline proc (using c: ^CPU_65C816) { 
     a.val     = read_m( ab, a.size )
@@ -1278,7 +1342,27 @@ oper_PLY                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.Z       = test_z( y          )
 }
 
-oper_REP                    :: #force_inline proc (using c: ^CPU_65C816) { }
+oper_REP                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, byte   )
+    f.N       = false if t.val & 0x80 == 0x80 else f.N
+    f.V       = false if t.val & 0x40 == 0x40 else f.V
+    f.M       = false if t.val & 0x20 == 0x20 else f.M
+    f.X       = false if t.val & 0x10 == 0x10 else f.X
+    f.D       = false if t.val & 0x08 == 0x08 else f.D
+    f.I       = false if t.val & 0x04 == 0x04 else f.I
+    f.Z       = false if t.val & 0x02 == 0x02 else f.Z
+    f.C       = false if t.val & 0x01 == 0x01 else f.C
+
+    // internal part
+    a.size    = f.M
+    t.size    = f.M
+    x.size    = f.X
+    y.size    = f.X
+    if f.X == byte {
+        x.val = x.val & 0x00FF
+        y.val = y.val & 0x00FF
+    }
+}
 
 // C <- [76543210] <- C
 oper_ROL                    :: #force_inline proc (using c: ^CPU_65C816) { 
@@ -1366,7 +1450,27 @@ oper_SEI                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.I       = true
 }
 
-oper_SEP                    :: #force_inline proc (using c: ^CPU_65C816) { }
+oper_SEP                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, byte   )
+    f.N       = true if t.val & 0x80 == 0x80 else f.N
+    f.V       = true if t.val & 0x40 == 0x40 else f.V
+    f.M       = true if t.val & 0x20 == 0x20 else f.M
+    f.X       = true if t.val & 0x10 == 0x10 else f.X
+    f.D       = true if t.val & 0x08 == 0x08 else f.D
+    f.I       = true if t.val & 0x04 == 0x04 else f.I
+    f.Z       = true if t.val & 0x02 == 0x02 else f.Z
+    f.C       = true if t.val & 0x01 == 0x01 else f.C
+
+    // internal part
+    a.size    = f.M
+    t.size    = f.M
+    x.size    = f.X
+    y.size    = f.X
+    if f.X == byte {
+        x.val = x.val & 0x00FF
+        y.val = y.val & 0x00FF
+    }
+}
 
 oper_STA                    :: #force_inline proc (using c: ^CPU_65C816) { 
     _         = stor_m( ab, a    )
@@ -1436,8 +1540,21 @@ oper_TDC                    :: #force_inline proc (using c: ^CPU_65C816) {
 
 }
 
-oper_TRB                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_TSB                    :: #force_inline proc (using c: ^CPU_65C816) { }
+oper_TRB                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, t.size    )
+    data0     = t.val & a.val
+    f.Z       = test_z( data0, a.size )
+    t.val   &~= a.val
+    _         = stor_m( ab, t         )
+}
+
+oper_TSB                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, t.size    )
+    data0     = t.val & a.val
+    f.Z       = test_z( data0, a.size )
+    t.val    |= a.val
+    _         = stor_m( ab, t         )
+}
 
 // TSC is always 16-bit
 oper_TSC                    :: #force_inline proc (using c: ^CPU_65C816) { 
