@@ -235,12 +235,12 @@ print_state :: proc(state: CPU_State, c: ^cpu.CPU) {
 }
 
 
-do_test :: proc(p: ^platform.Platform, name: string) -> (ok: bool) {
+do_test :: proc(p: ^platform.Platform, mode: string, name: string) -> (ok: bool) {
     // raw data
 
     ok = true
-    fname := fmt.aprintf("external/tests-65816/v1/%s.n.json", name)
-    log.infof("reading file %s ", fname)
+    fname := fmt.aprintf("external/tests-65816/v1/%s.%s.json", name, mode)
+    //log.infof("reading file %s ", fname)
     data, status := os.read_entire_file_from_filename(fname)
     if !status {
         log.error("Failed to load the file!")
@@ -264,6 +264,7 @@ do_test :: proc(p: ^platform.Platform, name: string) -> (ok: bool) {
 
     // do work
     //log.info("testing...")
+    start := time.tick_now() 
     count := 0
     for test in tests {
         prepare_test(p, test.initial)
@@ -278,7 +279,8 @@ do_test :: proc(p: ^platform.Platform, name: string) -> (ok: bool) {
         }
         count += 1
     }
-    log.infof("%d tests passed", count)
+    ms_elapsed := u64(time.tick_since(start) / time.Microsecond)
+    log.infof("mode %s opcode %s tests %d time %i μs", mode, name, count, ms_elapsed)
     return
 }
 
@@ -334,7 +336,7 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
     }
 
     for name in codes {
-        do_test(p, name) or_break
+        do_test(p, "n", name) or_break
     }
 
     return
@@ -346,7 +348,7 @@ main :: proc() {
     context.logger  = log.create_console_logger(opt = logger_options) 
 
     // init -------------------------------------------------------------
-    log.info("Running...")
+    //log.info("Running...")
     p := platform.test816_make()
     
     // running ----------------------------------------------------------
@@ -354,7 +356,7 @@ main :: proc() {
 
     // exiting ----------------------------------------------------------
     p->delete()
-    log.info("Exiting...")
+    //log.info("Exiting...")
     log.destroy_console_logger(context.logger)
     os.exit(0)
 }

@@ -910,34 +910,24 @@ oper_ADC                    :: #force_inline proc (using c: ^CPU_65C816) {
         data0    = read_m( ab, a.size )
         data2   := u32(data0)
 
-        //fmt.printf(" D %06x M %t C %t\n", data2, f.M, f.C)
-        // lowest nybble
-        carry   := u32(1) if f.C else 0
+        carry   := u32(1) if f.C    else 0
         o       := (data1 & 0x0F) + (data2 & 0x0F) + carry
-
-        // decimal correct
-        if o > 0x09 do o += 0x06
-        //fmt.printf(" D o after first decimal %02x\n", o)
-        carry    = 0x10 if o > 0x0f else 0
+        o       += 0x06 if o > 0x09 else 0              // decimal correction
+        carry    = 0x10 if o > 0x0f else 0              // carry of first nybble
 		o        = (o & 0x0f) + (data1 & 0xF0) + (data2 & 0xF0) + carry
         f.V      = test_v( a.size, u32(data1), u32(data0), u32(o)    )
-        if o > 0x9F do o += 0x60
+        o       += 0x60 if o > 0x9f else 0              // decimal correction
 
         if f.M == word {
-        carry    = 0x0100 if o > 0xFF else 0
-		o        = (o & 0xff) + (data1 & 0x0F00) + (data2 & 0x0F00) + carry
-        if o > 0x9FF do o += 0x600
-        carry    = 0x1000 if o > 0xFFF else 0
-		o        = (o & 0xfff) + (data1 & 0xF000) + (data2 & 0xF000) + carry
-        f.V      = test_v( a.size, u32(data1), u32(data0), u32(o)    )
-        if o > 0x9FFF do o += 0x6000
+            carry    = 0x0100 if o > 0xFF   else 0
+		    o        = (o & 0xff) + (data1 & 0x0F00) + (data2 & 0x0F00) + carry
+            o       += 0x600  if o > 0x9FF  else 0
+            carry    = 0x1000 if o > 0xFFF  else 0
+		    o        = (o & 0xfff) + (data1 & 0xF000) + (data2 & 0xF000) + carry
+            f.V      = test_v( a.size, u32(data1), u32(data0), u32(o)    )
+            o       += 0x6000 if o > 0x9FFF else 0
         }
         
-		
-
-        //fmt.printf("%06x M %t C %t\n", o, f.M, f.C)
-        //fmt.printf("%04x M %t C %t\n", data1, f.M, f.C)
-
         a.val    = u16(o)
         f.C      = o > 0xFF if f.M else o > 0xFFFF
         f.N      = test_n( a )
