@@ -1523,7 +1523,84 @@ oper_RTS                    :: #force_inline proc (using c: ^CPU_65C816) {
     sp.addr   = addu_r( sp, word )
 }
 
-oper_SBC                    :: #force_inline proc (using c: ^CPU_65C816) { }
+oper_SBC                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    if f.D == false {
+        data1    = u32(read_r(a, a.size ))
+        tmp     := data1
+        data2   := u32(read_m( ab, a.size ))
+        data1   -= data2
+        data1   -= 0 if f.C else 1
+        f.V      = test_v( a.size, tmp, ~data2, data1 )
+        a.val    = u16(data1)
+        f.C      = test_v( a.size, ~data1 )
+        f.N      = test_n( a )
+        f.Z      = test_z( a )
+    } else {
+        data0    = read_m( ab, a.size )
+        data1    = u32(read_r(a, a.size ))
+        data2   := u32(data0)
+        carry   := u32(1) if f.C    else 0
+
+        // http://6502.org/tutorials/decimal_mode.html#A
+        //
+        // 4a. AL = (A & $0F) - (B & $0F) + C-1
+        // 4b. A = A - B + C-1
+        // 4c. If A < 0, then A = A - $60
+        // 4d. If AL < 0, then A = A - $06
+        // 4e. The accumulator result is the lower 8 bits of A
+
+		// XXX - convert it to properr nybble-like operations
+
+		o       :  u32
+		if f.M == byte {
+			o        =  data1         -  data2         + (carry - 1)
+			al1     := (data1 & 0x0F ) - (data2 & 0x0F ) + 0x1 * (carry - 1)
+            if  al1 & 0xFFFF_0000 != 0 { carry = 0 } else {carry = 1}
+			al2     := (data1 & 0xF0 ) - (data2 & 0xF0 ) + 0x10 * (carry - 1)
+			//fmt.printf("C: %t %06x %04x %04x %06x %06x %06x ", f.C, o, data1, data2, al1, al2, 0)
+			f.V      = test_v( a.size, u32(data1), u32(~data0), u32(o)    )
+            oh      := o & 0xFF00
+			o       -= 0x0060 if al2 & 0xFFFF_FF00 != 0  else 0
+            o       &= 0x00FF
+            o       |= oh
+            oh       = o & 0xFFF0
+			o       -= 0x0006 if al1 & 0xFFFF_FFF0 != 0  else 0
+            o       &= 0x000F
+            o       |= oh
+			f.C      = o & 0xFFFF_FF00 == 0
+			//fmt.printf("final o: %06x\n", o)
+		} else {
+			o        =  data1          -  data2          + 0x1 * (carry - 1)
+			al1     := (data1 & 0x0F ) - (data2 & 0x0F ) + 0x1 * (carry - 1)
+            if  al1 & 0xFFFF_0000 != 0 { carry = 0 } else {carry = 1}
+			al2     := (data1 & 0xF0 ) - (data2 & 0xF0 ) + 0x10 * (carry - 1)
+            if  al2 & 0xFFFF_0000 != 0 { carry = 0 } else { carry = 1 }
+			al3     := (data1 & 0xF00) - (data2 & 0xF00) + 0x100 * (carry - 1)
+			//fmt.printf("C: %t %06x %04x %04x %06x %06x %06x ", f.C, o, data1, data2, al1, al2, al3)
+			f.C      = o & 0xFFFF_0000 == 0
+			f.V      = test_v( a.size, u32(data1), u32(~data0), u32(o)    )
+			o       -= 0x6000 if o   & 0xFFFF_0000 != 0  else 0
+            oh      := o & 0xF000
+
+			o       -= 0x0600 if al3 & 0xFFFF_F000 != 0  else 0
+            o       &= 0x0FFF
+            o       |= oh
+            oh       = o & 0xFF00
+			o       -= 0x0060 if al2 & 0xFFFF_FF00 != 0  else 0
+            o       &= 0x00FF
+            o       |= oh
+            oh       = o & 0xFFF0
+			o       -= 0x0006 if al1 & 0xFFFF_FFF0 != 0  else 0
+            o       &= 0x000F
+            o       |= oh
+			//fmt.printf("final o: %06x\n", o)
+        }
+        
+        a.val    = u16(o)
+        f.N      = test_n( a )
+        f.Z      = test_z( a )
+    }
+}
 
 oper_SEC                    :: #force_inline proc (using c: ^CPU_65C816) { 
     f.C       = true
