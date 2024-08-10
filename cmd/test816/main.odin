@@ -213,9 +213,9 @@ verify_test :: proc(p: ^platform.Platform, state: CPU_State) -> (err: bool) {
 
 print_state :: proc(state: CPU_State, c: ^cpu.CPU) {
     c    := &c.model.(cpu.CPU_65C816)
-    log.errorf("data: PC %02x:%04x|SP %04x|A %04x|X %04x|Y %04x|DBR %02x|D: %02x|AB %02x:%04x %04x|wrap: %t",
+    log.errorf("data: PC %02x:%04x|SP %04x|A %04x|X %04x|Y %04x|DBR %02x|D: %02x|AB %02x:%04x %04x|wrap: %t|fD %t|fM %t",
         state.pbr, state.pc, state.s, state.d, state.a, state.x, state.y, state.dbr, 
-        c.ab.bank, c.ab.addr, c.ab.index, c.ab.wrap)
+        c.ab.bank, c.ab.addr, c.ab.index, c.ab.wrap, c.f.D, c.f.M)
 
     addr := make([dynamic]u32, 0)
     mem  := make(map[u32]u32)
@@ -326,8 +326,11 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
         //"24", "2c", "34", "3c", "89"                        // bit
         //"00", "02",                                         // brk, cop
         //"ea", "42",                                         // nop, wdm
-        //"14", "1c", "04", "0c",                               // trb, tsb
-        "c2", "e2",                                          // rep, sep
+        //"14", "1c", "04", "0c",                             // trb, tsb
+        //"c2", "e2",                                         // rep, sep
+        //"db", "cb",                                         // stp, wai
+        "61", "63", "65", "67", "69", "6d", "6f",           // adc
+        "71", "72", "73", "75", "77", "79", "7d", "7f",     // adc
     }
 
     for name in codes {

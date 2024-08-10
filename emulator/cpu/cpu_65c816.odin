@@ -1,4 +1,14 @@
 
+// general ideas for future:
+// 1. use 32bit-wide register everywhere to avoid casts
+// 2. use bit_fields to avoid bitshifts for banks, 
+//    ie. no  ea = u32(bank) << 16 | u32(addr) + 1
+//    but     ea = bank | addr + 1
+// 3. check appropriateness of bit_fields for registers 
+// 4. consider shifting constructs like ( Reg ) to { Reg.val, size }
+//    to achieve more uniformity across routines
+
+
 package cpu
 
 import "base:runtime"
@@ -82,7 +92,7 @@ CPU_65C816 :: struct {
     cycle:  u32,       // number of cycless for this command
 
     data0:  u16,       // temporary register
-    data1:  u16,       // temporary register (2)
+    data1:  u32,       // temporary register (2)
 }
 
 // XXX - parametrize CPU type!
@@ -404,7 +414,7 @@ test_s :: #force_inline proc (dr: DataRegister_65C816)    -> (result: bool) {
 //  is the same and differs from the sign of the sum"
 //
 // XXX - check if we really need to pass sum
-test_v :: #force_inline proc(size: bool, a, b, s: u16) -> (result: bool) {
+test_v_v1 :: #force_inline proc(size: bool, a, b, s: u32) -> (result: bool) {
     switch size {
     case byte:
         arg_sign_eq    := ((a ~ b )  &   0x80) == 0
@@ -418,6 +428,20 @@ test_v :: #force_inline proc(size: bool, a, b, s: u16) -> (result: bool) {
     return result
 }
 
+// XXX: in case of u32 register and 8/16 bit operations we
+//      need simply check change on "upper" bits to detect
+//      overflow?
+test_v_v2 :: #force_inline proc(size: bool, sum: u32) -> (overflow: bool) {
+    switch size {
+    case byte:    overflow = (sum & 0xFFFF_FF00) != 0
+    case word:    overflow = (sum & 0xFFFF_0000) != 0
+    }
+    return 
+}
+
+test_v :: proc { test_v_v1, test_v_v2 }
+
+
 // set or clear highest bit (15 or 7, according to register size) 
 set__h :: #force_inline proc (dr: DataRegister_65C816, a: bool)    -> (result: u16) {
     if a {
@@ -426,6 +450,28 @@ set__h :: #force_inline proc (dr: DataRegister_65C816, a: bool)    -> (result: u
         result = dr.val & (0x7F if dr.size else 0x7FFF)
     }
     return result
+}
+
+// helper for adc with D-flag
+parsed :: proc(sum: u32, size: bool) -> (result: u32) {
+    sum := sum
+	if (sum & 0x0F) > 0x09 {
+		sum = sum + 0x06
+	}
+	if (sum & 0xF0) > 0x90 {
+		sum = sum + 0x60
+	}
+
+	if size == word {
+		if (sum & 0x0F00) > 0x0900 {
+				sum = sum + 0x0600
+		}
+		if (sum & 0xF000) > 0x9000 {
+				sum = sum + 0x6000
+		}
+	}
+	result = sum
+	return
 }
 
 // addressing modes
@@ -846,8 +892,58 @@ mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_65C816) {
 */
 }
 
+// XXX: it looks currently so bad, consider 32-bit register backends
+oper_ADC                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    if f.D == false {
+        data1    = u32(read_r(a, a.size ))
+        tmp     := data1
+        data2   := u32(read_m( ab, a.size ))
+        data1   += data2
+        data1   += 1 if f.C else 0
+        f.V      = test_v( a.size, tmp, data2, data1 )
+        a.val    = u16(data1)
+        f.C      = test_v( a.size, data1 )
+        f.N      = test_n( a )
+        f.Z      = test_z( a )
+    } else {
+        data1    = u32(read_r(a, a.size ))
+        data0    = read_m( ab, a.size )
+        data2   := u32(data0)
 
-oper_ADC                    :: #force_inline proc (using c: ^CPU_65C816) { }
+        //fmt.printf(" D %06x M %t C %t\n", data2, f.M, f.C)
+        // lowest nybble
+        carry   := u32(1) if f.C else 0
+        o       := (data1 & 0x0F) + (data2 & 0x0F) + carry
+
+        // decimal correct
+        if o > 0x09 do o += 0x06
+        //fmt.printf(" D o after first decimal %02x\n", o)
+        carry    = 0x10 if o > 0x0f else 0
+		o        = (o & 0x0f) + (data1 & 0xF0) + (data2 & 0xF0) + carry
+        f.V      = test_v( a.size, u32(data1), u32(data0), u32(o)    )
+        if o > 0x9F do o += 0x60
+
+        if f.M == word {
+        carry    = 0x0100 if o > 0xFF else 0
+		o        = (o & 0xff) + (data1 & 0x0F00) + (data2 & 0x0F00) + carry
+        if o > 0x9FF do o += 0x600
+        carry    = 0x1000 if o > 0xFFF else 0
+		o        = (o & 0xfff) + (data1 & 0xF000) + (data2 & 0xF000) + carry
+        f.V      = test_v( a.size, u32(data1), u32(data0), u32(o)    )
+        if o > 0x9FFF do o += 0x6000
+        }
+        
+		
+
+        //fmt.printf("%06x M %t C %t\n", o, f.M, f.C)
+        //fmt.printf("%04x M %t C %t\n", data1, f.M, f.C)
+
+        a.val    = u16(o)
+        f.C      = o > 0xFF if f.M else o > 0xFFFF
+        f.N      = test_n( a )
+        f.Z      = test_z( a )
+    }
+}
 
 oper_AND                    :: #force_inline proc (using c: ^CPU_65C816) {
     t.val     = read_m( ab, a.size )
@@ -1028,6 +1124,7 @@ oper_COP                    :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   = read_m( ab, word )
     t.size    = a.size
 }
+
 oper_COP_E                  :: #force_inline proc (using c: ^CPU_65C816) { }
 
 oper_CPX                    :: #force_inline proc (using c: ^CPU_65C816) { 
@@ -1151,11 +1248,13 @@ oper_LDA                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.N       = test_n( a          )
     f.Z       = test_z( a          )
 }
+
 oper_LDX                    :: #force_inline proc (using c: ^CPU_65C816) { 
     x.val     = read_m( ab, x.size )
     f.N       = test_n( x          )
     f.Z       = test_z( x          )
 }
+
 oper_LDY                    :: #force_inline proc (using c: ^CPU_65C816) { 
     y.val     = read_m( ab, y.size )
     f.N       = test_n( y          )
@@ -1225,8 +1324,6 @@ oper_PER                    :: #force_inline proc (using c: ^CPU_65C816) {
     sp.addr   = subu_r( sp, t.size )
     t.size    = a.size                // restore original
 }
-
-oper_PER_ALT                 :: #force_inline proc (using c: ^CPU_65C816) { }
 
 oper_PHA                    :: #force_inline proc (using c: ^CPU_65C816) { 
     _         = push_r( sp, a      )
@@ -1476,7 +1573,9 @@ oper_STA                    :: #force_inline proc (using c: ^CPU_65C816) {
     _         = stor_m( ab, a    )
 }
 
-oper_STP                    :: #force_inline proc (using c: ^CPU_65C816) { }
+oper_STP                    :: #force_inline proc (using c: ^CPU_65C816) { 
+}
+
 oper_STX                    :: #force_inline proc (using c: ^CPU_65C816) { 
     _         = stor_m( ab, x    )
 }
@@ -1606,7 +1705,8 @@ oper_TYX                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.Z       = test_z( x    )
 }
 
-oper_WAI                    :: #force_inline proc (using c: ^CPU_65C816) { }
+oper_WAI                    :: #force_inline proc (using c: ^CPU_65C816) {
+}
 
 oper_WDM                    :: #force_inline proc (using c: ^CPU_65C816) { 
 }
