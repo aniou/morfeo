@@ -38,7 +38,8 @@ AddressRegister_65C816 :: struct {
     bank:      u16,                  // data bank (u8)
     addr:      u16,                  // address within bank
    index:      u16,                  // for indexed operations
-    wrap:      bool,                 // does read wrap on bank boundary?
+    wrap:      bool,                 // does wrap on bank boundary?
+   dwrap:      bool,                 // does wrap on page boundary?
     size:      bool,                 // 0 == 16 bit, 1 == 8 bit
 }
 
@@ -180,6 +181,7 @@ w65c816_execute :: proc(cpu: ^CPU_65C816) -> (cycles: u32) {
           cpu.ir    = u8(read_m(cpu.pc, byte)) // XXX: u16?
           cpu.cycle = 0
           cpu.ab.index = 0                     // XXX: move to addressing modes?
+          cpu.ab.dwrap = false                 // XXX: move to addressing modes?
           w65c816_run_opcode(cpu)
     }
 
@@ -257,14 +259,33 @@ subu_r :: proc { subu_r_reg, subu_r_addr }
 addu_r :: proc { addu_r_reg, addu_r_addr }
 
 read_m :: #force_inline proc (ar: AddressRegister_65C816, size: bool) -> (result: u16) {
-    ea     := u32(ar.addr) + u32(ar.index)
+    ea, high: u32
+
+    //if ar.dwrap && [direct page register] == 0 {
+    if ar.dwrap {
+        high  = u32(ar.addr) & 0xFF00
+        ea    = u32(ar.addr) + u32(ar.index)
+        ea   &= 0x00FF
+        ea   |= high
+    } else {
+        ea    = u32(ar.addr) + u32(ar.index)
+    }
+
     ea     &= 0x0000_ffff if ar.wrap else 0xffff_ffff
     ea     += u32(ar.bank) << 16
     ea     &= 0x00ff_ffff
     result  = u16(localbus->read(.bits_8, ea))
 
     if size == word {
-        ea      = u32(ar.addr) + u32(ar.index) + 1
+        if ar.dwrap {
+            high  = u32(ar.addr) & 0xFF00
+            ea    = u32(ar.addr) + u32(ar.index) + 1
+            ea   &= 0x00FF
+            ea   |= high
+        } else {
+            ea    = u32(ar.addr) + u32(ar.index) + 1
+        }
+
         ea     &= 0x0000_ffff if ar.wrap else 0xffff_ffff
         ea     += u32(ar.bank) << 16
         ea     &= 0x00ff_ffff
@@ -325,14 +346,31 @@ pull_v :: #force_inline proc (ar: AddressRegister_65C816, size: bool) -> (result
 stor_m :: #force_inline proc (ar: AddressRegister_65C816, dr: DataRegister_65C816) -> bool {
     value  := u32( read_r( dr, dr.size ) )
 
-    ea     := u32(ar.addr) + u32(ar.index)
+    ea, high : u32
+
+    if ar.dwrap {
+        high  = u32(ar.addr) & 0xFF00
+        ea    = u32(ar.addr) + u32(ar.index)
+        ea   &= 0x00FF
+        ea   |= high
+    } else {
+        ea    = u32(ar.addr) + u32(ar.index)
+    }
+
     ea     &= 0x0000_FFFF if ar.wrap else 0xFFFF_FFFF
     ea     += u32(ar.bank) << 16
     ea     &= 0x00ff_ffff
     localbus->write(.bits_8, ea, value & 0xFF)
 
     if dr.size == word {
-        ea      = u32(ar.addr) + u32(ar.index) + 1
+        if ar.dwrap {
+            high  = u32(ar.addr) & 0xFF00
+            ea    = u32(ar.addr) + u32(ar.index) + 1
+            ea   &= 0x00FF
+            ea   |= high
+        } else {
+            ea    = u32(ar.addr) + u32(ar.index) + 1
+        }
         ea     &= 0x0000_FFFF if ar.wrap else 0xFFFF_FFFF
         ea     += u32(ar.bank) << 16
         ea     &= 0x00ff_ffff
@@ -570,15 +608,17 @@ mode_DP_X_Indirect          :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, byte )  // 0 | D + LL + X
     pc.addr  += 1
-    ab.addr  += d
+    ab.addr  += d 
     ab.bank   = 0
-    ab.index    = x.val
+    ab.index  = x.val
     ab.wrap   = true
+    ab.dwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
 
     ab.addr   = read_m( ab, word )  // dbr hh ll
     ab.bank   = dbr
     ab.index  = 0
     ab.wrap   = false
+    ab.dwrap  = false
 }
 
 //
@@ -592,10 +632,12 @@ mode_DP_Indirect            :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr  += d
     ab.bank   = 0
     ab.wrap   = true
+    ab.dwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
 
     ab.addr   = read_m( ab, word )  // dbr hh ll
     ab.bank   = dbr
     ab.wrap   = false
+    ab.dwrap  = false
 }
 
 //
@@ -603,6 +645,18 @@ mode_DP_Indirect            :: #force_inline proc (using c: ^CPU_65C816) {
 // OPC ($LL),Y    operand is zeropage address;
 //                effective address is word in (LL, LL + 1)
 //                incremented by Y with carry: C.w($00LL) + Y
+
+// Again, note that this is one of the rare instances where emulation mode has
+// different behavior than the 65C02 or NMOS 6502. Since the 65C02 and NMOS
+// 6502 have a 16-bit address space, if the address of the data were $FFFE+Y
+// and the Y register were $0A, the address of the data would be $0008. On the
+// 65C816, the address of the data would be $010008 (assuming the DBR was $00).
+// In practice, this is typically not a problem, since code written for the
+// 65C02 or NMOS 6502 would almost never use a pointer that would wrap at the
+// 16-bit address space boundary like that. 
+// 
+// [Bruce Clark (2015) "65C816 Opcodes"]
+
 mode_DP_Indirect_Y          :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, byte )  // 0 | D + LL
@@ -610,11 +664,13 @@ mode_DP_Indirect_Y          :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr  += d
     ab.bank   = 0
     ab.wrap   = true
+    ab.dwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
 
     ab.addr   = read_m( ab, word )  // dbr hh ll + Y
     ab.bank   = dbr
     ab.index  = read_r( y, y.size)
     ab.wrap   = false
+    ab.dwrap  = false
     px        = test_p( ab )
 }
 
@@ -625,11 +681,13 @@ mode_S_Relative_Indirect_Y  :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr  += sp.addr
     ab.bank   = 0
     ab.wrap   = true
+    ab.dwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
 
     ab.addr   = read_m( ab, word )  // dbr hh ll + Y
     ab.bank   = dbr
     ab.index  = y.val
     ab.wrap   = false
+    ab.dwrap  = false
 }
 
 //
@@ -730,6 +788,7 @@ mode_DP_X                   :: #force_inline proc (using c: ^CPU_65C816) {
     ab.bank    = 0
     ab.index   = x.val
     ab.wrap    = true
+    ab.dwrap   = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
 }
 
 //
@@ -744,6 +803,7 @@ mode_DP_Y                   :: #force_inline proc (using c: ^CPU_65C816) {
     ab.bank    = 0
     ab.index   = y.val
     ab.wrap    = true
+    ab.dwrap   = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
 }
 
 mode_S_Relative             :: #force_inline proc (using c: ^CPU_65C816) {
@@ -1219,6 +1279,22 @@ oper_JMP                    :: #force_inline proc (using c: ^CPU_65C816) {
 // XXX: should mode_* set commands to next operand or not
 //      here we need to sp.addr -= 1 and that is unnatural
 //      but fits nice for relative jump operands...
+
+// In this connection it is important to be aware that, although the high byte
+// of the stack register is consistently forced to one, new 65816 opcodes
+// executed in the emulation mode will not wrap the stack if the low byte over-
+// or underflowed in the middle of an instruction. For example, if the stack
+// pointer is equal to $101, and a JSL is executed, the final byte of the three
+// bytes pushed on the stack will be at $FF, not $1FF; but the stack pointer at
+// the end of the instruction will point to $1FE. However, if JSR (a 6502
+// instruction) is executed in the emulation mode with the stack pointer equal
+// to $100, the second of the two bytes pushed will be stored at $1FF.
+
+// [programming..., page 278]
+
+// XXX: change it to pusr_r( sp-1, sp-2, sp-3 etc)
+//      and then make subu_r - 3 with proper size
+
 oper_JSL                    :: #force_inline proc (using c: ^CPU_65C816) { 
     t.size    = byte
     t.val     = pc.bank
@@ -1883,16 +1959,19 @@ oper_XBA                    :: #force_inline proc (using c: ^CPU_65C816) {
 // XXX: I'm not sure about behaviour when "nothing changed"
 //      check it on real hardware...
 oper_XCE                    :: #force_inline proc (using c: ^CPU_65C816) {
+
     if f.C == f.E {
         return
     }
-    tmp      := f.E
-    f.E       = f.C
-    f.C       = tmp
 
-    if f.E == byte {
+    // transition E from 0 to 1
+    if f.C == true {
+        f.E     = true
+        f.C     = false
+
         f.X     = byte
         f.M     = byte
+        a.b     = a.val & 0xFF00  // preserve B accumulator, [page 423]
         a.size  = byte
         t.size  = byte
         x.size  = byte
@@ -1904,13 +1983,10 @@ oper_XCE                    :: #force_inline proc (using c: ^CPU_65C816) {
         sp.addr &= 0x00FF
         sp.addr |= 0x0100
     } else {
-        f.X      = word
-        f.M      = word
-        a.size   = word
-        t.size   = word
-        x.size   = word
-        y.size   = word
-        sp.size  = word
+        f.E      = false
+        f.C      = true
+
+        sp.size  = word             // e 1 -> 0 does not change M,X
     }
 }
 

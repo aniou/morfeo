@@ -85,6 +85,12 @@ prepare_test :: proc(p: ^platform.Platform, state: CPU_State) {
         c.t.size = cpu.word
     }
 
+    if c.f.E == true {
+        c.sp.addr &= 0x00FF
+        c.sp.addr |= 0x0100
+        c.sp.size  = cpu.byte
+    }
+
     // step 2: prepare memory
     for entry in state.ram {
         p.bus.ram0->write(.bits_8, entry[0], entry[1])
@@ -210,11 +216,27 @@ verify_test :: proc(p: ^platform.Platform, state: CPU_State) -> (err: bool) {
     return
 }
 
+cpu_flags :: proc(p: u8, e: int) -> (result: string) {
+    result = fmt.aprintf("%s%s%s%s%s%s%s%s %s",
+        "n" if p  & 0x80 == 0x80 else ".",
+        "v" if p  & 0x40 == 0x40 else ".",
+        "m" if p  & 0x20 == 0x20 else ".",
+        "x" if p  & 0x10 == 0x10 else ".",
+        "d" if p  & 0x08 == 0x08 else ".",
+        "i" if p  & 0x04 == 0x04 else ".",
+        "z" if p  & 0x02 == 0x02 else ".",
+        "c" if p  & 0x01 == 0x01 else ".",
+        "e" if e         != 0    else "."
+    )
+    return
+}
 
 print_state :: proc(state: CPU_State, c: ^cpu.CPU) {
     c    := &c.model.(cpu.CPU_65C816)
-    log.errorf("data: PC %02x:%04x|SP %04x|A %04x|X %04x|Y %04x|DBR %02x|D: %02x|AB %02x:%04x %04x|wrap: %t|fD %t|fM %t",
-        state.pbr, state.pc, state.s, state.d, state.a, state.x, state.y, state.dbr, 
+
+    state_flags := cpu_flags(state.p, state.e)
+    log.errorf("data: PC %02x:%04x|SP %04x|A %04x|X %04x|Y %04x|DBR %02x|D: %02x|%s|AB %02x:%04x %04x|wrap: %t|fD %t|fM %t",
+        state.pbr, state.pc, state.s, state.a, state.x, state.y, state.dbr, state.d, state_flags,
         c.ab.bank, c.ab.addr, c.ab.index, c.ab.wrap, c.f.D, c.f.M)
 
     addr := make([dynamic]u32, 0)
@@ -266,9 +288,13 @@ do_test :: proc(p: ^platform.Platform, mode: string, name: string) -> (ok: bool)
     //log.info("testing...")
     start := time.tick_now() 
     count := 0
+    c     := &p.cpu.model.(cpu.CPU_65C816) 
     for test in tests {
         prepare_test(p, test.initial)
-        p.cpu->exec(0)
+        for {
+            c->exec(0)
+            if (!c.in_mvn) && (!c.in_mvp) do break
+        }
         fail := verify_test(p, test.final)
         if fail {
             log.error("test: ", test.name)
@@ -293,14 +319,17 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
         //"10", "80", "50", "70", "82",                       // bpl, bra, bvc, bvs, brl
         //"a2", "a6", "ae", "b6", "be",                       // ldx 
         //"a0", "a4", "ac", "b4", "bc",                       // ldy
-        //"4c", "5c", "6c", "7c", "dc"                        // jmp
-        //"22", "20", "fc",                                   // jsl, jsr
-        //"41", "43", "45", "47", "49", "4d", "4f",           // eor
-        //"51", "52", "53", "55", "57", "59", "5d", "5f"      // eor
-        //"01", "03", "05", "07", "09", "0d", "0f",           // ora
-        //"11", "12", "13", "15", "17", "19", "1d", "1f"      // ora
-        //"21", "23", "25", "27", "29", "2d", "2f",           // and
-        //"31", "32", "33", "35", "37", "39", "3d", "3f"      // and
+        //"fb"                                                // xce
+        //"4c", "5c", "6c", "7c", "dc",                       // jmp
+        
+        "22", "20", "fc",                                   // jsl, jsr
+        "41", "43", "45", "47", "49", "4d", "4f",           // eor
+        "51", "52", "53", "55", "57", "59", "5d", "5f",     // eor
+        "01", "03", "05", "07", "09", "0d", "0f",           // ora
+        "11", "12", "13", "15", "17", "19", "1d", "1f",     // ora
+        "21", "23", "25", "27", "29", "2d", "2f",           // and
+        "31", "32", "33", "35", "37", "39", "3d", "3f",     // and
+
         //"06", "0a", "0e", "16", "1e",                       // asl
         //"26", "2a", "2e", "36", "3e",                       // rol
         //"46", "4a", "4e", "56", "5e",                       // lsr
@@ -333,11 +362,15 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
         //"db", "cb",                                         // stp, wai
         //"61", "63", "65", "67", "69", "6d", "6f",           // adc
         //"71", "72", "73", "75", "77", "79", "7d", "7f",     // adc
-        "e1", "e3", "e5", "e7", "e9", "ed", "ef",           // sbc
-        "f1", "f2", "f3", "f5", "ff", "f9", "fd", "ff",     // sbc
+        //"e1", "e3", "e5", "e7", "e9", "ed", "ef",           // sbc
+        //"f1", "f2", "f3", "f5", "ff", "f9", "fd", "ff",     // sbc
+        //"54",                                               // mvn - broken tests
+        //"44",                                               // mvp - broken tests
+
     }
 
     for name in codes {
+        do_test(p, "e", name) or_break
         do_test(p, "n", name) or_break
     }
 
