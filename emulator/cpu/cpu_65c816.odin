@@ -54,7 +54,7 @@ CPU_65C816 :: struct {
     pc:     AddressRegister_65C816,      // pc.bank act as K register
     sp:     AddressRegister_65C816,      // XXX: check it should be Data or Addresss?
     ab:     AddressRegister_65C816,
-    ta:     AddressRegister_65C816,      // temporary, internal register
+    ta:     AddressRegister_65C816,      // temporary, internal address register
 
     a:      DataRegister_65C816,
     t:      DataRegister_65C816,        // temporary, internal register, size same as a(!)
@@ -64,7 +64,7 @@ CPU_65C816 :: struct {
     dbr:    u16,      // Data    Bank Register  (u8)
     d:      u16,      // Direct register       (u16)
     //k:      u16,      // Program Bank Register  (u8)   - inside pc.bank
-
+    
                       // flag set for 65C816:  nvmxdizc e
                       // flag set for 65xx     nv1bdizc
     f : struct {	  // flags
@@ -93,6 +93,13 @@ CPU_65C816 :: struct {
 
     data0:  u16,       // temporary register
     data1:  u32,       // temporary register (2)
+
+    // only for MVN/MVP support
+    in_mvn: bool,      // CPU is in middle in MVN - lower precedence than irq
+    in_mvp: bool,      // CPU is in middle in MVP - lower precedence than irq
+    src:    u16,       // two temorary registers for MVN/MVP used in case of
+    dst:    u16,       // irq during MVN/P, when banks in ab and ta temporary
+                       // registers may be overwritten by other operations
 }
 
 // XXX - parametrize CPU type!
@@ -164,14 +171,18 @@ w65c816_exec :: proc(cpu: ^CPU, ticks: u32 = 1000) {
 }
 
 w65c816_execute :: proc(cpu: ^CPU_65C816) -> (cycles: u32) {
-    cpu.px    = false
-    cpu.ir    = u8(read_m(cpu.pc, byte)) // XXX: u16?
-    tmp      := read_m(cpu.pc, byte)
-    cpu.cycle = 0
-    cpu.ab.index = 0    // XXX: move to addressing modes?
 
-    //log.infof("execute, PC %04x opcode %02x (%04x)", cpu.pc.addr, cpu.ir, tmp)
-    w65c816_run_opcode(cpu)
+    switch {
+    case cpu.in_mvn: oper_MVN(cpu)
+    case cpu.in_mvp: oper_MVP(cpu)
+    case:
+          cpu.px    = false
+          cpu.ir    = u8(read_m(cpu.pc, byte)) // XXX: u16?
+          cpu.cycle = 0
+          cpu.ab.index = 0                     // XXX: move to addressing modes?
+          w65c816_run_opcode(cpu)
+    }
+
 
     // XXX: create OP table!
     //cycles    = op_table[cpu.ir].cycles
@@ -864,8 +875,9 @@ mode_Immediate_flag_X       :: #force_inline proc (using c: ^CPU_65C816) {
 
 // only for MVN/MVP
 mode_BlockMove              :: #force_inline proc (using c: ^CPU_65C816) {
-    pc.addr  += 1
     ab        = pc
+    ab.addr  += 1
+    pc.addr  += 2
 }
 
 //
@@ -1276,9 +1288,86 @@ oper_LSR_A                  :: #force_inline proc (using c: ^CPU_65C816) {
     a.val     = t.val
 }
 
+// XXX: search for proper tests for that opcode
+oper_MVN                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    if !in_mvn {                        // preparing for run
+        dst       = read_m( ab, byte )
+        ab.addr  += 1
+        src       = read_m( ab, byte )
+        dbr       = dst
+    }
 
-oper_MVN                    :: #force_inline proc (using c: ^CPU_65C816) { }
-oper_MVP                    :: #force_inline proc (using c: ^CPU_65C816) { }
+    ta.bank    = src                    // source
+    ta.addr    = 0
+    ta.wrap    = true
+    ta.index   = read_r( x, x.size )
+
+    ab.bank    = dst                    // destination
+    ab.addr    = 0
+    ab.wrap    = true
+    ab.index   = read_r( y, y.size)
+
+    t.size     = byte                   // copying byte
+    t.val      = read_m( ta, byte )     // XXX: optimize it to dedicated, byte reg
+    _          = stor_m( ab, t    )
+    t.size     = a.size
+
+    x.val      = addu_r( x, 1     )     // incrementing X/Y
+    y.val      = addu_r( y, 1     )
+
+    data0      = read_r( a, word  )     // decrementing A
+    data0     -= 1
+
+    if a.size == byte {
+        a.b    = data0 & 0xFF00
+        a.val  = data0 & 0x00FF
+    } else {
+        a.b    = data0 & 0xFF00
+        a.val  = data0
+    }
+
+    in_mvn     = false if data0 == 0xFFFF else true
+}
+
+oper_MVP                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    if !in_mvp {                        // preparing for run
+        dst       = read_m( ab, byte )
+        ab.addr  += 1
+        src       = read_m( ab, byte )
+        dbr       = dst
+    }
+
+    ta.bank    = src                    // source
+    ta.addr    = 0
+    ta.wrap    = true
+    ta.index   = read_r( x, x.size )
+
+    ab.bank    = dst                    // destination
+    ab.addr    = 0
+    ab.wrap    = true
+    ab.index   = read_r( y, y.size)
+
+    t.size     = byte                   // copying byte
+    t.val      = read_m( ta, byte )     // XXX: optimize it to dedicated, byte reg
+    _          = stor_m( ab, t    )
+    t.size     = a.size
+
+    x.val      = subu_r( x, 1     )     // incrementing X/Y
+    y.val      = subu_r( y, 1     )
+
+    data0      = read_r( a, word  )     // decrementing A
+    data0     -= 1
+
+    if a.size == byte {
+        a.b    = data0 & 0xFF00
+        a.val  = data0 & 0x00FF
+    } else {
+        a.b    = data0 & 0xFF00
+        a.val  = data0
+    }
+
+    in_mvp     = false if data0 == 0xFFFF else true
+}
 
 oper_NOP                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
@@ -1413,6 +1502,7 @@ oper_PLP                    :: #force_inline proc (using c: ^CPU_65C816) {
         x.val = x.val & 0x00FF
         y.val = y.val & 0x00FF
     }
+    // XXX: add case for word, to restore high?
 }
 
 oper_PLX                    :: #force_inline proc (using c: ^CPU_65C816) { 
@@ -1549,7 +1639,7 @@ oper_SBC                    :: #force_inline proc (using c: ^CPU_65C816) {
         // 4d. If AL < 0, then A = A - $06
         // 4e. The accumulator result is the lower 8 bits of A
 
-		// XXX - convert it to properr nybble-like operations
+		// XXX - convert it to properr nybble-like operations without unneeded and/or operations
 
 		o       :  u32
 		if f.M == byte {
@@ -1790,9 +1880,38 @@ oper_XBA                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.Z       = a.val  & 0xFF == 0x00       // always test 8bit
 }
  
-// XXX: bad
+// XXX: I'm not sure about behaviour when "nothing changed"
+//      check it on real hardware...
 oper_XCE                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if f.C == f.E {
+        return
+    }
+    tmp      := f.E
     f.E       = f.C
+    f.C       = tmp
+
+    if f.E == byte {
+        f.X     = byte
+        f.M     = byte
+        a.size  = byte
+        t.size  = byte
+        x.size  = byte
+        y.size  = byte
+        x.val   = x.val & 0x00FF    
+        y.val   = y.val & 0x00FF    
+        
+        sp.size  = byte
+        sp.addr &= 0x00FF
+        sp.addr |= 0x0100
+    } else {
+        f.X      = word
+        f.M      = word
+        a.size   = word
+        t.size   = word
+        x.size   = word
+        y.size   = word
+        sp.size  = word
+    }
 }
 
 
