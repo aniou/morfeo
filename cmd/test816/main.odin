@@ -89,6 +89,8 @@ prepare_test :: proc(p: ^platform.Platform, state: CPU_State) {
         c.sp.addr &= 0x00FF
         c.sp.addr |= 0x0100
         c.sp.size  = cpu.byte
+    } else {
+        c.sp.size  = cpu.word
     }
 
     // step 2: prepare memory
@@ -322,39 +324,39 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
         //"fb"                                                // xce
         //"4c", "5c", "6c", "7c", "dc",                       // jmp
         
-        "22", "20", "fc",                                   // jsl, jsr
-        "41", "43", "45", "47", "49", "4d", "4f",           // eor
-        "51", "52", "53", "55", "57", "59", "5d", "5f",     // eor
-        "01", "03", "05", "07", "09", "0d", "0f",           // ora
-        "11", "12", "13", "15", "17", "19", "1d", "1f",     // ora
-        "21", "23", "25", "27", "29", "2d", "2f",           // and
-        "31", "32", "33", "35", "37", "39", "3d", "3f",     // and
+        //"22", "20", "fc",                                   // jsl, jsr
+        //"41", "43", "45", "47", "49", "4d", "4f",           // eor
+        //"51", "52", "53", "55", "57", "59", "5d", "5f",     // eor
+        //"01", "03", "05", "07", "09", "0d", "0f",           // ora
+        //"11", "12", "13", "15", "17", "19", "1d", "1f",     // ora
+        //"21", "23", "25", "27", "29", "2d", "2f",           // and
+        //"31", "32", "33", "35", "37", "39", "3d", "3f",     // and
 
         //"06", "0a", "0e", "16", "1e",                       // asl
         //"26", "2a", "2e", "36", "3e",                       // rol
         //"46", "4a", "4e", "56", "5e",                       // lsr
         //"66", "6a", "6e", "76", "7e",                       // ror
-        //"1a", "e6", "ee", "f6", "fe", "e8", "c8"            // inc, inx, iny
-        //"3a", "36", "ce", "d6", "de", "ca", "88"            // dec, dex, dey
+        //"1a", "e6", "ee", "f6", "fe", "e8", "c8",           // inc, inx, iny
+        //"3a", "36", "ce", "d6", "de", "ca", "88",           // dec, dex, dey
         //"c1", "c3", "c5", "c7", "c9", "cd", "cf",           // cmp
         //"d1", "d2", "d3", "d5", "d7", "d9", "dd", "df",     // cmp
         //"e0", "e4", "ec",                                   // cpx
-        //"c0", "c4", "cc"                                    // cpy
-        //"18", "d8", "58", "b8", "38", "f8", "78"            // clc, sec etc.
+        //"c0", "c4", "cc",                                   // cpy
+        //"18", "d8", "58", "b8", "38", "f8", "78",           // clc, sec etc.
         //"81", "83", "85", "87", "8d", "8f",                 // sta
         //"91", "92", "93", "95", "97", "99", "9d", "9f",     // sta
         //"86", "8e", "96",                                   // stx
         //"84", "8c", "94",                                   // sty
-        //"64", "74", "9c", "9e"                              // stz
+        //"64", "74", "9c", "9e",                             // stz
         //"aa", "a8", "ba", "8a", "9a", "9b", "98", "bb",     // tax, tay etc.
         //"eb",                                               // xba
-        //"5b", "1b", "7b", "3b"                              // tcd, tcs, tdc, tsc
+        //"5b", "1b", "7b", "3b",                             // tcd, tcs, tdc, tsc
         //"48", "da", "5a",                                   // pha, phx, phy
         //"68", "fa", "7a",                                   // pla, plx, ply
-        //"8b", "0b", "4b", "08", "ab", "2b", "28"            // phb, phd, phk, php, plb, pld, plp
-        //"6b", "60", "40"                                    // rtl, rts, rti
-        //"f4", "d4", "62"                                    // pea, pei, per
-        //"24", "2c", "34", "3c", "89"                        // bit
+        "8b", "0b", "4b", "08", "ab", "2b", "28",           // phb, phd, phk, php, plb, pld, plp
+        "6b", "60", "40",                                   // rtl, rts, rti
+        "f4", "d4", "62",                                   // pea, pei, per
+        "24", "2c", "34", "3c", "89",                       // bit
         //"00", "02",                                         // brk, cop
         //"ea", "42",                                         // nop, wdm
         //"14", "1c", "04", "0c",                             // trb, tsb
@@ -370,8 +372,8 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
     }
 
     for name in codes {
-        do_test(p, "e", name) or_break
         do_test(p, "n", name) or_break
+        do_test(p, "e", name) or_break
     }
 
     return

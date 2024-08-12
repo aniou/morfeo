@@ -255,7 +255,20 @@ subu_r_addr :: #force_inline proc (ar: AddressRegister_65C816, size: bool)     -
     return
 }
 
-subu_r :: proc { subu_r_reg, subu_r_addr }
+subu_r_val  :: #force_inline proc (val: u16, size: bool)     -> (result: u16) {
+    a : u16
+    if size == byte {
+        a = u16(1)
+    } else {
+        a = u16(2)
+    }
+
+    result = val - a
+    return
+}
+
+
+subu_r :: proc { subu_r_reg, subu_r_addr, subu_r_val }
 addu_r :: proc { addu_r_reg, addu_r_addr }
 
 read_m :: #force_inline proc (ar: AddressRegister_65C816, size: bool) -> (result: u16) {
@@ -314,7 +327,20 @@ read_a :: #force_inline proc (reg: AddressRegister_65C816, size: bool) -> (resul
     return result
 }
 
-push_r :: #force_inline proc (ar: AddressRegister_65C816, dr: DataRegister_65C816) -> bool {
+
+push_r_addr :: #force_inline proc (addr: u16, dr: DataRegister_65C816) -> bool {
+    value   := u32( read_r( dr, dr.size ) )
+    if dr.size == word {
+        localbus->write(.bits_8, u32(addr    ), (value & 0xFF00) >> 8)
+        localbus->write(.bits_8, u32(addr - 1),  value & 0xFF  )
+    } else {
+        localbus->write(.bits_8, u32(addr    ),  value & 0xFF  )
+    }
+    return false
+}
+
+
+push_r_reg :: #force_inline proc (ar: AddressRegister_65C816, dr: DataRegister_65C816) -> bool {
     value   := u32( read_r( dr, dr.size ) )
     ar      := ar
 
@@ -328,6 +354,8 @@ push_r :: #force_inline proc (ar: AddressRegister_65C816, dr: DataRegister_65C81
     }
     return false
 }
+
+push_r :: proc { push_r_addr, push_r_reg }
 
 pull_v :: #force_inline proc (ar: AddressRegister_65C816, size: bool) -> (result: u16) {
     ar      := ar
@@ -681,7 +709,9 @@ mode_S_Relative_Indirect_Y  :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr  += sp.addr
     ab.bank   = 0
     ab.wrap   = true
-    ab.dwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
+    //ab.dwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
+    ab.wrap   = true
+    ab.dwrap  = false
 
     ab.addr   = read_m( ab, word )  // dbr hh ll + Y
     ab.bank   = dbr
@@ -716,6 +746,7 @@ mode_DP_Indirect_Long_Y    :: #force_inline proc (using c: ^CPU_65C816) {
     ta.bank   = 0
     ta.wrap   = true
 
+    ta.dwrap  = false
     ab.addr   = read_m( ta, word )  // hh ll
     ta.addr  += 2
     ab.bank   = read_m( ta, byte )  // top
@@ -1158,11 +1189,12 @@ oper_CLV                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_CMP                    :: #force_inline proc (using c: ^CPU_65C816) {
+    t.size     = a.size
     t.val      = read_m( ab, t.size )
     t.val      = subu_r(  a, t.val  )
     f.N        = test_n(  t         )
     f.Z        = test_z(  t         )
-    f.C        = read_r(  a, a.size )  >= t.val    // I wish I had a getter
+    f.C        = read_r(  a, a.size )  >= read_r(t, t.size)    // I wish I had a getter
 }
 
 oper_COP                    :: #force_inline proc (using c: ^CPU_65C816) {
@@ -1298,13 +1330,15 @@ oper_JMP                    :: #force_inline proc (using c: ^CPU_65C816) {
 oper_JSL                    :: #force_inline proc (using c: ^CPU_65C816) { 
     t.size    = byte
     t.val     = pc.bank
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
+    data0     = sp.addr
+    _         = push_r( data0, t      )
+    sp.addr   = subu_r(   sp, t.size )
+    data0     = subu_r( data0, t.size )
 
     t.size    = word
     t.val     = pc.addr
     t.val    -= 1                          // mode_ sets pc to next command
-    _         = push_r( sp, t      )
+    _         = push_r( data0, t      )
     sp.addr   = subu_r( sp, t.size )
     pc.bank   = ab.bank
     pc.addr   = ab.addr
@@ -1494,6 +1528,7 @@ oper_PHB                    :: #force_inline proc (using c: ^CPU_65C816) {
     t.size    = a.size
 }
 
+// XXX - something wrong in emulated mode
 oper_PHD                    :: #force_inline proc (using c: ^CPU_65C816) {
     t.size    = word
     t.val     = d
@@ -1852,15 +1887,12 @@ oper_TCD_E                  :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_TCS                        :: #force_inline proc (using c: ^CPU_65C816) { 
-    sp.addr   = read_r( a, word )
-}
-
-// check if Z is set from 16bit or 8bit?
-oper_TCS_E                  :: #force_inline proc (using c: ^CPU_65C816) { 
-    sp.addr   = a.val  & 0x00FF
-    sp.addr  |= 0x0100
-    f.N       = test_n( sp.addr, byte )
-    f.Z       = test_z( sp.addr, byte )
+    if f.E {
+        sp.addr   = a.val  & 0x00FF
+        sp.addr  |= 0x0100
+    } else {
+        sp.addr   = read_r( a, word )
+    }
 }
 
 // TDC is always 16-bit
@@ -1908,16 +1940,15 @@ oper_TXA                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.Z       = test_z( a         )
 }
 
-oper_TXS                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    sp.addr   = read_r( x, word   )
-}
-
-// emulation mode
 // "When the e flag is 1, SH is forced to $01, so in effect, TXS is an 8-bit
 // transfer in this case since XL is transferred to SL and SH remains $01."
-oper_TXS_E                  :: #force_inline proc (using c: ^CPU_65C816) { 
-    sp.addr   = read_r( x, byte   )
-    sp.addr  |= 0x0100
+oper_TXS                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    if f.E {
+        sp.addr   = read_r( x, byte   )
+        sp.addr  |= 0x0100
+    } else {
+        sp.addr   = read_r( x, word   )
+    }
 }
 
 oper_TXY                    :: #force_inline proc (using c: ^CPU_65C816) {
