@@ -1528,13 +1528,17 @@ oper_PHB                    :: #force_inline proc (using c: ^CPU_65C816) {
     t.size    = a.size
 }
 
-// XXX - something wrong in emulated mode
 oper_PHD                    :: #force_inline proc (using c: ^CPU_65C816) {
     t.size    = word
     t.val     = d
+    sp.size   = word                    // "new" instruction, no stack wrap
     _         = push_r( sp, t      )
     sp.addr   = subu_r( sp, t.size )
     t.size    = a.size
+    if f.E {
+        sp.size = f.E
+        sp.addr = (sp.addr & 0x00FF) | 0x0100
+    }
 }
 
 oper_PHK                    :: #force_inline proc (using c: ^CPU_65C816) { 
@@ -1579,17 +1583,27 @@ oper_PLA                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_PLB                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    sp.size   = word
     dbr       = pull_v(  sp, byte  )
     sp.addr   = addu_r(  sp, byte  )
     f.N       = test_n( dbr, byte  )
     f.Z       = test_z( dbr, byte  )
+    if f.E {
+        sp.size = f.E
+        sp.addr = (sp.addr & 0x00FF) | 0x0100
+    }
 }
 
 oper_PLD                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    sp.size   = word
     d         = pull_v(  sp, word  )
     sp.addr   = addu_r(  sp, word  )
     f.N       = test_n(   d, word  )
     f.Z       = test_z(   d, word  )
+    if f.E {
+        sp.size = f.E
+        sp.addr = (sp.addr & 0x00FF) | 0x0100
+    }
 }
 
 oper_PLP                    :: #force_inline proc (using c: ^CPU_65C816) {
@@ -1597,23 +1611,29 @@ oper_PLP                    :: #force_inline proc (using c: ^CPU_65C816) {
     sp.addr   = addu_r(  sp, byte  )
     f.N       = t.val & 0x80 == 0x80
     f.V       = t.val & 0x40 == 0x40
-    f.M       = t.val & 0x20 == 0x20
-    f.X       = t.val & 0x10 == 0x10
+    f.M       = true if f.E else t.val & 0x20 == 0x20   // in fact: unused
+    f.X       = true if f.E else t.val & 0x10 == 0x10   // in fact: B flag that cannot be set via PLP
     f.D       = t.val & 0x08 == 0x08
     f.I       = t.val & 0x04 == 0x04
     f.Z       = t.val & 0x02 == 0x02
     f.C       = t.val & 0x01 == 0x01
 
     // internal part
-    a.size    = f.M
-    t.size    = f.M
-    x.size    = f.X
-    y.size    = f.X
-    if f.X == byte {
-        x.val = x.val & 0x00FF
-        y.val = y.val & 0x00FF
+    if ! f.E {
+        if f.M == word && a.size == byte {
+            a.val     = a.val & 0x00FF
+            a.val    |= a.b
+        }
+        a.size    = f.M
+        t.size    = f.M
+        x.size    = f.X
+        y.size    = f.X
+
+        if f.X == byte {
+            x.val = x.val & 0x00FF
+            y.val = y.val & 0x00FF
+        }
     }
-    // XXX: add case for word, to restore high?
 }
 
 oper_PLX                    :: #force_inline proc (using c: ^CPU_65C816) { 

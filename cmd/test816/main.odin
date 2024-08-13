@@ -353,7 +353,7 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
         //"5b", "1b", "7b", "3b",                             // tcd, tcs, tdc, tsc
         //"48", "da", "5a",                                   // pha, phx, phy
         //"68", "fa", "7a",                                   // pla, plx, ply
-        "8b", "0b", "4b", "08", "ab", "2b", "28",           // phb, phd, phk, php, plb, pld, plp
+        //"8b", "0b", "4b", "08", "ab", "2b", "28",           // phb, phd, phk, php, plb, pld, plp
         "6b", "60", "40",                                   // rtl, rts, rti
         "f4", "d4", "62",                                   // pea, pei, per
         "24", "2c", "34", "3c", "89",                       // bit
