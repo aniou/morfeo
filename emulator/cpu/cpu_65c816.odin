@@ -8,6 +8,9 @@
 // 4. consider shifting constructs like ( Reg ) to { Reg.val, size }
 //    to achieve more uniformity across routines
 
+// + all tests (except MVN/MVP) passed
+// - cycles not yet supported
+// - code not optimized
 
 package cpu
 
@@ -363,7 +366,7 @@ pull_v :: #force_inline proc (ar: AddressRegister_65C816, size: bool) -> (result
     ar.addr = addu_r(ar, byte)
     result = u16(localbus->read(.bits_8, u32(ar.addr)))
 
-    if ar.size == word {
+    if size == word {
         ar.addr  = addu_r(ar, byte)
         result  |= u16(localbus->read(.bits_8, u32(ar.addr))) << 8
     }
@@ -1130,6 +1133,7 @@ oper_BRA                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    if !f.E {
     t.size    = byte
     t.val     = pc.bank
     _         = push_r( sp, t      )
@@ -1150,9 +1154,39 @@ oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) {
     pc.bank   = 0
     pc.addr   = read_m( ab, word )
     t.size    = a.size
+} else {
+// In emulation mode, BRK and COP push the 16-bit address (again high byte
+// first, then low byte) of the BRK or COP instruction plus 2, then push the
+// P register, then jump to the appropriate (16-bit) emulation mode interrupt
+// vector. The emulation mode BRK vector is at $00FFFE and the emulation mode
+// COP vector is at $00FFF4. When BRK pushes the P register, the b flag (i.e.
+// bit 5) will be set; because, in emulation mode, as on the NMOS 6502 and
+// 65C02, BRK and IRQ share an interrupt vector, this allows the BRK/IRQ
+// handler to distinguish a BRK from an IRQ. COP in emulation mode may seem
+// somewhat paradoxical, since it was not available on the NMOS 6502 or 65C02,
+// but COP can be used in emulation mode, and when pushing onto the stack it
+// will wrap at the page 1 boundary (in other words, it is treated as an "old"
+// instruction, rather than a "new" instruction). 
+
+    t.size    = word
+    t.val     = pc.addr
+    t.val    += 1                      // specification say "+2" but mode_ sets +1
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+
+    f.X       = true                   // f.B in emulation mode
+    oper_PHP(c)
+
+    f.I       = true
+    f.D       = false
+    ab.bank   = 0
+    ab.addr   = 0xFFFE
+    pc.bank   = 0
+    pc.addr   = read_m( ab, word )
+    t.size    = a.size
+    }
 }
 
-oper_BRK_E                  :: #force_inline proc (using c: ^CPU_65C816) { }
 
 oper_BRL                    :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   = ab.addr
@@ -1198,10 +1232,12 @@ oper_CMP                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_COP                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if !f.E {
     t.size    = byte
     t.val     = pc.bank
     _         = push_r( sp, t      )
     sp.addr   = subu_r( sp, t.size )
+    }
 
     t.size    = word
     t.val     = pc.addr
@@ -1213,7 +1249,7 @@ oper_COP                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.I       = true
     f.D       = false
     ab.bank   = 0
-    ab.addr   = 0xFFE4
+    ab.addr   = 0xFFF4 if f.E else 0xFFE4
     pc.bank   = 0
     pc.addr   = read_m( ab, word )
     t.size    = a.size
@@ -1491,27 +1527,42 @@ oper_ORA                    :: #force_inline proc (using c: ^CPU_65C816) {
 
 oper_PEA                    :: #force_inline proc (using c: ^CPU_65C816) { 
     t.size    = word
+    sp.size   = word
     t.val     = read_m( ab, t.size )
     _         = push_r( sp, t      )
     sp.addr   = subu_r( sp, t.size )
     pc.addr  += 1                        // Immediate mode sets pc of 1 byte
     t.size    = a.size
+    if f.E {
+        sp.size = f.E
+        sp.addr = (sp.addr & 0x00FF) | 0x0100
+    }
 }
 
 oper_PEI                        :: #force_inline proc (using c: ^CPU_65C816) {
     t.size    = word
+    sp.size   = word
     t.val     = read_m( ab, t.size )
     _         = push_r( sp, t      )
     sp.addr   = subu_r( sp, t.size )
     t.size    = a.size                  // restore original
+    if f.E {
+        sp.size = f.E
+        sp.addr = (sp.addr & 0x00FF) | 0x0100
+    }
 }
 
 oper_PER                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    sp.size   = word
     t.size    = word
     t.val     = ab.addr               // calculated relative address
     _         = push_r( sp, t      )
     sp.addr   = subu_r( sp, t.size )
     t.size    = a.size                // restore original
+    if f.E {
+        sp.size = f.E
+        sp.addr = (sp.addr & 0x00FF) | 0x0100
+    }
 }
 
 oper_PHA                    :: #force_inline proc (using c: ^CPU_65C816) { 
@@ -1552,14 +1603,14 @@ oper_PHK                    :: #force_inline proc (using c: ^CPU_65C816) {
 oper_PHP                    :: #force_inline proc (using c: ^CPU_65C816) { 
     t.size    = byte
     t.val     = 0
-    t.val    |= 0x80 if f.N else 0
-    t.val    |= 0x40 if f.V else 0
-    t.val    |= 0x20 if f.M else 0
-    t.val    |= 0x10 if f.X else 0
-    t.val    |= 0x08 if f.D else 0
-    t.val    |= 0x04 if f.I else 0
-    t.val    |= 0x02 if f.Z else 0
-    t.val    |= 0x01 if f.C else 0
+    t.val    |= 0x80 if f.N        else 0
+    t.val    |= 0x40 if f.V        else 0
+    t.val    |= 0x20 if f.M || f.E else 0   // always 1 in E mode
+    t.val    |= 0x10 if f.X        else 0
+    t.val    |= 0x08 if f.D        else 0
+    t.val    |= 0x04 if f.I        else 0
+    t.val    |= 0x02 if f.Z        else 0
+    t.val    |= 0x01 if f.C        else 0
     _         = push_r( sp, t      )
     sp.addr   = subu_r( sp, t.size )
     t.size    = a.size
@@ -1654,8 +1705,13 @@ oper_REP                    :: #force_inline proc (using c: ^CPU_65C816) {
     t.val     = read_m( ab, byte   )
     f.N       = false if t.val & 0x80 == 0x80 else f.N
     f.V       = false if t.val & 0x40 == 0x40 else f.V
-    f.M       = false if t.val & 0x20 == 0x20 else f.M
-    f.X       = false if t.val & 0x10 == 0x10 else f.X
+    if !f.E {
+        f.M       = false if t.val & 0x20 == 0x20 else f.M
+        f.X       = false if t.val & 0x10 == 0x10 else f.X
+    } else {
+        f.M       = true
+        f.X       = true
+    }
     f.D       = false if t.val & 0x08 == 0x08 else f.D
     f.I       = false if t.val & 0x04 == 0x04 else f.I
     f.Z       = false if t.val & 0x02 == 0x02 else f.Z
@@ -1725,17 +1781,24 @@ oper_RTI                    :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   = pull_v( sp, word )
     sp.addr   = addu_r( sp, word )
 
-    pc.bank   = pull_v( sp, byte )
-    sp.addr   = addu_r( sp, byte )
+    if !f.E {
+        pc.bank   = pull_v( sp, byte )
+        sp.addr   = addu_r( sp, byte )
+    }
 }
 
 oper_RTL                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    sp.size   = word
     pc.addr   = pull_v( sp, word )
     pc.addr  += 1
     sp.addr   = addu_r( sp, word )
 
     pc.bank   = pull_v( sp, byte )
     sp.addr   = addu_r( sp, byte )
+    if f.E {
+        sp.size = f.E
+        sp.addr = (sp.addr & 0x00FF) | 0x0100
+    }
 }
 
 oper_RTS                    :: #force_inline proc (using c: ^CPU_65C816) { 
