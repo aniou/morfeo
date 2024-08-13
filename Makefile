@@ -49,6 +49,6 @@ mini6502:
 	odin build cmd/mini6502 -debug $(build_flags)
 
 test816:
-	odin build cmd/test816 -debug $(build_flags)
+	odin build cmd/test816 $(build_flags)
 doc:
 	odin doc emulator/cpu/ $(build_flags2)
