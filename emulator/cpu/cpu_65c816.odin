@@ -191,7 +191,7 @@ w65c816_execute :: proc(cpu: ^CPU_65C816) {
     cpu.cycles  += incCycles_PageCross[cpu.ir]     if cpu.px && cpu.f.X   else 0
     cpu.cycles  -= decCycles_flagM[cpu.ir]         if cpu.f.M             else 0
     cpu.cycles  -= decCycles_flagX[cpu.ir]         if cpu.f.X             else 0
-    cpu.cycles  += incCycles_regDL_not00[cpu.ir]   if (cpu.d & 0x00FF) != 0 else 0
+    cpu.cycles  += incCycles_regDL_not00[cpu.ir]   if cpu.d & 0x00FF != 0 else 0
 
     return
 }
@@ -432,9 +432,15 @@ adds_w :: #force_inline proc (a, b: u16) -> (result: u16) {
 }
 
 // detection of page crossing, used for cyclescost calculations
-test_p :: #force_inline proc (ar: AddressRegister_65C816) ->  bool {
+test_p_reg :: #force_inline proc (ar: AddressRegister_65C816) ->  bool {
     return ((ar.addr & 0xFF00) != ((ar.addr+ar.index) & 0xFF00))
 }
+
+test_p_val :: #force_inline proc (a, b: u16) -> bool {
+    return (a & 0xFF00) != (b & 0xFF00)
+}
+
+test_p :: proc { test_p_reg, test_p_val }
 
 // negative flag test
 // XXX
@@ -786,7 +792,8 @@ mode_PC_Relative            :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, byte )              // relative calculated form pc of next cmd
     pc.addr  += 1
-    ab.addr   = adds_b( pc.addr, ab.addr)
+    ab.addr   = adds_b( pc.addr, ab.addr )
+    px        = test_p( pc.addr, ab.addr )
     ab.bank   = pc.bank
 }
 
@@ -795,6 +802,7 @@ mode_PC_Relative_Long       :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr   = read_m( pc, word )
     pc.addr  += 2 
     ab.addr   = adds_w( pc.addr, ab.addr)
+    px        = test_p( pc.addr, ab.addr)
     ab.bank   = pc.bank
 }
 
@@ -1130,7 +1138,7 @@ oper_BPL                    :: #force_inline proc (using c: ^CPU_65C816) {
 
 oper_BRA                    :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   = ab.addr
-    cycles   += 2          if f.E && px else 1
+    cycles   += 1          if f.E && px else 0
 }
 
 oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) { 
@@ -1185,6 +1193,7 @@ oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) {
     pc.bank   = 0
     pc.addr   = read_m( ab, word )
     t.size    = a.size
+    cycles   -= 1
     }
 }
 
@@ -1238,6 +1247,8 @@ oper_COP                    :: #force_inline proc (using c: ^CPU_65C816) {
     t.val     = pc.bank
     _         = push_r( sp, t      )
     sp.addr   = subu_r( sp, t.size )
+    } else {
+    cycles   -= 1
     }
 
     t.size    = word
@@ -1785,7 +1796,10 @@ oper_RTI                    :: #force_inline proc (using c: ^CPU_65C816) {
     if !f.E {
         pc.bank   = pull_v( sp, byte )
         sp.addr   = addu_r( sp, byte )
+    } else {
+        cycles   -= 1
     }
+    
 }
 
 oper_RTL                    :: #force_inline proc (using c: ^CPU_65C816) { 
@@ -1925,6 +1939,7 @@ oper_STA                    :: #force_inline proc (using c: ^CPU_65C816) {
     _         = stor_m( ab, a    )
 }
 
+// XXX: implement something
 oper_STP                    :: #force_inline proc (using c: ^CPU_65C816) { 
 }
 
@@ -2053,9 +2068,11 @@ oper_TYX                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.Z       = test_z( x    )
 }
 
+// XXX: implement something
 oper_WAI                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
+// XXX: implement debug interface
 oper_WDM                    :: #force_inline proc (using c: ^CPU_65C816) { 
 }
 

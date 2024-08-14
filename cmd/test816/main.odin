@@ -265,12 +265,10 @@ print_state :: proc(state: CPU_State, c: ^cpu.CPU) {
 }
 
 
-do_test :: proc(p: ^platform.Platform, index: int, mode: string, name: string) -> (ok: bool) {
-    // raw data
-
+do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, mode: string, name: string) -> (ok: bool) {
+    // reading raw data
     ok = true
     fname := fmt.aprintf("external/tests-65816/v1/%s.%s.json", name, mode)
-    //log.infof("reading file %s ", fname)
     data, status := os.read_entire_file_from_filename(fname)
     if !status {
         log.error("Failed to load the file!")
@@ -280,8 +278,7 @@ do_test :: proc(p: ^platform.Platform, index: int, mode: string, name: string) -
     defer delete(data)
     defer delete(fname)
 
-    // parsed tests
-    //log.info("parsing...")
+    // parsing
     tests: [dynamic]CPU_Test
     err := json.unmarshal(data, &tests, .MJSON)             // XXX: memleak here
     if err != nil {
@@ -289,21 +286,23 @@ do_test :: proc(p: ^platform.Platform, index: int, mode: string, name: string) -
         ok = false
         return 
     }
-    //fmt.println(tests)
     defer delete(tests)
 
     // do work
-    //log.info("testing...")
-    count := 0
-    c     := &p.cpu.model.(cpu.CPU_65C816) 
-    start := time.tick_now() 
+    count       := 0
+    c           := &p.cpu.model.(cpu.CPU_65C816) 
+    start       := time.tick_now() 
+    test_cycles :  int
     for test in tests {
         prepare_test(p, test.initial)
         for {
             c->exec(0)
             if (!c.in_mvn) && (!c.in_mvp) do break
         }
-        fail := verify_test(p, len(test.cycles), test.final)
+        test_cycles  = len(test.cycles)
+        if name == "db" do test_cycles -= 1              // correction for current test data
+        if name == "cb" do test_cycles -= 1              // correction for current test data
+        fail := verify_test(p, test_cycles, test.final)
         if fail {
             log.error("test: ", test.name)
             print_state(test.initial, p.cpu)
@@ -314,9 +313,14 @@ do_test :: proc(p: ^platform.Platform, index: int, mode: string, name: string) -
         count += 1
     }
     ms_elapsed := u64(time.tick_since(start) / time.Microsecond)
-    log.infof("test %03i mode %s opcode %s tests %d time %i μs", index, mode, name, count, ms_elapsed)
+    if curr_test != -1 {
+        log.infof("test %03i/%03i mode %s opcode %s tests %d time %i μs", curr_test, all_tests, mode, name, count, ms_elapsed)
+    }
     return
 }
+
+
+
 
 main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
 
@@ -377,10 +381,14 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
 
     }
 
-    do_test(p, -1, "n", "ea") or_return          // CPU warm-up
-    for name,index in codes {
-        do_test(p, index, "n", name) or_break
-        do_test(p, index, "e", name) or_break
+    do_test(p, -1, -1, "n", "ea") or_return          // CPU warm-up
+    tests_count  := len(codes) * 2
+    current_test := 1
+    for name in codes {
+        do_test(p, current_test, tests_count, "n", name) or_break
+        current_test += 1
+        do_test(p, current_test, tests_count, "e", name) or_break
+        current_test += 1
     }
 
     return
