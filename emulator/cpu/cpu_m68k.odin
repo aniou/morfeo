@@ -111,7 +111,7 @@ m68k_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.exec   = m68k_exec
     cpu.clear_irq   = m68k_clear_irq
     cpu.bus    = bus
-    cpu.cycles = 0
+    cpu.all_cycles = 0
     c         := CPU_m68k{cpu = cpu, type = CPU_type.M68K_CPU_TYPE_68EC030}
     cpu.model  = c
 
@@ -187,9 +187,9 @@ m68k_exec :: proc(cpu: ^CPU, ticks: u32 = 1000) {
             m68k_set_irq(localbus.pic.irq)
         }
 
-        cycles      := m68k_execute(1000)
-        cpu.cycles  += u32(cycles)
-        current_ticks += 1000
+        cycles          := m68k_execute(1000)
+        cpu.all_cycles  += u32(cycles)
+        current_ticks   += 1000
         //log.debugf("%s execute %d cycles", cpu.name, current_ticks)
     }
     //log.debugf("%s execute %d cycles", cpu.name, cpu.cycles)

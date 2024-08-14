@@ -58,6 +58,7 @@ prepare_test :: proc(p: ^platform.Platform, state: CPU_State) {
     c.dbr      = state.dbr
     c.d        = state.d
     c.pc.bank  = state.pbr
+    c.cycles   = 0
 
     c.f.E = false if state.e         ==    0 else true
     c.f.N = true  if state.p  & 0x80 == 0x80 else false
@@ -101,8 +102,13 @@ prepare_test :: proc(p: ^platform.Platform, state: CPU_State) {
     return
 }
 
-verify_test :: proc(p: ^platform.Platform, state: CPU_State) -> (err: bool) {
+verify_test :: proc(p: ^platform.Platform, cycles: int, state: CPU_State) -> (err: bool) {
     c    := &p.cpu.model.(cpu.CPU_65C816)
+
+    if c.cycles != u32(cycles) {
+        log.errorf("CYCLES  %d expected %d", c.cycles, cycles)
+        err = true
+    }
 
     if c.pc.addr != state.pc {
         log.errorf("PC  %02x:%04x expected %02x:%04x", c.pc.bank, c.pc.addr, state.pbr, state.pc)
@@ -237,7 +243,7 @@ print_state :: proc(state: CPU_State, c: ^cpu.CPU) {
     c    := &c.model.(cpu.CPU_65C816)
 
     state_flags := cpu_flags(state.p, state.e)
-    log.errorf("data: PC %02x:%04x|SP %04x|A %04x|X %04x|Y %04x|DBR %02x|D: %02x|%s|AB %02x:%04x %04x|wrap: %t|fD %t|fM %t",
+    log.errorf("data: PC %02x:%04x|SP %04x|A %04x|X %04x|Y %04x|DBR %02x|D: %04x|%s|AB %02x:%04x %04x|wrap: %t|fD %t|fM %t",
         state.pbr, state.pc, state.s, state.a, state.x, state.y, state.dbr, state.d, state_flags,
         c.ab.bank, c.ab.addr, c.ab.index, c.ab.wrap, c.f.D, c.f.M)
 
@@ -297,7 +303,7 @@ do_test :: proc(p: ^platform.Platform, index: int, mode: string, name: string) -
             c->exec(0)
             if (!c.in_mvn) && (!c.in_mvp) do break
         }
-        fail := verify_test(p, test.final)
+        fail := verify_test(p, len(test.cycles), test.final)
         if fail {
             log.error("test: ", test.name)
             print_state(test.initial, p.cpu)

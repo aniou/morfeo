@@ -13,7 +13,7 @@ CPU :: struct {
     exec: proc(^CPU, u32),
     clear_irq: proc(^CPU),
 
-    cycles: u32,
+    all_cycles: u32,
 
     // tick etc. proc
     name:   string,

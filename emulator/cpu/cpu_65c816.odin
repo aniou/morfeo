@@ -93,7 +93,7 @@ CPU_65C816 :: struct {
     wdm:    bool,      // support for non-standard WDM (0x42) command
     abort:  bool,      // emulator should abort?
     ppc:    u16,       // previous PC - for debug purposes
-    cycle:  u32,       // number of cycless for this command
+    cycles: u32,       // number of cycless for this command
 
     data0:  u16,       // temporary register
     data1:  u32,       // temporary register (2)
@@ -117,7 +117,7 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.clear_irq  = w65c816_clear_irq
     cpu.delete     = w65c816_delete
     cpu.bus        = bus
-    cpu.cycles     = 0
+    cpu.all_cycles = 0
     c             := CPU_65C816{cpu = cpu, type = CPU_65C816_type.W65C816S}
     c.a            = DataRegister_65C816{}
     c.x            = DataRegister_65C816{}
@@ -167,32 +167,33 @@ w65c816_exec :: proc(cpu: ^CPU, ticks: u32 = 1000) {
     current_ticks : u32 = 0
 
     if ticks == 0 {
-        c.cycle        = w65c816_execute(c)
+        w65c816_execute(c)
         return
     }
 
     return
 }
 
-w65c816_execute :: proc(cpu: ^CPU_65C816) -> (cycles: u32) {
+w65c816_execute :: proc(cpu: ^CPU_65C816) {
 
     switch {
     case cpu.in_mvn: oper_MVN(cpu)
     case cpu.in_mvp: oper_MVP(cpu)
     case:
-          cpu.px    = false
-          cpu.ir    = u8(read_m(cpu.pc, byte)) // XXX: u16?
-          cpu.cycle = 0
+          cpu.px       = false
+          cpu.ir       = u8(read_m(cpu.pc, byte)) // XXX: u16?
+          cpu.cycles   = cycles_65c816[cpu.ir]
           cpu.ab.index = 0                     // XXX: move to addressing modes?
           cpu.ab.dwrap = false                 // XXX: move to addressing modes?
           w65c816_run_opcode(cpu)
     }
 
+    cpu.cycles  += incCycles_PageCross[cpu.ir]     if cpu.px && cpu.f.X   else 0
+    cpu.cycles  -= decCycles_flagM[cpu.ir]         if cpu.f.M             else 0
+    cpu.cycles  -= decCycles_flagX[cpu.ir]         if cpu.f.X             else 0
+    cpu.cycles  += incCycles_regDL_not00[cpu.ir]   if (cpu.d & 0x00FF) != 0 else 0
 
-    // XXX: create OP table!
-    //cycles    = op_table[cpu.ir].cycles
-    //cycles   += op_table[cpu.ir].p         if px else 0
-    return cycles
+    return
 }
 
 // add unsigned to index register
@@ -430,7 +431,7 @@ adds_w :: #force_inline proc (a, b: u16) -> (result: u16) {
     return
 }
 
-// detection of page crossing, used for cycle cost calculations
+// detection of page crossing, used for cyclescost calculations
 test_p :: #force_inline proc (ar: AddressRegister_65C816) ->  bool {
     return ((ar.addr & 0xFF00) != ((ar.addr+ar.index) & 0xFF00))
 }
@@ -1073,21 +1074,21 @@ oper_ASL_A                 :: #force_inline proc (using c: ^CPU_65C816) {
 oper_BCC                    :: #force_inline proc (using c: ^CPU_65C816) {
     if ! f.C {
         pc.addr   = ab.addr
-        cycle    += 2       if f.E && px else 1
+        cycles   += 2       if f.E && px else 1
     }
 }
 
 oper_BCS                    :: #force_inline proc (using c: ^CPU_65C816) {
     if   f.C {
         pc.addr   = ab.addr
-        cycle    += 2       if f.E && px else 1
+        cycles   += 2       if f.E && px else 1
     }
 }
 
 oper_BEQ                    :: #force_inline proc (using c: ^CPU_65C816) {
     if   f.Z {
         pc.addr   = ab.addr
-        cycle    += 2       if f.E && px else 1
+        cycles   += 2       if f.E && px else 1
     }
 }
 
@@ -1109,27 +1110,27 @@ oper_BIT_IMM                  :: #force_inline proc (using c: ^CPU_65C816) {
 oper_BMI                    :: #force_inline proc (using c: ^CPU_65C816) {
     if   f.N {
         pc.addr   = ab.addr
-        cycle    += 2       if f.E && px else 1
+        cycles   += 2       if f.E && px else 1
     }
 }
 
 oper_BNE                    :: #force_inline proc (using c: ^CPU_65C816) {
     if ! f.Z {
         pc.addr   = ab.addr
-        cycle    += 2       if f.E && px else 1
+        cycles   += 2       if f.E && px else 1
     }
 }
 
 oper_BPL                    :: #force_inline proc (using c: ^CPU_65C816) {
     if ! f.N {
         pc.addr   = ab.addr
-        cycle    += 2       if f.E && px else 1
+        cycles   += 2       if f.E && px else 1
     }
 }
 
 oper_BRA                    :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   = ab.addr
-    cycle    += 2          if f.E && px else 1
+    cycles   += 2          if f.E && px else 1
 }
 
 oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) { 
@@ -1195,14 +1196,14 @@ oper_BRL                    :: #force_inline proc (using c: ^CPU_65C816) {
 oper_BVC                    :: #force_inline proc (using c: ^CPU_65C816) {
     if ! f.V {
         pc.addr   = ab.addr
-        cycle    += 2       if f.E && px else 1
+        cycles   += 2       if f.E && px else 1
     }
 }
 
 oper_BVS                    :: #force_inline proc (using c: ^CPU_65C816) {
     if   f.V {
         pc.addr   = ab.addr
-        cycle    += 2       if f.E && px else 1
+        cycles   += 2       if f.E && px else 1
     }
 }
 
