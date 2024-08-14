@@ -9,9 +9,27 @@
 //    to achieve more uniformity across routines
 
 // + all tests (except MVN/MVP) passed
-// - cycles not yet supported
+// + cycles are supported
+// - irqs not implemented
+//   - and reset too
 // - code not optimized
 
+/*
+CPU: 65c816
+
+This implementation is based on infromation from following bibliography,
+part of them are cited directly in comments for particular opcodes and
+addressing modes.
+
+1. Bruce Clark                     (2015) "65C816 Opcodes"
+   http://6502.org/tutorials/65C816opcodes.html
+
+2. David Eyes, Ron Lichty          (1992) "Programming the 65816"
+
+3. The Western Design Center, Inc. (2004) "W65C816S Microprocessor DATA SHEET"
+   http://datasheets.chipdb.org/Western%20Design/w65c816s.pdf
+
+*/
 package cpu
 
 import "base:runtime"
