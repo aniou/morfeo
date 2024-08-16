@@ -325,6 +325,8 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, mode: string, 
 main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
 
     codes :: [?]string {
+        "54",                                               // mvn - broken tests
+        "44",                                               // mvp - broken tests
         "a1", "a3", "a5", "a7", "a9", "ad", "af",           // lda
         "b1", "b2", "b3", "b5", "b7", "b9", "bd", "bf",     // lda
         "90", "b0", "f0", "30", "d0",                       // bcc, bcs, beq, bmi, bne 
@@ -376,8 +378,6 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
         "f1", "f2", "f3", "f5", "f7", "f9", "fd", "ff",     // sbc
         "00", "02",                                         // brk, cop
 
-        //"54",                                               // mvn - broken tests
-        //"44",                                               // mvp - broken tests
 
     }
 

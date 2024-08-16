@@ -195,8 +195,13 @@ w65c816_exec :: proc(cpu: ^CPU, ticks: u32 = 1000) {
 w65c816_execute :: proc(cpu: ^CPU_65C816) {
 
     switch {
-    case cpu.in_mvn: oper_MVN(cpu)
-    case cpu.in_mvp: oper_MVP(cpu)
+    case cpu.in_mvn: 
+          oper_MVN(cpu)
+          cpu.cycles    += cycles_65c816[cpu.ir]
+
+    case cpu.in_mvp: 
+         oper_MVP(cpu)
+          cpu.cycles    += cycles_65c816[cpu.ir]
     case:
           cpu.px       = false
           cpu.ir       = u8(read_m(cpu.pc, byte)) // XXX: u16?
