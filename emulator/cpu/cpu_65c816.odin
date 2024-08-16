@@ -1188,20 +1188,18 @@ oper_BRA                    :: #force_inline proc (using c: ^CPU_65C816) {
 //
 oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) { 
     if !f.E {
-    t.size    = byte
-    t.val     = pc.bank
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
+        tb.val    = pc.bank
+        _         = push_r( sp, tb      )
+        sp.addr   = subu_r( sp, tb.size )
     } else {
-    f.X       = true                   // f.B in emulation mode
-    cycles   -= 1
+        f.X       = true                    // f.B in emulation mode
+        cycles   -= 1
     }
 
-    t.size    = word
-    t.val     = pc.addr
-    t.val    += 1                      // specification say "+2" but mode_ sets +1
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
+    tw.val    = pc.addr
+    tw.val   += 1                           // specification say "+2" but mode_ sets +1
+    _         = push_r( sp, tw      )
+    sp.addr   = subu_r( sp, tw.size )
 
     oper_PHP(c)
 
@@ -1211,7 +1209,6 @@ oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr   = 0xFFFE if f.E else 0xFFE6
     pc.bank   = 0
     pc.addr   = read_m( ab, word )
-    t.size    = a.size
 }
 
 
@@ -1260,18 +1257,16 @@ oper_CMP                    :: #force_inline proc (using c: ^CPU_65C816) {
 
 oper_COP                    :: #force_inline proc (using c: ^CPU_65C816) {
     if !f.E {
-    t.size    = byte
-    t.val     = pc.bank
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
+    tb.val    = pc.bank
+    _         = push_r( sp, tb      )
+    sp.addr   = subu_r( sp, tb.size )
     } else {
     cycles   -= 1
     }
 
-    t.size    = word
-    t.val     = pc.addr
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
+    tw.val    = pc.addr
+    _         = push_r( sp, tw      )
+    sp.addr   = subu_r( sp, tw.size )
 
     oper_PHP(c)
 
@@ -1281,7 +1276,6 @@ oper_COP                    :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr   = 0xFFF4 if f.E else 0xFFE4
     pc.bank   = 0
     pc.addr   = read_m( ab, word )
-    t.size    = a.size
 }
 
 oper_COP_E                  :: #force_inline proc (using c: ^CPU_65C816) { }
@@ -1386,38 +1380,30 @@ oper_JMP                    :: #force_inline proc (using c: ^CPU_65C816) {
 // the end of the instruction will point to $1FE. However, if JSR (a 6502
 // instruction) is executed in the emulation mode with the stack pointer equal
 // to $100, the second of the two bytes pushed will be stored at $1FF.
-
+//
 // [programming..., page 278]
-
-// XXX: change it to pusr_r( sp-1, sp-2, sp-3 etc)
-//      and then make subu_r - 3 with proper size
-
+//
 oper_JSL                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    t.size    = byte
-    t.val     = pc.bank
+    tb.val    = pc.bank
     data0     = sp.addr
-    _         = push_r( data0, t      )
-    sp.addr   = subu_r(   sp, t.size )
-    data0     = subu_r( data0, t.size )
+    _         = push_r( data0, tb      )
+    sp.addr   = subu_r(    sp, tb.size )
+    data0     = subu_r( data0, tb.size )
 
-    t.size    = word
-    t.val     = pc.addr
-    t.val    -= 1                          // mode_ sets pc to next command
-    _         = push_r( data0, t      )
-    sp.addr   = subu_r( sp, t.size )
+    tw.val    = pc.addr
+    tw.val   -= 1                          // mode_ sets pc to next command
+    _         = push_r( data0, tw      )
+    sp.addr   = subu_r(    sp, tw.size )
     pc.bank   = ab.bank
     pc.addr   = ab.addr
-    t.size    = a.size
 }
 
 oper_JSR                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    t.size    = word
-    t.val     = pc.addr
-    t.val    -= 1                          // mode_ sets pc to next command
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
+    tw.val    = pc.addr
+    tw.val   -= 1                          // mode_ sets pc to next command
+    _         = push_r( sp, tw      )
+    sp.addr   = subu_r( sp, tw.size )
     pc.addr   = ab.addr
-    t.size    = a.size
 }
 
 oper_LDA                    :: #force_inline proc (using c: ^CPU_65C816) { 
@@ -1482,10 +1468,8 @@ oper_MVN                    :: #force_inline proc (using c: ^CPU_65C816) {
     ab.wrap    = true
     ab.index   = read_r( y, y.size)
 
-    t.size     = byte                   // copying byte
-    t.val      = read_m( ta, byte )     // XXX: optimize it to dedicated, byte reg
-    _          = stor_m( ab, t    )
-    t.size     = a.size
+    tb.val     = read_m( ta, byte )
+    _          = stor_m( ab, tb   )
 
     x.val      = addu_r( x, 1     )     // incrementing X/Y
     y.val      = addu_r( y, 1     )
@@ -1522,10 +1506,8 @@ oper_MVP                    :: #force_inline proc (using c: ^CPU_65C816) {
     ab.wrap    = true
     ab.index   = read_r( y, y.size)
 
-    t.size     = byte                   // copying byte
-    t.val      = read_m( ta, byte )     // XXX: optimize it to dedicated, byte reg
-    _          = stor_m( ab, t    )
-    t.size     = a.size
+    tb.val     = read_m( ta, byte )
+    _          = stor_m( ab, tb   )
 
     x.val      = subu_r( x, 1     )     // incrementing X/Y
     y.val      = subu_r( y, 1     )
@@ -1555,13 +1537,11 @@ oper_ORA                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_PEA                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    t.size    = word
     sp.size   = word
-    t.val     = read_m( ab, t.size )
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
+    tw.val    = read_m( ab, tw.size )
+    _         = push_r( sp, tw      )
+    sp.addr   = subu_r( sp, tw.size )
     pc.addr  += 1                        // Immediate mode sets pc of 1 byte
-    t.size    = a.size
     if f.E {
         sp.size = f.E
         sp.addr = (sp.addr & 0x00FF) | 0x0100
@@ -1569,12 +1549,10 @@ oper_PEA                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_PEI                        :: #force_inline proc (using c: ^CPU_65C816) {
-    t.size    = word
     sp.size   = word
-    t.val     = read_m( ab, t.size )
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
-    t.size    = a.size                  // restore original
+    tw.val    = read_m( ab, tw.size )
+    _         = push_r( sp, tw      )
+    sp.addr   = subu_r( sp, tw.size )
     if f.E {
         sp.size = f.E
         sp.addr = (sp.addr & 0x00FF) | 0x0100
@@ -1583,11 +1561,9 @@ oper_PEI                        :: #force_inline proc (using c: ^CPU_65C816) {
 
 oper_PER                    :: #force_inline proc (using c: ^CPU_65C816) { 
     sp.size   = word
-    t.size    = word
-    t.val     = ab.addr               // calculated relative address
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
-    t.size    = a.size                // restore original
+    tw.val    = ab.addr               // calculated relative address
+    _         = push_r( sp, tw      )
+    sp.addr   = subu_r( sp, tw.size )
     if f.E {
         sp.size = f.E
         sp.addr = (sp.addr & 0x00FF) | 0x0100
@@ -1601,20 +1577,16 @@ oper_PHA                    :: #force_inline proc (using c: ^CPU_65C816) {
 
 // XXX - convert DBR to register
 oper_PHB                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    t.size    = byte
-    t.val     = dbr
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
-    t.size    = a.size
+    tb.val    = dbr
+    _         = push_r( sp, tb      )
+    sp.addr   = subu_r( sp, tb.size )
 }
 
 oper_PHD                    :: #force_inline proc (using c: ^CPU_65C816) {
-    t.size    = word
-    t.val     = d
+    tw.val    = d
     sp.size   = word                    // "new" instruction, no stack wrap
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
-    t.size    = a.size
+    _         = push_r( sp, tw      )
+    sp.addr   = subu_r( sp, tw.size )
     if f.E {
         sp.size = f.E
         sp.addr = (sp.addr & 0x00FF) | 0x0100
@@ -1622,27 +1594,23 @@ oper_PHD                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_PHK                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    t.size    = byte
-    t.val     = pc.bank
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
-    t.size    = a.size
+    tb.val    = pc.bank
+    _         = push_r( sp, tb      )
+    sp.addr   = subu_r( sp, tb.size )
 }
 
 oper_PHP                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    t.size    = byte
-    t.val     = 0
-    t.val    |= 0x80 if f.N        else 0
-    t.val    |= 0x40 if f.V        else 0
-    t.val    |= 0x20 if f.M || f.E else 0   // always 1 in E mode
-    t.val    |= 0x10 if f.X        else 0
-    t.val    |= 0x08 if f.D        else 0
-    t.val    |= 0x04 if f.I        else 0
-    t.val    |= 0x02 if f.Z        else 0
-    t.val    |= 0x01 if f.C        else 0
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
-    t.size    = a.size
+    tb.val    = 0
+    tb.val   |= 0x80 if f.N        else 0
+    tb.val   |= 0x40 if f.V        else 0
+    tb.val   |= 0x20 if f.M || f.E else 0   // always 1 in E mode
+    tb.val   |= 0x10 if f.X        else 0
+    tb.val   |= 0x08 if f.D        else 0
+    tb.val   |= 0x04 if f.I        else 0
+    tb.val   |= 0x02 if f.Z        else 0
+    tb.val   |= 0x01 if f.C        else 0
+    _         = push_r( sp, tb      )
+    sp.addr   = subu_r( sp, tb.size )
 }
 
 oper_PHX                    :: #force_inline proc (using c: ^CPU_65C816) { 
