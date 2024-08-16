@@ -79,9 +79,13 @@ CPU_65C816 :: struct {
     ta:     AddressRegister_65C816,      // temporary, internal address register
 
     a:      DataRegister_65C816,
-    t:      DataRegister_65C816,        // temporary, internal register, size same as a(!)
     x:      DataRegister_65C816,
     y:      DataRegister_65C816,
+
+    tb:     DataRegister_65C816,        // always byte
+    tw:     DataRegister_65C816,        // always word
+    t:      DataRegister_65C816,        // same size as A register
+ 
 
     dbr:    u16,      // Data    Bank Register  (u8)
     d:      u16,      // Direct register       (u16)
@@ -136,18 +140,21 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.delete     = w65c816_delete
     cpu.bus        = bus
     cpu.all_cycles = 0
+
     c             := CPU_65C816{cpu = cpu, type = CPU_65C816_type.W65C816S}
     c.a            = DataRegister_65C816{}
     c.x            = DataRegister_65C816{}
     c.y            = DataRegister_65C816{}
+    c.t            = DataRegister_65C816{}
+    c.tb           = DataRegister_65C816{size = byte}
+    c.tw           = DataRegister_65C816{size = word}
     c.pc           = AddressRegister_65C816{wrap = true}
     c.sp           = AddressRegister_65C816{wrap = true}
     c.ab           = AddressRegister_65C816{wrap = true}
     c.ta           = AddressRegister_65C816{wrap = true}
     cpu.model      = c
 
-
-    // we need global because of external musashi (XXX - maybe whole CPU?)
+    // we need global because of external musashi
     localbus   = bus
 
     //w65c816_init();
@@ -195,11 +202,11 @@ w65c816_exec :: proc(cpu: ^CPU, ticks: u32 = 1000) {
 w65c816_execute :: proc(cpu: ^CPU_65C816) {
 
     switch {
-    case cpu.in_mvn: 
+    case cpu.in_mvn:
           oper_MVN(cpu)
           cpu.cycles    += cycles_65c816[cpu.ir]
 
-    case cpu.in_mvp: 
+    case cpu.in_mvp:
          oper_MVP(cpu)
           cpu.cycles    += cycles_65c816[cpu.ir]
     case:
@@ -1164,29 +1171,6 @@ oper_BRA                    :: #force_inline proc (using c: ^CPU_65C816) {
     cycles   += 1          if f.E && px else 0
 }
 
-oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    if !f.E {
-    t.size    = byte
-    t.val     = pc.bank
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
-
-    t.size    = word
-    t.val     = pc.addr
-    t.val    += 1                      // specification say "+2" but mode_ sets +1
-    _         = push_r( sp, t      )
-    sp.addr   = subu_r( sp, t.size )
-
-    oper_PHP(c)
-
-    f.I       = true
-    f.D       = false
-    ab.bank   = 0
-    ab.addr   = 0xFFE6
-    pc.bank   = 0
-    pc.addr   = read_m( ab, word )
-    t.size    = a.size
-} else {
 // In emulation mode, BRK and COP push the 16-bit address (again high byte
 // first, then low byte) of the BRK or COP instruction plus 2, then push the
 // P register, then jump to the appropriate (16-bit) emulation mode interrupt
@@ -1199,6 +1183,19 @@ oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) {
 // but COP can be used in emulation mode, and when pushing onto the stack it
 // will wrap at the page 1 boundary (in other words, it is treated as an "old"
 // instruction, rather than a "new" instruction). 
+//
+// [Bruce Clark (2015) "65C816 Opcodes"]
+//
+oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    if !f.E {
+    t.size    = byte
+    t.val     = pc.bank
+    _         = push_r( sp, t      )
+    sp.addr   = subu_r( sp, t.size )
+    } else {
+    f.X       = true                   // f.B in emulation mode
+    cycles   -= 1
+    }
 
     t.size    = word
     t.val     = pc.addr
@@ -1206,18 +1203,15 @@ oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) {
     _         = push_r( sp, t      )
     sp.addr   = subu_r( sp, t.size )
 
-    f.X       = true                   // f.B in emulation mode
     oper_PHP(c)
 
     f.I       = true
     f.D       = false
     ab.bank   = 0
-    ab.addr   = 0xFFFE
+    ab.addr   = 0xFFFE if f.E else 0xFFE6
     pc.bank   = 0
     pc.addr   = read_m( ab, word )
     t.size    = a.size
-    cycles   -= 1
-    }
 }
 
 
