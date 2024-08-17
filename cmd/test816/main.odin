@@ -243,9 +243,11 @@ print_state :: proc(state: CPU_State, c: ^cpu.CPU) {
     c    := &c.model.(cpu.CPU_65C816)
 
     state_flags := cpu_flags(state.p, state.e)
-    log.errorf("data: PC %02x:%04x|SP %04x|A %04x|X %04x|Y %04x|DBR %02x|D: %04x|%s|AB %02x:%04x %04x|wrap: %t|fD %t|fM %t",
+    log.errorf("data: PC %02x:%04x|SP %04x|A %04x|X %04x|Y %04x|DBR %02x|D: %04x|%s|AB %02x:%04x %04x wrap: %t|%s",
         state.pbr, state.pc, state.s, state.a, state.x, state.y, state.dbr, state.d, state_flags,
-        c.ab.bank, c.ab.addr, c.ab.index, c.ab.wrap, c.f.D, c.f.M)
+        c.ab.bank, c.ab.addr, c.ab.index, c.ab.wrap,
+        "px" if c.px else ".."
+    )
 
     addr := make([dynamic]u32, 0)
     mem  := make(map[u32]u32)
@@ -324,9 +326,11 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, mode: string, 
 
 main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
 
+    //codes :: [?]string { "00" }
+
     codes :: [?]string {
-        "54",                                               // mvn - broken tests
-        "44",                                               // mvp - broken tests
+        //"54",                                               // mvn - broken tests
+        //"44",                                               // mvp - broken tests
         "a1", "a3", "a5", "a7", "a9", "ad", "af",           // lda
         "b1", "b2", "b3", "b5", "b7", "b9", "bd", "bf",     // lda
         "90", "b0", "f0", "30", "d0",                       // bcc, bcs, beq, bmi, bne 
@@ -377,8 +381,6 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
         "e1", "e3", "e5", "e7", "e9", "ed", "ef",           // sbc
         "f1", "f2", "f3", "f5", "f7", "f9", "fd", "ff",     // sbc
         "00", "02",                                         // brk, cop
-
-
     }
 
     do_test(p, -1, -1, "n", "ea") or_return          // CPU warm-up

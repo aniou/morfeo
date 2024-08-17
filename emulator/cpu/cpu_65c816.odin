@@ -37,17 +37,11 @@ import "core:fmt"
 import "core:log"
 import "emulator:bus"
 import "emulator:pic"
-
 import "lib:emu"
-
 import "core:prof/spall"
 
 byte :: true
 word :: false
-
-// there are two options
-// a) two different register types and procedure overloadin (add/load)
-// b) explicite different procedures for operations
 
 DataRegister_65C816 :: struct {
      val:    u16,    // register value
@@ -92,7 +86,6 @@ CPU_65C816 :: struct {
     t:      DataRegister_65C816,        // same size as A register
     data0:  u16,                        // temporary value holder
  
-    
     // flag set for 65C816:  nvmxdizc e
     // flag set for 65xx     nv1bdizc
     f : struct {	  // flags
@@ -452,8 +445,7 @@ test_p_val :: #force_inline proc (a, b: u16) -> bool {
 test_p :: proc { test_p_reg, test_p_val }
 
 // negative flag test
-// XXX
-// there is a possibility to make single routine test_n(val, size)
+// XXX: there is a possibility to make single routine test_n(val, size)
 //
 test_n_reg :: #force_inline proc (dr: DataRegister_65C816)    -> (result: bool) {
     switch dr.size {
@@ -539,6 +531,7 @@ test_v :: proc { test_v_v1, test_v_v2 }
 
 
 // set or clear highest bit (15 or 7, according to register size) 
+// used in LSR and ROR
 set__h :: #force_inline proc (dr: DataRegister_65C816, a: bool)    -> (result: u16) {
     if a {
         result = dr.val | (0x80 if dr.size else 0x8000)
@@ -547,13 +540,6 @@ set__h :: #force_inline proc (dr: DataRegister_65C816, a: bool)    -> (result: u
     }
     return result
 }
-
-// addressing modes
-// references:
-// man65816: "Programming the 65816" / WDC 2007
-// 2 - http://6502.org/tutorials/65C816opcodes.html
-// 3 - http://datasheets.chipdb.org/Western%20Design/w65c816s.pdf
-
 
 //
 // CPU: all
