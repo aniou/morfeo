@@ -679,7 +679,7 @@ mode_DP_Indirect_Y          :: #force_inline proc (using c: ^CPU_65C816) {
 
     ab.addr   = read_m( ab, word )  // dbr hh ll + Y
     ab.bank   = dbr
-    ab.index  = read_r( y, y.size)
+    ab.index  = read_r( y, y.size )
     ab.bwrap  = false
     ab.pwrap  = false
     px        = test_p( ab )
@@ -771,8 +771,8 @@ mode_PC_Relative_Long       :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )
     pc.addr  += 2 
-    ab.addr   = adds_w( pc.addr, ab.addr)
-    px        = test_p( pc.addr, ab.addr)
+    ab.addr   = adds_w( pc.addr, ab.addr )
+    px        = test_p( pc.addr, ab.addr )
     ab.bank   = pc.bank
 }
 
