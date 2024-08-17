@@ -73,52 +73,49 @@ CPU_65C816 :: struct {
 
     type: 	CPU_65C816_type,
 
-    pc:     AddressRegister_65C816,      // pc.bank act as K register
-    sp:     AddressRegister_65C816,      // XXX: check it should be Data or Addresss?
-    ab:     AddressRegister_65C816,
-    ta:     AddressRegister_65C816,      // temporary, internal address register
+    pc:     AddressRegister_65C816,     // note: pc.bank act as K register
+    sp:     AddressRegister_65C816,     // XXX: check it should be Data or Addresss?
 
     a:      DataRegister_65C816,
     x:      DataRegister_65C816,
     y:      DataRegister_65C816,
 
+    dbr:    u16,                        // Data    Bank Register  (u8)
+    d:      u16,                        // Direct register       (u16)
+    //k:      u16,                      // Program Bank Register  (u8)   - inside pc.bank
+
+    // temporary, emulator registers
+    ab:     AddressRegister_65C816,     // temporary address bus, heavily used
+    ta:     AddressRegister_65C816,     // temporary, internal address register
     tb:     DataRegister_65C816,        // always byte
     tw:     DataRegister_65C816,        // always word
     t:      DataRegister_65C816,        // same size as A register
+    data0:  u16,                        // temporary value holder
  
-
-    dbr:    u16,      // Data    Bank Register  (u8)
-    d:      u16,      // Direct register       (u16)
-    //k:      u16,      // Program Bank Register  (u8)   - inside pc.bank
     
-                      // flag set for 65C816:  nvmxdizc e
-                      // flag set for 65xx     nv1bdizc
+    // flag set for 65C816:  nvmxdizc e
+    // flag set for 65xx     nv1bdizc
     f : struct {	  // flags
         N:    bool,   // Negative
         V:    bool,   // oVerflow
-        M:    bool,   // accumulator and Memory width : 65C816 only
-        X:    bool,   // indeX register width         : 65C816 only
-        B:    bool,   // Break                        : 65xx or emulation mode
+        M:    bool,   // accumulator and Memory width : 65C816 only, 1 in emulation mode
+        X:    bool,   // indeX register width         : 65C816 only, B in emulation mode
         D:    bool,   // Decimal mode
         I:    bool,   // Interrupt disable
         Z:    bool,   // Zero
         C:    bool,   // Carry
-        E:    bool,   // (no direct access) Emulation : 65C816 only
 
+        E:    bool,   // (no direct access) Emulation : 65C816 only
         T:    bool,   // Temporary flag, for value holding
     },
 
-                       // misc variables
+    // misc variables, used by emulator
     ir:     u8,        // instruction register
     px:     bool,      // page was crossed?
-
-    wdm:    bool,      // support for non-standard WDM (0x42) command
+    wdm:    bool,      // support for non-standard WDM (0x42) command?
     abort:  bool,      // emulator should abort?
     ppc:    u16,       // previous PC - for debug purposes
     cycles: u32,       // number of cycless for this command
-
-    data0:  u16,       // temporary register
-    data1:  u32,       // temporary register (2)
 
     // only for MVN/MVP support
     in_mvn: bool,      // CPU is in middle in MVN - lower precedence than irq
@@ -1040,7 +1037,7 @@ mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_65C816) {
 // XXX: it looks currently so bad, consider 32-bit register backends
 oper_ADC                    :: #force_inline proc (using c: ^CPU_65C816) { 
     if f.D == false {
-        data1    = u32(read_r(a, a.size ))
+        data1   := u32(read_r(a, a.size ))
         tmp     := data1
         data2   := u32(read_m( ab, a.size ))
         data1   += data2
@@ -1051,7 +1048,7 @@ oper_ADC                    :: #force_inline proc (using c: ^CPU_65C816) {
         f.N      = test_n( a )
         f.Z      = test_z( a )
     } else {
-        data1    = u32(read_r(a, a.size ))
+        data1   := u32(read_r(a, a.size ))
         data0    = read_m( ab, a.size )
         data2   := u32(data0)
 
@@ -1809,7 +1806,7 @@ oper_RTS                    :: #force_inline proc (using c: ^CPU_65C816) {
 
 oper_SBC                    :: #force_inline proc (using c: ^CPU_65C816) { 
     if f.D == false {
-        data1    = u32(read_r(a, a.size ))
+        data1   := u32(read_r(a, a.size ))
         tmp     := data1
         data2   := u32(read_m( ab, a.size ))
         data1   -= data2
@@ -1821,7 +1818,7 @@ oper_SBC                    :: #force_inline proc (using c: ^CPU_65C816) {
         f.Z      = test_z( a )
     } else {
         data0    = read_m( ab, a.size )
-        data1    = u32(read_r(a, a.size ))
+        data1   := u32(read_r(a, a.size ))
         data2   := u32(data0)
         carry   := u32(1) if f.C    else 0
 
