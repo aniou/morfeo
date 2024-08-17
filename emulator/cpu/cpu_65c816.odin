@@ -482,7 +482,7 @@ test_z_reg :: #force_inline proc (dr: DataRegister_65C816)    -> (result: bool) 
     return result
 }
 
-test_z_val :: #force_inline proc (val: u16, size: bool)    -> (result: bool) {
+test_z_val :: #force_inline proc (val: u16, size: bool)       -> (result: bool) {
     switch size {
     case byte: result = val & 0xFF == 0x00
     case word: result = val        == 0x00
@@ -490,7 +490,7 @@ test_z_val :: #force_inline proc (val: u16, size: bool)    -> (result: bool) {
     return result
 }
 
-test_z :: proc { test_z_reg, test_z_val }
+test_z     ::               proc { test_z_reg, test_z_val }
 
 // bit 0 test - for LSR, ROR...
 test_0 :: #force_inline proc (dr: DataRegister_65C816)    -> bool {
@@ -546,28 +546,6 @@ set__h :: #force_inline proc (dr: DataRegister_65C816, a: bool)    -> (result: u
         result = dr.val & (0x7F if dr.size else 0x7FFF)
     }
     return result
-}
-
-// helper for adc with D-flag
-parsed :: proc(sum: u32, size: bool) -> (result: u32) {
-    sum := sum
-	if (sum & 0x0F) > 0x09 {
-		sum = sum + 0x06
-	}
-	if (sum & 0xF0) > 0x90 {
-		sum = sum + 0x60
-	}
-
-	if size == word {
-		if (sum & 0x0F00) > 0x0900 {
-				sum = sum + 0x0600
-		}
-		if (sum & 0xF000) > 0x9000 {
-				sum = sum + 0x6000
-		}
-	}
-	result = sum
-	return
 }
 
 // addressing modes
@@ -2034,10 +2012,6 @@ oper_XBA                    :: #force_inline proc (using c: ^CPU_65C816) {
     a.val     = data0 << 8
     a.b       = data0 << 8                  // preserve high byte
     a.val    |= data0 >> 8
-
-
-    //f.N       = a.val  & 0x80 == 0x80       // always test 8bit  XXX - maybe test_* should be parametrized?
-    //f.Z       = a.val  & 0xFF == 0x00       // always test 8bit
     f.N       = test_n( a.val, byte )
     f.Z       = test_z( a.val, byte )
 }
