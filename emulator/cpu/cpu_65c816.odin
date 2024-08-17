@@ -53,8 +53,8 @@ AddressRegister_65C816 :: struct {
     bank:      u16,                  // data bank (u8)
     addr:      u16,                  // address within bank
    index:      u16,                  // for indexed operations
-    wrap:      bool,                 // does wrap on bank boundary?
-   dwrap:      bool,                 // does wrap on page boundary?
+   bwrap:      bool,                 // does wrap on bank boundary?
+   pwrap:      bool,                 // does wrap on page boundary?
     size:      bool,                 // 0 == 16 bit, 1 == 8 bit
 }
 
@@ -138,10 +138,10 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     c.t            = DataRegister_65C816{}
     c.tb           = DataRegister_65C816{size = byte}
     c.tw           = DataRegister_65C816{size = word}
-    c.pc           = AddressRegister_65C816{wrap = true}
-    c.sp           = AddressRegister_65C816{wrap = true}
-    c.ab           = AddressRegister_65C816{wrap = true}
-    c.ta           = AddressRegister_65C816{wrap = true}
+    c.pc           = AddressRegister_65C816{bwrap = true}
+    c.sp           = AddressRegister_65C816{bwrap = true}
+    c.ab           = AddressRegister_65C816{bwrap = true}
+    c.ta           = AddressRegister_65C816{bwrap = true}
     cpu.model      = c
 
     // we need global because of external musashi
@@ -204,7 +204,7 @@ w65c816_execute :: proc(cpu: ^CPU_65C816) {
           cpu.ir       = u8(read_m(cpu.pc, byte)) // XXX: u16?
           cpu.cycles   = cycles_65c816[cpu.ir]
           cpu.ab.index = 0                     // XXX: move to addressing modes?
-          cpu.ab.dwrap = false                 // XXX: move to addressing modes?
+          cpu.ab.pwrap = false                 // XXX: move to addressing modes?
           w65c816_run_opcode(cpu)
     }
 
@@ -283,7 +283,7 @@ addu_r :: proc { addu_r_reg, addu_r_addr }
 read_m :: #force_inline proc (ar: AddressRegister_65C816, size: bool) -> (result: u16) {
     ea, high: u32
 
-    if ar.dwrap {
+    if ar.pwrap {
         high  = u32(ar.addr) & 0xFF00
         ea    = u32(ar.addr) + u32(ar.index)
         ea   &= 0x00FF
@@ -292,13 +292,13 @@ read_m :: #force_inline proc (ar: AddressRegister_65C816, size: bool) -> (result
         ea    = u32(ar.addr) + u32(ar.index)
     }
 
-    ea     &= 0x0000_ffff if ar.wrap else 0xffff_ffff
+    ea     &= 0x0000_ffff if ar.bwrap else 0xffff_ffff
     ea     += u32(ar.bank) << 16
     ea     &= 0x00ff_ffff
     result  = u16(localbus->read(.bits_8, ea))
 
     if size == word {
-        if ar.dwrap {
+        if ar.pwrap {
             high  = u32(ar.addr) & 0xFF00
             ea    = u32(ar.addr) + u32(ar.index) + 1
             ea   &= 0x00FF
@@ -307,7 +307,7 @@ read_m :: #force_inline proc (ar: AddressRegister_65C816, size: bool) -> (result
             ea    = u32(ar.addr) + u32(ar.index) + 1
         }
 
-        ea     &= 0x0000_ffff if ar.wrap else 0xffff_ffff
+        ea     &= 0x0000_ffff if ar.bwrap else 0xffff_ffff
         ea     += u32(ar.bank) << 16
         ea     &= 0x00ff_ffff
         result |= u16(localbus->read(.bits_8, ea)) << 8
@@ -382,7 +382,7 @@ stor_m :: #force_inline proc (ar: AddressRegister_65C816, dr: DataRegister_65C81
 
     ea, high : u32
 
-    if ar.dwrap {
+    if ar.pwrap {
         high  = u32(ar.addr) & 0xFF00
         ea    = u32(ar.addr) + u32(ar.index)
         ea   &= 0x00FF
@@ -391,13 +391,13 @@ stor_m :: #force_inline proc (ar: AddressRegister_65C816, dr: DataRegister_65C81
         ea    = u32(ar.addr) + u32(ar.index)
     }
 
-    ea     &= 0x0000_FFFF if ar.wrap else 0xFFFF_FFFF
+    ea     &= 0x0000_FFFF if ar.bwrap else 0xFFFF_FFFF
     ea     += u32(ar.bank) << 16
     ea     &= 0x00ff_ffff
     localbus->write(.bits_8, ea, value & 0xFF)
 
     if dr.size == word {
-        if ar.dwrap {
+        if ar.pwrap {
             high  = u32(ar.addr) & 0xFF00
             ea    = u32(ar.addr) + u32(ar.index) + 1
             ea   &= 0x00FF
@@ -405,7 +405,7 @@ stor_m :: #force_inline proc (ar: AddressRegister_65C816, dr: DataRegister_65C81
         } else {
             ea    = u32(ar.addr) + u32(ar.index) + 1
         }
-        ea     &= 0x0000_FFFF if ar.wrap else 0xFFFF_FFFF
+        ea     &= 0x0000_FFFF if ar.bwrap else 0xFFFF_FFFF
         ea     += u32(ar.bank) << 16
         ea     &= 0x00ff_ffff
         localbus->write(.bits_8, ea, (value & 0xFF00) >> 8)
@@ -554,7 +554,7 @@ mode_Absolute_DBR           :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )
     ab.bank   = dbr
-    ab.wrap   = false
+    ab.bwrap  = false
     pc.addr  += 2
 }
 
@@ -562,7 +562,7 @@ mode_Absolute_PBR           :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )
     ab.bank   = pc.bank
-    ab.wrap   = false
+    ab.bwrap  = false
     pc.addr  += 2
 }
 
@@ -580,7 +580,7 @@ mode_Absolute_X                :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )
     ab.bank   = dbr
-    ab.wrap   = false
+    ab.bwrap  = false
     ab.index  = x.val
     px        = test_p( ab )
     pc.addr  += 2
@@ -598,7 +598,7 @@ mode_Absolute_Y                :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )
     ab.bank   = dbr
-    ab.wrap   = false
+    ab.bwrap  = false
     ab.index  = y.val
     px        = test_p( ab )
     pc.addr  += 2
@@ -622,14 +622,14 @@ mode_DP_X_Indirect          :: #force_inline proc (using c: ^CPU_65C816) {
     ab.addr  += d 
     ab.bank   = 0
     ab.index  = x.val
-    ab.wrap   = true
-    ab.dwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
+    ab.bwrap  = true
+    ab.pwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
 
     ab.addr   = read_m( ab, word )  // dbr hh ll
     ab.bank   = dbr
     ab.index  = 0
-    ab.wrap   = false
-    ab.dwrap  = false
+    ab.bwrap  = false
+    ab.pwrap  = false
 }
 
 //
@@ -642,13 +642,13 @@ mode_DP_Indirect            :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr  += d
     ab.bank   = 0
-    ab.wrap   = true
-    ab.dwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
+    ab.bwrap  = true
+    ab.pwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
 
     ab.addr   = read_m( ab, word )  // dbr hh ll
     ab.bank   = dbr
-    ab.wrap   = false
-    ab.dwrap  = false
+    ab.bwrap  = false
+    ab.pwrap  = false
 }
 
 //
@@ -674,14 +674,14 @@ mode_DP_Indirect_Y          :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr  += d
     ab.bank   = 0
-    ab.wrap   = true
-    ab.dwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
+    ab.bwrap  = true
+    ab.pwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
 
     ab.addr   = read_m( ab, word )  // dbr hh ll + Y
     ab.bank   = dbr
     ab.index  = read_r( y, y.size)
-    ab.wrap   = false
-    ab.dwrap  = false
+    ab.bwrap  = false
+    ab.pwrap  = false
     px        = test_p( ab )
 }
 
@@ -691,16 +691,14 @@ mode_S_Relative_Indirect_Y  :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr  += sp.addr
     ab.bank   = 0
-    ab.wrap   = true
-    //ab.dwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
-    ab.wrap   = true
-    ab.dwrap  = false
+    ab.bwrap  = true
+    ab.pwrap  = false
 
     ab.addr   = read_m( ab, word )  // dbr hh ll + Y
     ab.bank   = dbr
     ab.index  = y.val
-    ab.wrap   = false
-    ab.dwrap  = false
+    ab.bwrap  = false
+    ab.pwrap  = false
 }
 
 //
@@ -713,12 +711,12 @@ mode_DP_Indirect_Long       :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ta.addr  += d
     ta.bank   = 0
-    ta.wrap   = true
+    ta.bwrap  = true
 
     ab.addr   = read_m( ta, word )  // hh ll
     ta.addr  += 2
     ab.bank   = read_m( ta, byte )  // top
-    ab.wrap   = false
+    ab.bwrap  = false
 }
 
 mode_DP_Indirect_Long_Y    :: #force_inline proc (using c: ^CPU_65C816) {
@@ -727,15 +725,14 @@ mode_DP_Indirect_Long_Y    :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ta.addr  += d
     ta.bank   = 0
-    ta.wrap   = true
+    ta.bwrap  = true
 
-    ta.dwrap  = false
+    ta.pwrap  = false
     ab.addr   = read_m( ta, word )  // hh ll
     ta.addr  += 2
     ab.bank   = read_m( ta, byte )  // top
     ab.index  = y.val
-    ab.wrap   = false
-    // XXX - check px!
+    ab.bwrap  = false
 }
 
 // OPC $BBHHLL
@@ -745,7 +742,7 @@ mode_Absolute_Long          :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 2
     ab.bank   = read_m( pc, byte )  // BB
     pc.addr  += 1 
-    ab.wrap   = true
+    ab.bwrap  = true
 }
 
 // OPC $BBHHLL, X
@@ -755,7 +752,7 @@ mode_Absolute_Long_X        :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 2
     ab.bank   = read_m( pc, byte )  // BB
     pc.addr  += 1 
-    ab.wrap   = false
+    ab.bwrap  = false
     ab.index  = x.val
 }
 
@@ -784,27 +781,27 @@ mode_PC_Relative_Long       :: #force_inline proc (using c: ^CPU_65C816) {
 // OPC $LL        operand is zeropage address, hi-byte is zero address
 //                $00LL      data
 mode_DP                     :: #force_inline proc (using c: ^CPU_65C816) {
-    pc.addr   += 1
-    ab.addr    = read_m( pc, byte )
-    pc.addr   += 1
-    ab.addr   += d
-    ab.bank    = 0
-    ab.index   = 0
-    ab.wrap    = true
+    pc.addr  += 1
+    ab.addr   = read_m( pc, byte )
+    pc.addr  += 1
+    ab.addr  += d
+    ab.bank   = 0
+    ab.index  = 0
+    ab.bwrap  = true
 }
 //
 // CPU: all
 // OPC $LL,X     operand is zeropage address;
 //               effective address is address incremented by X without carry [2]
 mode_DP_X                   :: #force_inline proc (using c: ^CPU_65C816) {
-    pc.addr   += 1
-    ab.addr    = read_m( pc, byte )
-    pc.addr   += 1
-    ab.addr   += d
-    ab.bank    = 0
-    ab.index   = x.val
-    ab.wrap    = true
-    ab.dwrap   = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
+    pc.addr  += 1
+    ab.addr   = read_m( pc, byte )
+    pc.addr  += 1
+    ab.addr  += d
+    ab.bank   = 0
+    ab.index  = x.val
+    ab.bwrap  = true
+    ab.pwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
 }
 
 //
@@ -812,23 +809,23 @@ mode_DP_X                   :: #force_inline proc (using c: ^CPU_65C816) {
 // OPC $LL,Y      operand is zeropage address;
 //                effective address is address incremented by Y without carry [2]
 mode_DP_Y                   :: #force_inline proc (using c: ^CPU_65C816) {
-    pc.addr   += 1
-    ab.addr    = read_m( pc, byte )
-    pc.addr   += 1
-    ab.addr   += d
-    ab.bank    = 0
-    ab.index   = y.val
-    ab.wrap    = true
-    ab.dwrap   = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
+    pc.addr  += 1
+    ab.addr   = read_m( pc, byte )
+    pc.addr  += 1
+    ab.addr  += d
+    ab.bank   = 0
+    ab.index  = y.val
+    ab.bwrap  = true
+    ab.pwrap  = true if f.E && (d & 0x00FF == 0) else false  // XXX prettified?
 }
 
 mode_S_Relative             :: #force_inline proc (using c: ^CPU_65C816) {
-    pc.addr   += 1
-    ab.addr    = read_m( pc, byte )
-    pc.addr   += 1
-    ab.bank    = 0
-    ab.index   = sp.addr         // XXX after change to DataRegister move to .val
-    ab.wrap    = true
+    pc.addr  += 1
+    ab.addr   = read_m( pc, byte )
+    pc.addr  += 1
+    ab.bank   = 0
+    ab.index  = sp.addr
+    ab.bwrap  = true
 }
 
 
@@ -840,8 +837,8 @@ mode_Absolute_X_Indirect       :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )  // K | D + HH + LL + X
     ab.bank   = pc.bank
-    ab.index    = x.val
-    ab.wrap   = true
+    ab.index  = x.val
+    ab.bwrap  = true
 
     ab.addr   = read_m( ab, word )  // k hh ll
     ab.index  = 0
@@ -852,7 +849,7 @@ mode_Absolute_Indirect         :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )  // 0 | D + HH + LL 
     ab.bank   = 0
-    ab.wrap   = true
+    ab.bwrap  = true
 
     ab.addr   = read_m( ab, word )  // k hh ll
     ab.bank   = pc.bank
@@ -912,12 +909,12 @@ mode_Absolute_Indirect_Long  :: #force_inline proc (using c: ^CPU_65C816) {
     ta.addr   = read_m( pc, word )
     pc.addr  += 1                   // innefective, just for completness
     ta.bank   = 0
-    ta.wrap   = true
+    ta.bwrap  = true
 
     ab.addr   = read_m( ta, word )  // hh ll
     ta.addr  += 2
     ab.bank   = read_m( ta, byte )  // top
-    ab.wrap   = false
+    ab.bwrap  = false
 }
 
 //
@@ -1401,24 +1398,24 @@ oper_MVN                    :: #force_inline proc (using c: ^CPU_65C816) {
         dbr       = dst
     }
 
-    ta.bank    = src                    // source
-    ta.addr    = 0
-    ta.wrap    = true
-    ta.index   = read_r( x, x.size )
+    ta.bank   = src                    // source
+    ta.addr   = 0
+    ta.bwrap  = true
+    ta.index  = read_r( x, x.size )
 
-    ab.bank    = dst                    // destination
-    ab.addr    = 0
-    ab.wrap    = true
-    ab.index   = read_r( y, y.size)
+    ab.bank   = dst                    // destination
+    ab.addr   = 0
+    ab.bwrap  = true
+    ab.index  = read_r( y, y.size)
 
-    tb.val     = read_m( ta, byte )
-    _          = stor_m( ab, tb   )
+    tb.val    = read_m( ta, byte )
+    _         = stor_m( ab, tb   )
 
-    x.val      = addu_r( x, 1     )     // incrementing X/Y
-    y.val      = addu_r( y, 1     )
+    x.val     = addu_r( x, 1     )     // incrementing X/Y
+    y.val     = addu_r( y, 1     )
 
-    data0      = read_r( a, word  )     // decrementing A
-    data0     -= 1
+    data0     = read_r( a, word  )     // decrementing A
+    data0    -= 1
 
     if a.size == byte {
         a.b    = data0 & 0xFF00
@@ -1439,24 +1436,24 @@ oper_MVP                    :: #force_inline proc (using c: ^CPU_65C816) {
         dbr       = dst
     }
 
-    ta.bank    = src                    // source
-    ta.addr    = 0
-    ta.wrap    = true
-    ta.index   = read_r( x, x.size )
+    ta.bank   = src                    // source
+    ta.addr   = 0
+    ta.bwrap  = true
+    ta.index  = read_r( x, x.size )
 
-    ab.bank    = dst                    // destination
-    ab.addr    = 0
-    ab.wrap    = true
-    ab.index   = read_r( y, y.size)
+    ab.bank   = dst                    // destination
+    ab.addr   = 0
+    ab.bwrap  = true
+    ab.index  = read_r( y, y.size)
 
-    tb.val     = read_m( ta, byte )
-    _          = stor_m( ab, tb   )
+    tb.val    = read_m( ta, byte )
+    _         = stor_m( ab, tb   )
 
-    x.val      = subu_r( x, 1     )     // incrementing X/Y
-    y.val      = subu_r( y, 1     )
+    x.val     = subu_r( x, 1     )     // incrementing X/Y
+    y.val     = subu_r( y, 1     )
 
-    data0      = read_r( a, word  )     // decrementing A
-    data0     -= 1
+    data0     = read_r( a, word  )     // decrementing A
+    data0    -= 1
 
     if a.size == byte {
         a.b    = data0 & 0xFF00
@@ -1466,7 +1463,7 @@ oper_MVP                    :: #force_inline proc (using c: ^CPU_65C816) {
         a.val  = data0
     }
 
-    in_mvp     = false if data0 == 0xFFFF else true
+    in_mvp    = false if data0 == 0xFFFF else true
 }
 
 oper_NOP                    :: #force_inline proc (using c: ^CPU_65C816) {

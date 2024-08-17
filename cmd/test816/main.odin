@@ -243,10 +243,12 @@ print_state :: proc(state: CPU_State, c: ^cpu.CPU) {
     c    := &c.model.(cpu.CPU_65C816)
 
     state_flags := cpu_flags(state.p, state.e)
-    log.errorf("data: PC %02x:%04x|SP %04x|A %04x|X %04x|Y %04x|DBR %02x|D: %04x|%s|AB %02x:%04x %04x wrap: %t|%s",
+    log.errorf("data: PC %02x:%04x|SP %04x|A %04x|X %04x|Y %04x|DBR %02x|D: %04x|%s|AB %02x:%04x %04x|%s %s %s|",
         state.pbr, state.pc, state.s, state.a, state.x, state.y, state.dbr, state.d, state_flags,
-        c.ab.bank, c.ab.addr, c.ab.index, c.ab.wrap,
-        "px" if c.px else ".."
+        c.ab.bank, c.ab.addr, c.ab.index, 
+        "bw" if c.ab.bwrap else "..",
+        "pw" if c.ab.bwrap else "..",
+        "px" if c.px       else ".."
     )
 
     addr := make([dynamic]u32, 0)
