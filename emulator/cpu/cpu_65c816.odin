@@ -65,7 +65,7 @@ CPU_65C816_type :: enum {
 CPU_65C816 :: struct {
     using cpu: ^CPU,
 
-    type: 	CPU_65C816_type,
+    type:   CPU_65C816_type,
 
     pc:     AddressRegister_65C816,     // note: pc.bank act as K register
     sp:     AddressRegister_65C816,     // XXX: check it should be Data or Addresss?
@@ -88,7 +88,7 @@ CPU_65C816 :: struct {
  
     // flag set for 65C816:  nvmxdizc e
     // flag set for 65xx     nv1bdizc
-    f : struct {	  // flags
+    f : struct {      // flags
         N:    bool,   // Negative
         V:    bool,   // oVerflow
         M:    bool,   // accumulator and Memory width : 65C816 only, 1 in emulation mode
@@ -126,7 +126,7 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.setpc      = w65c816_setpc
     cpu.reset      = w65c816_reset
     cpu.exec       = w65c816_exec
-    cpu.clear_irq  = w65c816_clear_irq
+    //cpu.clear_irq  = w65c816_clear_irq
     cpu.delete     = w65c816_delete
     cpu.bus        = bus
     cpu.all_cycles = 0
@@ -158,28 +158,174 @@ w65c816_setpc :: proc(cpu: ^CPU, address: u32) {
     return
 }
 
-w65c816_reset :: proc(cpu: ^CPU) {
-    return
-}
-
 w65c816_delete :: proc(cpu: ^CPU) {
     free(cpu)
     return
 }
 
-w65c816_clear_irq :: proc(cpu: ^CPU) {
-    //if localbus.pic.irq_clear {
-    //    log.debugf("%s IRQ clear", cpu.name)
-    //    localbus.pic.irq_clear  = false
-    //    localbus.pic.irq_active = false
-    //    localbus.pic.current    = pic.IRQ.NONE
-    //    m68k_set_irq(uint(pic.IRQ.NONE))
-    //}
+// ----------------------------------------------------------------------------
+// interrupt routines
+//
+// e = 0    e = 1
+// ------   ------
+// 00FFE4   00FFF4   COP
+// 00FFE6   00FFFE   BRK
+// 00FFE8   00FFF8   ABORT
+// 00FFEA   00FFFA   NMI
+//          00FFFC   RESET
+// 00FFEE   00FFFE   IRQ
+ 
+// it is worth to mention that RESET nor power-on does not 
+// set low byte of Stack Pointer, and it needs to be set
+// explicitly in code
+//
+// also: "The internal clock, which is driven by the Ø2 clock generator
+// circuit, will be restarted if it had previously been stopped by an STP 
+// or WAI instruction" [3]
+//
+// 1. http://forum.6502.org/viewtopic.php?f=4&t=2258
+// 2. ["Programming the 65816", 1992, pages 55, 201]
+// 3. http://6502.org/tutorials/65c816interrupts.html#toc:interrupt_reset
+
+w65c816_reset :: proc(cpu: ^CPU) {
+    c          := &cpu.model.(CPU_65C816)
+
+    c.sp.addr   = (c.sp.addr & 0x00FF) | 0x0100
+    c.d         = 0
+    c.dbr       = 0
+    c.x.val    &= 0x00FF
+    c.y.val    &= 0x00FF
+
+    c.f.E       = true
+    c.f.M       = true
+    c.f.X       = true
+    c.f.D       = false
+    c.f.I       = true
+
+    c.ab.bank   = 0
+    c.ab.addr   = 0xFFFC
+    c.pc.addr   = read_m( c.ab, word )
+    c.pc.bank   = 0
+
+    // internal variables
+    if c.a.size == word {
+        c.a.b     = c.a.val & 0xFF00
+    }
+    c.a.size    = byte
+    c.t.size    = byte
+    c.x.size    = byte
+    c.y.size    = byte
+    c.in_mvn    = false
+    c.in_mvp    = false
+
+    return
+}
+
+// XXX: abort interrupt - not implemented properly
+//      it should abort command and discard all changes...
+//
+// XXX: COP, BRK, NMI, IRQ has almost the same code
+w65c816_abort :: proc(using c: ^CPU_65C816) {
+
+    cycles        = 8
+
+    if !f.E {
+        tb.val    = pc.bank
+        _         = push_r( sp, tb      )
+        sp.addr   = subu_r( sp, tb.size )
+    } else {
+        f.X       = false                   // f.B in emulation mode
+        cycles   -= 1
+    }
+
+    tw.val    = pc.addr
+    tw.val   += 1                           // specification say "+2" but mode_ sets +1
+    _         = push_r( sp, tw      )
+    sp.addr   = subu_r( sp, tw.size )
+
+    oper_PHP(c)
+
+    f.I       = true
+    f.D       = false
+    ab.bank   = 0
+    ab.addr   = 0xFFF8 if f.E else 0xFFE8
+    pc.bank   = 0
+    pc.addr   = read_m( ab, word )
+}
+
+w65c816_irq :: proc(using c: ^CPU_65C816) {
+
+    if f.I do return
+
+    cycles        = 8
+
+    if !f.E {
+        tb.val    = pc.bank
+        _         = push_r( sp, tb      )
+        sp.addr   = subu_r( sp, tb.size )
+    } else {
+        f.X       = false                   // f.B in emulation mode to dist. from BRK
+        cycles   -= 1
+    }
+
+    tw.val    = pc.addr
+    tw.val   += 1                           // specification say "+2" but mode_ sets +1
+    _         = push_r( sp, tw      )
+    sp.addr   = subu_r( sp, tw.size )
+
+    oper_PHP(c)
+
+    f.I       = true
+    f.D       = false
+    ab.bank   = 0
+    ab.addr   = 0xFFFE if f.E else 0xFFEE
+    pc.bank   = 0
+    pc.addr   = read_m( ab, word )
+}
+	
+w65c816_nmi :: proc(using c: ^CPU_65C816) {
+
+    cycles        = 8
+
+    if !f.E {
+        tb.val    = pc.bank
+        _         = push_r( sp, tb      )
+        sp.addr   = subu_r( sp, tb.size )
+    } else {
+        f.X       = false                   // f.B in emulation mode
+        cycles   -= 1
+    }
+
+    tw.val    = pc.addr
+    tw.val   += 1                           // specification say "+2" but mode_ sets +1
+    _         = push_r( sp, tw      )
+    sp.addr   = subu_r( sp, tw.size )
+
+    oper_PHP(c)
+
+    f.I       = true
+    f.D       = false
+    ab.bank   = 0
+    ab.addr   = 0xFFFA if f.E else 0xFFEA
+    pc.bank   = 0
+    pc.addr   = read_m( ab, word )
+
 }
 
 w65c816_exec :: proc(cpu: ^CPU, ticks: u32 = 1000) {
     c := &cpu.model.(CPU_65C816)
     current_ticks : u32 = 0
+
+    // XXX: implement here something like that
+    //      we need an new pic implementation
+    // XXX: maybe that logic should be at platform level?
+    //
+    //    if localbus.pic.irq_active == false && localbus.pic.current != pic.IRQ.NONE {
+    //        log.debugf("%s IRQ should be set!", cpu.name)
+    //        localbus.pic.irq_active = true
+    //        log.debugf("IRQ active from exec %v irq %v", localbus.pic.irq_active, localbus.pic.irq)
+    //        m68k_set_irq(localbus.pic.irq)
+    //    }
 
     if ticks == 0 {
         w65c816_execute(c)
@@ -999,16 +1145,16 @@ oper_ADC                    :: #force_inline proc (using c: ^CPU_65C816) {
         o        := (data1 & 0x0F) + (data2 & 0x0F) + carry
         o        += 0x06 if o > 0x09 else 0              // decimal correction
         carry     = 0x10 if o > 0x0f else 0              // carry of first nybble
-		o         = (o & 0x0f) + (data1 & 0xF0) + (data2 & 0xF0) + carry
+        o         = (o & 0x0f) + (data1 & 0xF0) + (data2 & 0xF0) + carry
         f.V       = test_v( a.size, u32(data1), u32(data0), u32(o)    )
         o        += 0x60 if o > 0x9f else 0              // decimal correction
 
         if f.M == word {
             carry    = 0x0100 if o > 0xFF   else 0
-		    o        = (o & 0xff) + (data1 & 0x0F00) + (data2 & 0x0F00) + carry
+            o        = (o & 0xff) + (data1 & 0x0F00) + (data2 & 0x0F00) + carry
             o       += 0x600  if o > 0x9FF  else 0
             carry    = 0x1000 if o > 0xFFF  else 0
-		    o        = (o & 0xfff) + (data1 & 0xF000) + (data2 & 0xF000) + carry
+            o        = (o & 0xfff) + (data1 & 0xF000) + (data2 & 0xF000) + carry
             f.V      = test_v( a.size, u32(data1), u32(data0), u32(o)    )
             o       += 0x6000 if o > 0x9FFF else 0
         }
@@ -1126,6 +1272,9 @@ oper_BRA                    :: #force_inline proc (using c: ^CPU_65C816) {
 //
 // [Bruce Clark (2015) "65C816 Opcodes"]
 //
+//
+// masking by I flag?
+// 
 oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) { 
     if !f.E {
         tb.val    = pc.bank
@@ -1773,51 +1922,51 @@ oper_SBC                    :: #force_inline proc (using c: ^CPU_65C816) {
         // 4d. If AL < 0, then A = A - $06
         // 4e. The accumulator result is the lower 8 bits of A
 
-		// XXX - convert it to properr nybble-like operations without unneeded and/or operations
+        // XXX - convert it to properr nybble-like operations without unneeded and/or operations
 
-		o       :  u32
-		if f.M == byte {
-			o        =  data1         -  data2         + (carry - 1)
-			al1     := (data1 & 0x0F ) - (data2 & 0x0F ) + 0x1 * (carry - 1)
+        o       :  u32
+        if f.M == byte {
+            o        =  data1         -  data2         + (carry - 1)
+            al1     := (data1 & 0x0F ) - (data2 & 0x0F ) + 0x1 * (carry - 1)
             if  al1 & 0xFFFF_0000 != 0 { carry = 0 } else {carry = 1}
-			al2     := (data1 & 0xF0 ) - (data2 & 0xF0 ) + 0x10 * (carry - 1)
-			//fmt.printf("C: %t %06x %04x %04x %06x %06x %06x ", f.C, o, data1, data2, al1, al2, 0)
-			f.V      = test_v( a.size, u32(data1), u32(~data0), u32(o)    )
+            al2     := (data1 & 0xF0 ) - (data2 & 0xF0 ) + 0x10 * (carry - 1)
+            //fmt.printf("C: %t %06x %04x %04x %06x %06x %06x ", f.C, o, data1, data2, al1, al2, 0)
+            f.V      = test_v( a.size, u32(data1), u32(~data0), u32(o)    )
             oh      := o & 0xFF00
-			o       -= 0x0060 if al2 & 0xFFFF_FF00 != 0  else 0
+            o       -= 0x0060 if al2 & 0xFFFF_FF00 != 0  else 0
             o       &= 0x00FF
             o       |= oh
             oh       = o & 0xFFF0
-			o       -= 0x0006 if al1 & 0xFFFF_FFF0 != 0  else 0
+            o       -= 0x0006 if al1 & 0xFFFF_FFF0 != 0  else 0
             o       &= 0x000F
             o       |= oh
-			f.C      = o & 0xFFFF_FF00 == 0
-			//fmt.printf("final o: %06x\n", o)
-		} else {
-			o        =  data1          -  data2          + 0x1 * (carry - 1)
-			al1     := (data1 & 0x0F ) - (data2 & 0x0F ) + 0x1 * (carry - 1)
+            f.C      = o & 0xFFFF_FF00 == 0
+            //fmt.printf("final o: %06x\n", o)
+        } else {
+            o        =  data1          -  data2          + 0x1 * (carry - 1)
+            al1     := (data1 & 0x0F ) - (data2 & 0x0F ) + 0x1 * (carry - 1)
             if  al1 & 0xFFFF_0000 != 0 { carry = 0 } else {carry = 1}
-			al2     := (data1 & 0xF0 ) - (data2 & 0xF0 ) + 0x10 * (carry - 1)
+            al2     := (data1 & 0xF0 ) - (data2 & 0xF0 ) + 0x10 * (carry - 1)
             if  al2 & 0xFFFF_0000 != 0 { carry = 0 } else { carry = 1 }
-			al3     := (data1 & 0xF00) - (data2 & 0xF00) + 0x100 * (carry - 1)
-			//fmt.printf("C: %t %06x %04x %04x %06x %06x %06x ", f.C, o, data1, data2, al1, al2, al3)
-			f.C      = o & 0xFFFF_0000 == 0
-			f.V      = test_v( a.size, u32(data1), u32(~data0), u32(o)    )
-			o       -= 0x6000 if o   & 0xFFFF_0000 != 0  else 0
+            al3     := (data1 & 0xF00) - (data2 & 0xF00) + 0x100 * (carry - 1)
+            //fmt.printf("C: %t %06x %04x %04x %06x %06x %06x ", f.C, o, data1, data2, al1, al2, al3)
+            f.C      = o & 0xFFFF_0000 == 0
+            f.V      = test_v( a.size, u32(data1), u32(~data0), u32(o)    )
+            o       -= 0x6000 if o   & 0xFFFF_0000 != 0  else 0
             oh      := o & 0xF000
 
-			o       -= 0x0600 if al3 & 0xFFFF_F000 != 0  else 0
+            o       -= 0x0600 if al3 & 0xFFFF_F000 != 0  else 0
             o       &= 0x0FFF
             o       |= oh
             oh       = o & 0xFF00
-			o       -= 0x0060 if al2 & 0xFFFF_FF00 != 0  else 0
+            o       -= 0x0060 if al2 & 0xFFFF_FF00 != 0  else 0
             o       &= 0x00FF
             o       |= oh
             oh       = o & 0xFFF0
-			o       -= 0x0006 if al1 & 0xFFFF_FFF0 != 0  else 0
+            o       -= 0x0006 if al1 & 0xFFFF_FFF0 != 0  else 0
             o       &= 0x000F
             o       |= oh
-			//fmt.printf("final o: %06x\n", o)
+            //fmt.printf("final o: %06x\n", o)
         }
         
         a.val     = u16(o)
