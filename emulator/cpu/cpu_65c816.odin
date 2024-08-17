@@ -237,12 +237,7 @@ addu_r_reg :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (resul
 }
 
 addu_r_addr :: #force_inline proc (ar: AddressRegister_65C816, size: bool)     -> (result: u16) {
-    a : u16
-    if size == byte {
-        a = u16(1)
-    } else {
-        a = u16(2)
-    }
+    a : u16 = 1 if size==byte else 2
 
     if ar.size == byte {
         high   := ar.addr & 0xFF00
@@ -268,12 +263,7 @@ subu_r_reg :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (resul
 }
 
 subu_r_addr :: #force_inline proc (ar: AddressRegister_65C816, size: bool)     -> (result: u16) {
-    a : u16
-    if size == byte {
-        a = u16(1)
-    } else {
-        a = u16(2)
-    }
+    a : u16 = 1 if size==byte else 2
 
     if ar.size == byte {
         high   := ar.addr & 0xFF00
@@ -287,14 +277,9 @@ subu_r_addr :: #force_inline proc (ar: AddressRegister_65C816, size: bool)     -
 }
 
 subu_r_val  :: #force_inline proc (val: u16, size: bool)     -> (result: u16) {
-    a : u16
-    if size == byte {
-        a = u16(1)
-    } else {
-        a = u16(2)
-    }
+    a : u16 = 1 if size==byte else 2
 
-    result = val - a
+    result  = val - a
     return
 }
 
@@ -305,7 +290,6 @@ addu_r :: proc { addu_r_reg, addu_r_addr }
 read_m :: #force_inline proc (ar: AddressRegister_65C816, size: bool) -> (result: u16) {
     ea, high: u32
 
-    //if ar.dwrap && [direct page register] == 0 {
     if ar.dwrap {
         high  = u32(ar.addr) & 0xFF00
         ea    = u32(ar.addr) + u32(ar.index)
