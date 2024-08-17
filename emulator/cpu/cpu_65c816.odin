@@ -342,7 +342,7 @@ read_a :: #force_inline proc (reg: AddressRegister_65C816, size: bool) -> (resul
     return result
 }
 
-
+// XXX: used only in one case (JSL) - optimize that?
 push_r_addr :: #force_inline proc (addr: u16, dr: DataRegister_65C816) -> bool {
     value   := u32( read_r( dr, dr.size ) )
     if dr.size == word {
@@ -354,11 +354,9 @@ push_r_addr :: #force_inline proc (addr: u16, dr: DataRegister_65C816) -> bool {
     return false
 }
 
-
 push_r_reg :: #force_inline proc (ar: AddressRegister_65C816, dr: DataRegister_65C816) -> bool {
     value   := u32( read_r( dr, dr.size ) )
     ar      := ar
-
 
     if dr.size == word {
         localbus->write(.bits_8, u32(ar.addr), (value & 0xFF00) >> 8)
@@ -442,7 +440,7 @@ adds_w :: #force_inline proc (a, b: u16) -> (result: u16) {
     return
 }
 
-// detection of page crossing, used for cyclescost calculations
+// detection of page crossing, used for cycle cost calculations
 test_p_reg :: #force_inline proc (ar: AddressRegister_65C816) ->  bool {
     return ((ar.addr & 0xFF00) != ((ar.addr+ar.index) & 0xFF00))
 }
@@ -1021,28 +1019,28 @@ mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_65C816) {
 // XXX: it looks currently so bad, consider 32-bit register backends
 oper_ADC                    :: #force_inline proc (using c: ^CPU_65C816) { 
     if f.D == false {
-        data1   := u32(read_r(a, a.size ))
-        tmp     := data1
-        data2   := u32(read_m( ab, a.size ))
-        data1   += data2
-        data1   += 1 if f.C else 0
-        f.V      = test_v( a.size, tmp, data2, data1 )
-        a.val    = u16(data1)
-        f.C      = test_v( a.size, data1 )
-        f.N      = test_n( a )
-        f.Z      = test_z( a )
+        data1    := u32(read_r(a, a.size ))
+        tmp      := data1
+        data2    := u32(read_m( ab, a.size ))
+        data1    += data2
+        data1    += 1 if f.C else 0
+        f.V       = test_v( a.size, tmp, data2, data1 )
+        a.val     = u16(data1)
+        f.C       = test_v( a.size, data1 )
+        f.N       = test_n( a )
+        f.Z       = test_z( a )
     } else {
-        data1   := u32(read_r(a, a.size ))
-        data0    = read_m( ab, a.size )
-        data2   := u32(data0)
+        data1    := u32(read_r(a, a.size ))
+        data0     = read_m( ab, a.size )
+        data2    := u32(data0)
 
-        carry   := u32(1) if f.C    else 0
-        o       := (data1 & 0x0F) + (data2 & 0x0F) + carry
-        o       += 0x06 if o > 0x09 else 0              // decimal correction
-        carry    = 0x10 if o > 0x0f else 0              // carry of first nybble
-		o        = (o & 0x0f) + (data1 & 0xF0) + (data2 & 0xF0) + carry
-        f.V      = test_v( a.size, u32(data1), u32(data0), u32(o)    )
-        o       += 0x60 if o > 0x9f else 0              // decimal correction
+        carry    := u32(1) if f.C    else 0
+        o        := (data1 & 0x0F) + (data2 & 0x0F) + carry
+        o        += 0x06 if o > 0x09 else 0              // decimal correction
+        carry     = 0x10 if o > 0x0f else 0              // carry of first nybble
+		o         = (o & 0x0f) + (data1 & 0xF0) + (data2 & 0xF0) + carry
+        f.V       = test_v( a.size, u32(data1), u32(data0), u32(o)    )
+        o        += 0x60 if o > 0x9f else 0              // decimal correction
 
         if f.M == word {
             carry    = 0x0100 if o > 0xFF   else 0
@@ -1054,10 +1052,10 @@ oper_ADC                    :: #force_inline proc (using c: ^CPU_65C816) {
             o       += 0x6000 if o > 0x9FFF else 0
         }
         
-        a.val    = u16(o)
-        f.C      = o > 0xFF if f.M else o > 0xFFFF
-        f.N      = test_n( a )
-        f.Z      = test_z( a )
+        a.val     = u16(o)
+        f.C       = o > 0xFF if f.M else o > 0xFFFF
+        f.N       = test_n( a )
+        f.Z       = test_z( a )
     }
 }
 
@@ -1112,18 +1110,18 @@ oper_BEQ                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_BIT                     :: #force_inline proc (using c: ^CPU_65C816) {
-    t.val      = read_m( ab, a.size )
-    f.N        = test_n( t )
-    f.V        = test_s( t )            // second highest bit
-    t.val     &= a.val
-    f.Z        = test_z( t )
+    t.val     = read_m( ab, a.size )
+    f.N       = test_n( t )
+    f.V       = test_s( t )            // second highest bit
+    t.val    &= a.val
+    f.Z       = test_z( t )
 }
 
 // Immediate does not set N nor V
 oper_BIT_IMM                  :: #force_inline proc (using c: ^CPU_65C816) {
-    t.val      = read_m( ab, a.size )
-    t.val     &= a.val
-    f.Z        = test_z( t )
+    t.val     = read_m( ab, a.size )
+    t.val    &= a.val
+    f.Z       = test_z( t )
 }
 
 oper_BMI                    :: #force_inline proc (using c: ^CPU_65C816) {
@@ -1228,21 +1226,21 @@ oper_CLV                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_CMP                    :: #force_inline proc (using c: ^CPU_65C816) {
-    t.size     = a.size
-    t.val      = read_m( ab, t.size )
-    t.val      = subu_r(  a, t.val  )
-    f.N        = test_n(  t         )
-    f.Z        = test_z(  t         )
-    f.C        = read_r(  a, a.size )  >= read_r(t, t.size)    // I wish I had a getter
+    t.size    = a.size
+    t.val     = read_m( ab, t.size )
+    t.val     = subu_r(  a, t.val  )
+    f.N       = test_n(  t         )
+    f.Z       = test_z(  t         )
+    f.C       = read_r(  a, a.size )  >= read_r(t, t.size)    // I wish I had a getter
 }
 
 oper_COP                    :: #force_inline proc (using c: ^CPU_65C816) {
     if !f.E {
-    tb.val    = pc.bank
-    _         = push_r( sp, tb      )
-    sp.addr   = subu_r( sp, tb.size )
+        tb.val    = pc.bank
+        _         = push_r( sp, tb      )
+        sp.addr   = subu_r( sp, tb.size )
     } else {
-    cycles   -= 1
+        cycles   -= 1
     }
 
     tw.val    = pc.addr
@@ -1262,31 +1260,31 @@ oper_COP                    :: #force_inline proc (using c: ^CPU_65C816) {
 oper_COP_E                  :: #force_inline proc (using c: ^CPU_65C816) { }
 
 oper_CPX                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    t.size     = x.size
-    t.val      = read_m( ab, t.size )
-    t.val      = subu_r(  x, t.val  )
-    f.N        = test_n(  t         )
-    f.Z        = test_z(  t         )
-    f.C        = read_r(  x, x.size )  >= t.val    // I wish I had a getter
-    t.size     = a.size                            // restore standard behaviour
+    t.size    = x.size
+    t.val     = read_m( ab, t.size )
+    t.val     = subu_r(  x, t.val  )
+    f.N       = test_n(  t         )
+    f.Z       = test_z(  t         )
+    f.C       = read_r(  x, x.size )  >= t.val    // I wish I had a getter
+    t.size    = a.size                            // restore standard behaviour
 }
 
 oper_CPY                    :: #force_inline proc (using c: ^CPU_65C816) {
-    t.size     = y.size
-    t.val      = read_m( ab, t.size )
-    t.val      = subu_r(  y, t.val  )
-    f.N        = test_n(  t         )
-    f.Z        = test_z(  t         )
-    f.C        = read_r(  y, y.size )  >= t.val    // I wish I had a getter
-    t.size     = a.size                            // restore standard behaviour
+    t.size    = y.size
+    t.val     = read_m( ab, t.size )
+    t.val     = subu_r(  y, t.val  )
+    f.N       = test_n(  t         )
+    f.Z       = test_z(  t         )
+    f.C       = read_r(  y, y.size )  >= t.val    // I wish I had a getter
+    t.size    = a.size                            // restore standard behaviour
 }
 
 oper_DEC                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    t.val      = read_m( ab, a.size )
-    t.val      = subu_r( t, 1  )
-    f.N        = test_n( t     )
-    f.Z        = test_z( t     )
-    _          = stor_m( ab, t )
+    t.val     = read_m( ab, a.size )
+    t.val     = subu_r( t, 1  )
+    f.N       = test_n( t     )
+    f.Z       = test_z( t     )
+    _         = stor_m( ab, t )
 }
 
 oper_DEC_A                  :: #force_inline proc (using c: ^CPU_65C816) {
@@ -1315,11 +1313,11 @@ oper_EOR                    :: #force_inline proc (using c: ^CPU_65C816) {
 }
 
 oper_INC                    :: #force_inline proc (using c: ^CPU_65C816) { 
-    t.val      = read_m( ab, a.size )
-    t.val      = addu_r( t, 1  )
-    f.N        = test_n( t     )
-    f.Z        = test_z( t     )
-    _          = stor_m( ab, t )
+    t.val     = read_m( ab, a.size )
+    t.val     = addu_r( t, 1  )
+    f.N       = test_n( t     )
+    f.Z       = test_z( t     )
+    _         = stor_m( ab, t )
 }
 
 oper_INC_A                  :: #force_inline proc (using c: ^CPU_65C816) {
@@ -1640,8 +1638,8 @@ oper_PLP                    :: #force_inline proc (using c: ^CPU_65C816) {
     sp.addr   = addu_r(  sp, byte  )
     f.N       = t.val & 0x80 == 0x80
     f.V       = t.val & 0x40 == 0x40
-    f.M       = true if f.E else t.val & 0x20 == 0x20   // in fact: unused
-    f.X       = true if f.E else t.val & 0x10 == 0x10   // in fact: B flag that cannot be set via PLP
+    f.M       = true if f.E else t.val & 0x20 == 0x20   // in fact: in E unused
+    f.X       = true if f.E else t.val & 0x10 == 0x10   // in fact: in E flag B cannot be set via PLP
     f.D       = t.val & 0x08 == 0x08
     f.I       = t.val & 0x04 == 0x04
     f.Z       = t.val & 0x02 == 0x02
@@ -1790,21 +1788,21 @@ oper_RTS                    :: #force_inline proc (using c: ^CPU_65C816) {
 
 oper_SBC                    :: #force_inline proc (using c: ^CPU_65C816) { 
     if f.D == false {
-        data1   := u32(read_r(a, a.size ))
-        tmp     := data1
-        data2   := u32(read_m( ab, a.size ))
-        data1   -= data2
-        data1   -= 0 if f.C else 1
-        f.V      = test_v( a.size, tmp, ~data2, data1 )
-        a.val    = u16(data1)
-        f.C      = test_v( a.size, ~data1 )
-        f.N      = test_n( a )
-        f.Z      = test_z( a )
+        data1    := u32(read_r(a, a.size ))
+        tmp      := data1
+        data2    := u32(read_m( ab, a.size ))
+        data1    -= data2
+        data1    -= 0 if f.C else 1
+        f.V       = test_v( a.size, tmp, ~data2, data1 )
+        a.val     = u16(data1)
+        f.C       = test_v( a.size, ~data1 )
+        f.N       = test_n( a )
+        f.Z       = test_z( a )
     } else {
-        data0    = read_m( ab, a.size )
-        data1   := u32(read_r(a, a.size ))
-        data2   := u32(data0)
-        carry   := u32(1) if f.C    else 0
+        data0     = read_m( ab, a.size )
+        data1    := u32(read_r(a, a.size ))
+        data2    := u32(data0)
+        carry    := u32(1) if f.C    else 0
 
         // http://6502.org/tutorials/decimal_mode.html#A
         //
@@ -1861,9 +1859,9 @@ oper_SBC                    :: #force_inline proc (using c: ^CPU_65C816) {
 			//fmt.printf("final o: %06x\n", o)
         }
         
-        a.val    = u16(o)
-        f.N      = test_n( a )
-        f.Z      = test_z( a )
+        a.val     = u16(o)
+        f.N       = test_n( a )
+        f.Z       = test_z( a )
     }
 }
 
@@ -1932,23 +1930,10 @@ oper_TAY                    :: #force_inline proc (using c: ^CPU_65C816) {
     f.Z       = test_z( y         )
 }
 
-// bad
 oper_TCD                    :: #force_inline proc (using c: ^CPU_65C816) { 
     d         = read_r( a, word )
     f.N       = test_n( d, word )
     f.Z       = test_z( d, word )
-    /*
-    f.N       = d & 0x8000 == 0x8000 // test_n2?
-    f.Z       = d == 0
-    */
-}
-
-// "However, when the e flag is 1, SH is forced to $01"
-oper_TCD_E                  :: #force_inline proc (using c: ^CPU_65C816) { 
-    d         = a.val  & 0x00FF
-    d        |= 0x0100
-    f.N       = test_n( d, byte )
-    f.Z       = test_z( d, byte )
 }
 
 oper_TCS                        :: #force_inline proc (using c: ^CPU_65C816) { 
@@ -2050,8 +2035,11 @@ oper_XBA                    :: #force_inline proc (using c: ^CPU_65C816) {
     a.b       = data0 << 8                  // preserve high byte
     a.val    |= data0 >> 8
 
-    f.N       = a.val  & 0x80 == 0x80       // always test 8bit  XXX - maybe test_* should be parametrized?
-    f.Z       = a.val  & 0xFF == 0x00       // always test 8bit
+
+    //f.N       = a.val  & 0x80 == 0x80       // always test 8bit  XXX - maybe test_* should be parametrized?
+    //f.Z       = a.val  & 0xFF == 0x00       // always test 8bit
+    f.N       = test_n( a.val, byte )
+    f.Z       = test_z( a.val, byte )
 }
  
 // XXX: I'm not sure about behaviour when "nothing changed"
