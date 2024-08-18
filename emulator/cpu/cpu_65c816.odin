@@ -29,6 +29,8 @@ addressing modes.
 3. The Western Design Center, Inc. (2004) "W65C816S Microprocessor DATA SHEET"
    http://datasheets.chipdb.org/Western%20Design/w65c816s.pdf
 
+4. BCS Technology Limited          (2014) "Investigating 65C816 Interrupts"
+   http://www.6502.org/tutorials/65c816interrupts.html
 */
 package cpu
 
@@ -66,6 +68,13 @@ CPU_65C816_state :: enum {
     POST_EXEC,
     FETCH,
     EXEC
+}
+
+CPU_65C816_irq   :: enum {
+    RESB,         // level - "abort" current op (not implemented properly yet) 
+    ABORTB,       // level - service interrupt  maskable by flag I
+    NMIB,         // edge  - service non-maskable interrupt
+    IRQB,         // level - reset
 }
 
 CPU_65C816 :: struct {
@@ -109,6 +118,10 @@ CPU_65C816 :: struct {
         T:    bool,   // Temporary flag, for value holding
     },
 
+    // hardware interrupts lines, in priority order
+    irq_pending: bool,                      // is there interrupt to serve
+    irq:         bit_set[CPU_65C816_irq],
+
     // misc variables, used by emulator
     ir:     u8,                 // instruction register
     px:     bool,               // page was crossed?
@@ -134,7 +147,7 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.setpc      = w65c816_setpc
     cpu.reset      = w65c816_reset
     cpu.exec       = w65c816_exec1
-    //cpu.clear_irq  = w65c816_clear_irq
+    cpu.clear_irq  = w65c816_clear_irq      // XXX not finished yet
     cpu.delete     = w65c816_delete
     cpu.bus        = bus
     cpu.all_cycles = 0
@@ -160,6 +173,12 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     return cpu
 }
 
+w65c816_clear_irq :: proc(cpu: ^CPU) {
+    c            := &cpu.model.(CPU_65C816)
+    c.irq         = {}
+    c.irq_pending = false
+}
+
 w65c816_setpc :: proc(cpu: ^CPU, address: u32) {
     c         := &cpu.model.(CPU_65C816)
     c.pc.addr  = u16( address & 0x0000_FFFF       )
@@ -175,155 +194,9 @@ w65c816_delete :: proc(cpu: ^CPU) {
     return
 }
 
-// ----------------------------------------------------------------------------
-// interrupt routines
-//
-// e = 0    e = 1
-// ------   ------
-// 00FFE4   00FFF4   COP
-// 00FFE6   00FFFE   BRK
-// 00FFE8   00FFF8   ABORT
-// 00FFEA   00FFFA   NMI
-//          00FFFC   RESET
-// 00FFEE   00FFFE   IRQ
- 
-// it is worth to mention that RESET nor power-on does not 
-// set low byte of Stack Pointer, and it needs to be set
-// explicitly in code
-//
-// also: "The internal clock, which is driven by the Ø2 clock generator
-// circuit, will be restarted if it had previously been stopped by an STP 
-// or WAI instruction" [3]
-//
-// 1. http://forum.6502.org/viewtopic.php?f=4&t=2258
-// 2. ["Programming the 65816", 1992, pages 55, 201]
-// 3. http://6502.org/tutorials/65c816interrupts.html#toc:interrupt_reset
-
 w65c816_reset :: proc(cpu: ^CPU) {
-    c          := &cpu.model.(CPU_65C816)
-
-    c.sp.addr   = (c.sp.addr & 0x00FF) | 0x0100
-    c.d         = 0
-    c.dbr       = 0
-    c.x.val    &= 0x00FF
-    c.y.val    &= 0x00FF
-
-    c.f.E       = true
-    c.f.M       = true
-    c.f.X       = true
-    c.f.D       = false
-    c.f.I       = true
-
-    c.ab.bank   = 0
-    c.ab.addr   = 0xFFFC
-    c.pc.addr   = read_m( c.ab, word )
-    c.pc.bank   = 0
-
-    // internal variables
-    if c.a.size == word {
-        c.a.b     = c.a.val & 0xFF00
-    }
-    c.a.size    = byte
-    c.t.size    = byte
-    c.x.size    = byte
-    c.y.size    = byte
-    c.in_mvn    = false
-    c.in_mvp    = false
-    c.state     = .FETCH
-    c.stall     = 0         // or rather 7?
-    c.cycles    = 0
-    return
-}
-
-// XXX: abort interrupt - not implemented properly
-//      it should abort command and discard all changes...
-//
-// XXX: COP, BRK, NMI, IRQ has almost the same code
-w65c816_abort :: proc(using c: ^CPU_65C816) {
-
-    cycles        = 8
-
-    if !f.E {
-        tb.val    = pc.bank
-        _         = push_r( sp, tb      )
-        sp.addr   = subu_r( sp, tb.size )
-    } else {
-        f.X       = false                   // f.B in emulation mode
-        cycles   -= 1
-    }
-
-    tw.val    = pc.addr
-    tw.val   += 1                           // specification say "+2" but mode_ sets +1
-    _         = push_r( sp, tw      )
-    sp.addr   = subu_r( sp, tw.size )
-
-    oper_PHP(c)
-
-    f.I       = true
-    f.D       = false
-    ab.bank   = 0
-    ab.addr   = 0xFFF8 if f.E else 0xFFE8
-    pc.bank   = 0
-    pc.addr   = read_m( ab, word )
-}
-
-w65c816_irq :: proc(using c: ^CPU_65C816) {
-
-    if f.I do return
-
-    cycles        = 8
-
-    if !f.E {
-        tb.val    = pc.bank
-        _         = push_r( sp, tb      )
-        sp.addr   = subu_r( sp, tb.size )
-    } else {
-        f.X       = false                   // f.B in emulation mode to dist. from BRK
-        cycles   -= 1
-    }
-
-    tw.val    = pc.addr
-    tw.val   += 1                           // specification say "+2" but mode_ sets +1
-    _         = push_r( sp, tw      )
-    sp.addr   = subu_r( sp, tw.size )
-
-    oper_PHP(c)
-
-    f.I       = true
-    f.D       = false
-    ab.bank   = 0
-    ab.addr   = 0xFFFE if f.E else 0xFFEE
-    pc.bank   = 0
-    pc.addr   = read_m( ab, word )
-}
-	
-w65c816_nmi :: proc(using c: ^CPU_65C816) {
-
-    cycles        = 8
-
-    if !f.E {
-        tb.val    = pc.bank
-        _         = push_r( sp, tb      )
-        sp.addr   = subu_r( sp, tb.size )
-    } else {
-        f.X       = false                   // f.B in emulation mode
-        cycles   -= 1
-    }
-
-    tw.val    = pc.addr
-    tw.val   += 1                           // specification say "+2" but mode_ sets +1
-    _         = push_r( sp, tw      )
-    sp.addr   = subu_r( sp, tw.size )
-
-    oper_PHP(c)
-
-    f.I       = true
-    f.D       = false
-    ab.bank   = 0
-    ab.addr   = 0xFFFA if f.E else 0xFFEA
-    pc.bank   = 0
-    pc.addr   = read_m( ab, word )
-
+    c         := &cpu.model.(CPU_65C816)
+    oper_RST(c)
 }
 
 // ----------------------------------------------------------------------------
@@ -400,6 +273,23 @@ w65c816_exec2 :: proc(cpu: ^CPU, ticks: u32 = 1000) {
 w65c816_execute1 :: proc(cpu: ^CPU_65C816) {
 
     switch {
+    case cpu.irq_pending:
+          cpu.irq_pending = false
+          switch {
+          case .RESB   in cpu.irq:
+            cpu.irq -= {.RESB}
+            oper_RST(cpu)
+          case .ABORTB in cpu.irq:
+            cpu.irq -= {.ABORTB}
+            oper_ABT(cpu)
+          case .NMIB   in cpu.irq:
+            cpu.irq -= {.NMIB}
+            oper_NMI(cpu)
+          case .IRQB   in cpu.irq:
+            cpu.irq -= {.IRQB}
+            if cpu.f.I { return }       // that makes "empty" call to _execute, but code is simpler
+            oper_IRQ(cpu)
+          }
     case cpu.in_mvn:
           oper_MVN(cpu)
           cpu.cycles      = cycles_65c816[cpu.ir] if cpu.in_mvn else 0
@@ -407,6 +297,7 @@ w65c816_execute1 :: proc(cpu: ^CPU_65C816) {
     case cpu.in_mvp:
           oper_MVP(cpu)
           cpu.cycles      = cycles_65c816[cpu.ir] if cpu.in_mvn else 0
+
     case:
           cpu.px          = false
           cpu.ir          = u8(read_m(cpu.pc, byte)) // XXX: u16?
@@ -421,8 +312,14 @@ w65c816_execute1 :: proc(cpu: ^CPU_65C816) {
           w65c816_run_opcode(cpu)
           cpu.cycles     += incCycles_PageCross[cpu.ir]     if cpu.px && cpu.f.X   else 0
     }
-
     cpu.all_cycles += cpu.cycles
+
+    // interrupts are triggered at end of current command with exception in ABORT
+    // that is triggered early and causes command to be no-op with the same cycles
+    // as original - but ABORT is not implemented propelry in that variant of exec
+    if cpu.irq != nil {
+        cpu.irq_pending = true
+    }
     return
 }
 
@@ -2307,14 +2204,147 @@ oper_XCE                    :: #force_inline proc (using c: ^CPU_65C816) {
     }
 }
 
+// ----------------------------------------------------------------------------
+// interrupt routines - pseudo opcodes
+//
+// e = 0    e = 1
+// ------   ------
+// 00FFE4   00FFF4   COP
+// 00FFE6   00FFFE   BRK
+// 00FFE8   00FFF8   ABORT
+// 00FFEA   00FFFA   NMI
+//          00FFFC   RESET
+// 00FFEE   00FFFE   IRQ
+ 
+// it is worth to mention that RESET nor power-on does not 
+// set low byte of Stack Pointer, and it needs to be set
+// explicitly in code
+//
+// also: "The internal clock, which is driven by the Ø2 clock generator
+// circuit, will be restarted if it had previously been stopped by an STP 
+// or WAI instruction" [3]
+//
+// 1. http://forum.6502.org/viewtopic.php?f=4&t=2258
+// 2. ["Programming the 65816", 1992, pages 55, 201]
+// 3. ["Investigating 65C816 Interrupts", 2014     ]
 
+oper_RST                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    sp.addr   = (c.sp.addr & 0x00FF) | 0x0100
+    d         = 0
+    dbr       = 0
+    x.val    &= 0x00FF
+    y.val    &= 0x00FF
 
+    f.E       = true
+    f.M       = true
+    f.X       = true
+    f.D       = false
+    f.I       = true
 
+    ab.bank   = 0
+    ab.addr   = 0xFFFC
+    pc.addr   = read_m( ab, word )
+    pc.bank   = 0
 
+    // internal variables
+    if a.size == word {
+        a.b     = a.val & 0xFF00
+    }
+    a.size    = byte
+    t.size    = byte
+    x.size    = byte
+    y.size    = byte
+    in_mvn    = false
+    in_mvp    = false
+    state     = .FETCH
+    stall     = 0         // or rather 7?
+    cycles    = 0
+}
 
+// XXX: abort interrupt - not implemented properly
+//      it should abort command and discard all changes...
+//
+oper_ABT                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    cycles        = 8
 
+    if !f.E {
+        tb.val    = pc.bank
+        _         = push_r( sp, tb      )
+        sp.addr   = subu_r( sp, tb.size )
+    } else {
+        f.X       = false                   // f.B in emulation mode
+        cycles   -= 1
+    }
 
+    tw.val    = pc.addr
+    tw.val   += 1                           // specification say "+2" but mode_ sets +1
+    _         = push_r( sp, tw      )
+    sp.addr   = subu_r( sp, tw.size )
 
+    oper_PHP(c)
+
+    f.I       = true
+    f.D       = false
+    ab.bank   = 0
+    ab.addr   = 0xFFF8 if f.E else 0xFFE8
+    pc.bank   = 0
+    pc.addr   = read_m( ab, word )
+}
+
+oper_IRQ                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    cycles        = 8
+
+    if !f.E {
+        tb.val    = pc.bank
+        _         = push_r( sp, tb      )
+        sp.addr   = subu_r( sp, tb.size )
+    } else {
+        f.X       = false                   // f.B in emulation mode to dist. from BRK
+        cycles   -= 1
+    }
+
+    tw.val    = pc.addr
+    tw.val   += 1                           // specification say "+2" but mode_ sets +1
+    _         = push_r( sp, tw      )
+    sp.addr   = subu_r( sp, tw.size )
+
+    oper_PHP(c)
+
+    f.I       = true
+    f.D       = false
+    ab.bank   = 0
+    ab.addr   = 0xFFFE if f.E else 0xFFEE
+    pc.bank   = 0
+    pc.addr   = read_m( ab, word )
+}
+	
+oper_NMI                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    cycles        = 8
+
+    if !f.E {
+        tb.val    = pc.bank
+        _         = push_r( sp, tb      )
+        sp.addr   = subu_r( sp, tb.size )
+    } else {
+        f.X       = false                   // f.B in emulation mode
+        cycles   -= 1
+    }
+
+    tw.val    = pc.addr
+    tw.val   += 1                           // specification say "+2" but mode_ sets +1
+    _         = push_r( sp, tw      )
+    sp.addr   = subu_r( sp, tw.size )
+
+    oper_PHP(c)
+
+    f.I       = true
+    f.D       = false
+    ab.bank   = 0
+    ab.addr   = 0xFFFA if f.E else 0xFFEA
+    pc.bank   = 0
+    pc.addr   = read_m( ab, word )
+
+}
 
 
 
