@@ -8,11 +8,6 @@
 // 4. consider shifting constructs like ( Reg ) to { Reg.val, size }
 //    to achieve more uniformity across routines
 
-// + all tests (except MVN/MVP) passed
-// + cycles are supported
-// - irqs not implemented
-//   - and reset too
-// - code not optimized
 
 /*
 CPU: 65c816
@@ -139,9 +134,7 @@ CPU_65C816 :: struct {
                        // registers may be overwritten by other operations
 }
 
-// XXX - parametrize CPU type!
 w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
-
     cpu           := new(CPU)
     cpu.name       = name
     cpu.setpc      = w65c816_setpc
@@ -168,8 +161,6 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
 
     // we need global because of external musashi
     localbus   = bus
-
-    //w65c816_init();
     return cpu
 }
 
@@ -384,7 +375,11 @@ w65c816_execute2 :: proc(cpu: ^CPU_65C816) {
 
 }
 
+// ----------------------------------------------------------------------------
+// # helper routines
+
 // add unsigned to index register
+
 addu_r_reg :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (result: u16) {
     if dr.size == byte {
         high   := dr.val & 0xFF00
@@ -410,6 +405,8 @@ addu_r_addr :: #force_inline proc (ar: AddressRegister_65C816, size: bool)     -
     }
     return
 }
+
+addu_r :: proc { addu_r_reg, addu_r_addr }
 
 subu_r_reg :: #force_inline proc (dr: DataRegister_65C816, a: u16)     -> (result: u16) {
     if dr.size == byte {
@@ -444,9 +441,8 @@ subu_r_val  :: #force_inline proc (val: u16, size: bool)     -> (result: u16) {
     return
 }
 
-
 subu_r :: proc { subu_r_reg, subu_r_addr, subu_r_val }
-addu_r :: proc { addu_r_reg, addu_r_addr }
+
 
 read_m :: #force_inline proc (ar: AddressRegister_65C816, size: bool) -> (result: u16) {
     ea, high: u32
@@ -1294,9 +1290,6 @@ oper_BRA                    :: #force_inline proc (using c: ^CPU_65C816) {
 //
 // [Bruce Clark (2015) "65C816 Opcodes"]
 //
-//
-// masking by I flag?
-// 
 oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) { 
     if !f.E {
         tb.val    = pc.bank
