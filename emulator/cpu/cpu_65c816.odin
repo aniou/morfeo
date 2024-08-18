@@ -62,6 +62,12 @@ CPU_65C816_type :: enum {
     W65C816S,
 }
 
+CPU_65C816_state :: enum {
+    POST_EXEC,
+    FETCH,
+    EXEC
+}
+
 CPU_65C816 :: struct {
     using cpu: ^CPU,
 
@@ -69,6 +75,7 @@ CPU_65C816 :: struct {
 
     pc:     AddressRegister_65C816,     // note: pc.bank act as K register
     sp:     AddressRegister_65C816,     // XXX: check it should be Data or Addresss?
+    ppc:    AddressRegister_65C816,     // previus PC - for debug and ABORT
 
     a:      DataRegister_65C816,
     x:      DataRegister_65C816,
@@ -103,12 +110,13 @@ CPU_65C816 :: struct {
     },
 
     // misc variables, used by emulator
-    ir:     u8,        // instruction register
-    px:     bool,      // page was crossed?
-    wdm:    bool,      // support for non-standard WDM (0x42) command?
-    abort:  bool,      // emulator should abort?
-    ppc:    u16,       // previous PC - for debug purposes
-    cycles: u32,       // number of cycless for this command
+    ir:     u8,                 // instruction register
+    px:     bool,               // page was crossed?
+    wdm:    bool,               // support for non-standard WDM (0x42) command?
+    abort:  bool,               // emulator should abort?
+    cycles: u32,                // number of cycless for this command
+    stall:  u32,                // number of cycles to wait to execute current (ir) command
+    state:  CPU_65C816_state,   // current CPU state
 
     // only for MVN/MVP support
     in_mvn: bool,      // CPU is in middle in MVN - lower precedence than irq
@@ -125,7 +133,7 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.name       = name
     cpu.setpc      = w65c816_setpc
     cpu.reset      = w65c816_reset
-    cpu.exec       = w65c816_exec
+    cpu.exec       = w65c816_exec1
     //cpu.clear_irq  = w65c816_clear_irq
     cpu.delete     = w65c816_delete
     cpu.bus        = bus
@@ -142,6 +150,7 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     c.sp           = AddressRegister_65C816{bwrap = true}
     c.ab           = AddressRegister_65C816{bwrap = true}
     c.ta           = AddressRegister_65C816{bwrap = true}
+    c.state        = .FETCH
     cpu.model      = c
 
     // we need global because of external musashi
@@ -155,6 +164,9 @@ w65c816_setpc :: proc(cpu: ^CPU, address: u32) {
     c         := &cpu.model.(CPU_65C816)
     c.pc.addr  = u16( address & 0x0000_FFFF       )
     c.pc.bank  = u16((address & 0x00FF_0000) >> 16)
+    c.state    = .FETCH
+    c.stall    = 0
+    c.cycles   = 0
     return
 }
 
@@ -217,7 +229,9 @@ w65c816_reset :: proc(cpu: ^CPU) {
     c.y.size    = byte
     c.in_mvn    = false
     c.in_mvp    = false
-
+    c.state     = .FETCH
+    c.stall     = 0         // or rather 7?
+    c.cycles    = 0
     return
 }
 
@@ -312,54 +326,165 @@ w65c816_nmi :: proc(using c: ^CPU_65C816) {
 
 }
 
-w65c816_exec :: proc(cpu: ^CPU, ticks: u32 = 1000) {
+// ----------------------------------------------------------------------------
+// operand execution
+//
+//    This particular emulation is not cycle-exact, thus all operations
+//    are made at single batch and exec() routine stalls for number of
+//    cycles used for particular command.
+// 
+//    There are multiple ways of doing that:
+// 
+//    1. Very simple:
+//       a) if stall > 0 { stall -= 1; return }
+//       b) fetch opcode to ir and execute
+//       c) calculate cycles and set stall for that value
+//       d) process interrupts (because they wait for end of
+//          particular commands, except ABORT)
+// 
+//       Thus, sequence is: exec and then wait for desired cycles.
+//       That is somewhat simple but does not allow to easily simulate
+//       ABORT interrupt in 65c816.
+// 
+//    2. Less simple, with three states:
+//       a) fetch    : fetch ir and calculate cycles                 -> exec
+//       b) exec     : stall, process abort,do exec                  -> post-exec or fetch
+//       c) post-exec: wait for an additional cycles from page-cross
+//                     or branch taken                               -> fetch
+// 
+//       That model provides ability to simulate ABORT interrupt with
+//       cost of simple inaccuracies.
+// 
+//    3. Almost ideal model prefers setting 'ABORT' line for cpu and
+//       execute opcode, but it needs additional code that should
+//       check ABORT and prevent register and memory-write operations,
+//       this is more accurate but at cost of complicating simple code.
+// 
+//    4. Ideal model requires step-exact code, that is possible, but
+//       with different algorithm or even different language - maybe 
+//       in future?
+
+// ver.1 - less accurate, more performant, without ABORT
+w65c816_exec1 :: proc(cpu: ^CPU, ticks: u32 = 1000) {
     c := &cpu.model.(CPU_65C816)
     current_ticks : u32 = 0
 
-    // XXX: implement here something like that
-    //      we need an new pic implementation
-    // XXX: maybe that logic should be at platform level?
-    //
-    //    if localbus.pic.irq_active == false && localbus.pic.current != pic.IRQ.NONE {
-    //        log.debugf("%s IRQ should be set!", cpu.name)
-    //        localbus.pic.irq_active = true
-    //        log.debugf("IRQ active from exec %v irq %v", localbus.pic.irq_active, localbus.pic.irq)
-    //        m68k_set_irq(localbus.pic.irq)
-    //    }
-
-    if ticks == 0 {
-        w65c816_execute(c)
-        return
+    for current_ticks <= ticks {
+        w65c816_execute1(c)
+        current_ticks += c.cycles
     }
 
     return
 }
 
-w65c816_execute :: proc(cpu: ^CPU_65C816) {
+// ver.2 - more accurate, less performant, ABORT capable
+w65c816_exec2 :: proc(cpu: ^CPU, ticks: u32 = 1000) {
+    c := &cpu.model.(CPU_65C816)
+    current_ticks : u32 = 0
+
+    if ticks == 0 {
+        w65c816_execute2(c)
+        return
+    } 
+
+    for current_ticks < ticks {
+        w65c816_execute2(c)
+        if c.state == .FETCH {
+            current_ticks += c.cycles
+        }
+    }
+    return
+}
+
+// ver.1 - less accurate, but sufficient and performant
+w65c816_execute1 :: proc(cpu: ^CPU_65C816) {
 
     switch {
     case cpu.in_mvn:
           oper_MVN(cpu)
-          cpu.cycles    += cycles_65c816[cpu.ir]
+          cpu.cycles      = cycles_65c816[cpu.ir] if cpu.in_mvn else 0
 
     case cpu.in_mvp:
-         oper_MVP(cpu)
-          cpu.cycles    += cycles_65c816[cpu.ir]
+          oper_MVP(cpu)
+          cpu.cycles      = cycles_65c816[cpu.ir] if cpu.in_mvn else 0
     case:
-          cpu.px       = false
-          cpu.ir       = u8(read_m(cpu.pc, byte)) // XXX: u16?
-          cpu.cycles   = cycles_65c816[cpu.ir]
-          cpu.ab.index = 0                     // XXX: move to addressing modes?
-          cpu.ab.pwrap = false                 // XXX: move to addressing modes?
+          cpu.px          = false
+          cpu.ir          = u8(read_m(cpu.pc, byte)) // XXX: u16?
+          cpu.ab.index    = 0                        // XXX: move to addressing modes?
+          cpu.ab.pwrap    = false                    // XXX: move to addressing modes?
+
+          cpu.cycles      = cycles_65c816[cpu.ir]
+          cpu.cycles     -= decCycles_flagM[cpu.ir]         if cpu.f.M             else 0
+          cpu.cycles     -= decCycles_flagX[cpu.ir]         if cpu.f.X             else 0
+          cpu.cycles     += incCycles_regDL_not00[cpu.ir]   if cpu.d & 0x00FF != 0 else 0
+
           w65c816_run_opcode(cpu)
+          cpu.cycles     += incCycles_PageCross[cpu.ir]     if cpu.px && cpu.f.X   else 0
     }
 
-    cpu.cycles  += incCycles_PageCross[cpu.ir]     if cpu.px && cpu.f.X   else 0
-    cpu.cycles  -= decCycles_flagM[cpu.ir]         if cpu.f.M             else 0
-    cpu.cycles  -= decCycles_flagX[cpu.ir]         if cpu.f.X             else 0
-    cpu.cycles  += incCycles_regDL_not00[cpu.ir]   if cpu.d & 0x00FF != 0 else 0
-
+    cpu.all_cycles += cpu.cycles
     return
+}
+
+// ver.2 - more accurate, suitable for kind-of ABORT, less performant
+w65c816_execute2 :: proc(cpu: ^CPU_65C816) {
+    switch cpu.state {
+    case   .FETCH:
+        cpu.px       = false
+        cpu.ab.index = 0
+        cpu.ab.pwrap = false
+        cpu.ppc      = cpu.pc
+
+        cpu.ir          = u8(read_m(cpu.pc, byte))
+        cpu.cycles      = cycles_65c816[cpu.ir]
+        cpu.cycles     -= decCycles_flagM[cpu.ir]         if cpu.f.M             else 0
+        cpu.cycles     -= decCycles_flagX[cpu.ir]         if cpu.f.X             else 0
+        cpu.cycles     += incCycles_regDL_not00[cpu.ir]   if cpu.d & 0x00FF != 0 else 0
+        cpu.stall       = cpu.cycles
+        cpu.state       = .EXEC
+        fallthrough
+
+    case   .EXEC:
+        cpu.stall     -= 1
+        if cpu.stall > 0 {
+            return
+        }
+        // if abort ... { cpu.pc = cpu.ppc ... } - after stall but without execution opcode
+
+        switch {
+        case cpu.in_mvn:
+            oper_MVN(cpu)
+        case cpu.in_mvp:
+            oper_MVP(cpu)
+        case:
+            w65c816_run_opcode(cpu)
+            cpu.stall    = incCycles_PageCross[cpu.ir]     if cpu.px && cpu.f.X   else 0
+            if cpu.stall > 0 {
+                cpu.cycles  += cpu.stall
+                cpu.state    = .POST_EXEC
+            } else {
+                cpu.state    = .FETCH
+            }
+        }
+
+        // if interrupt - always after opcode, exception: ABORT
+
+        if cpu.in_mvn || cpu.in_mvp {
+            cpu.stall       = cycles_65c816[cpu.ir]
+            cpu.cycles     += cpu.stall
+        } else {
+            cpu.all_cycles += cpu.cycles
+        }
+
+    case   .POST_EXEC:
+        cpu.stall -= 1
+        if cpu.stall > 0 { 
+            return
+        }
+        cpu.state = .FETCH
+
+    }
+
 }
 
 // add unsigned to index register
