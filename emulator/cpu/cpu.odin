@@ -10,7 +10,7 @@ CPU :: struct {
     delete: proc(^CPU),
     setpc:  proc(^CPU, u32),
     reset:  proc(^CPU),
-    exec: proc(^CPU, u32),
+    run: proc(^CPU, u32),
     clear_irq: proc(^CPU),
 
     all_cycles: u32,

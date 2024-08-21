@@ -108,7 +108,7 @@ m68k_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.delete = m68k_delete
     cpu.setpc  = m68k_setpc
     cpu.reset  = m68k_reset
-    cpu.exec   = m68k_exec
+    cpu.run    = m68k_exec
     cpu.clear_irq   = m68k_clear_irq
     cpu.bus    = bus
     cpu.all_cycles = 0

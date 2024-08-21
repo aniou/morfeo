@@ -57,6 +57,8 @@ AddressRegister_65C816 :: struct {
 
 CPU_65C816_type :: enum {
     W65C816S,
+    G65SC02,     // CMOS 6502 without bit instructions by CMD
+    W65C02S,     // CMOS 6502 with    bit instructions by WDC and WAI/STP
 }
 
 CPU_65C816_state :: enum {
@@ -139,7 +141,7 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.name       = name
     cpu.setpc      = w65c816_setpc
     cpu.reset      = w65c816_reset
-    cpu.exec       = w65c816_exec1
+    cpu.run        = w65c816_exec1
     cpu.clear_irq  = w65c816_clear_irq      // XXX not finished yet
     cpu.delete     = w65c816_delete
     cpu.bus        = bus
@@ -1128,19 +1130,49 @@ mode_Implied                :: #force_inline proc (using c: ^CPU_65C816) {
 // CPU: R65C02, CSG 65CE02, WDC 65C02S
 // OPC OP,LL,BB   OP denotes bit number to check LL is a ZP address to check
 //                BB denotes signed relative branch, calculated from current PC
+//
+// That particular mode retain name ZP (Zero Page) despita that CPU_65xxx code
+// uses DP (Direct Page) acronym from 65c816 - but ZP_and_Relative is very
+// specific for a 8bit CPUs and doesn't exist in 65c816
+//
 mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_65C816) {
-/*
-    pc   += 1
-    w0    = read_l( pc     )        // ZP address to read
-    b0    = read_b( w0     )        // preserve for oper_ processing
+    pc.addr  += 1
+    tb.val    = read_m( pc, byte )              // data to test
 
-    pc   += 1
-    b1    = read_b( pc     )        // relative jump size
-    ab    = add__s_w( pc, b1 )        // calculate jump - add signed byte
-    px    = test_p( ab, pc )
-*/
+    pc.addr  += 1
+    ab.addr   = read_m( pc, byte )              // relative calculated form pc of next cmd
+    pc.addr  += 1
+    ab.addr   = adds_b( pc.addr, ab.addr )
+    px        = test_p( pc.addr, ab.addr )
+    ab.bank   = pc.bank
 }
 
+// CPU: W65C02S
+// OPC
+//
+// mode_Illegal[1-4,8] does nothing except increasing PC. They are defined
+// separately because it keeps a coherent model of code, when PC is set in
+// mode_* routines
+//
+mode_Illegal1               :: #force_inline proc (using c: ^CPU_65C816) {
+    pc.addr  += 1
+}
+
+mode_Illegal2               :: #force_inline proc (using c: ^CPU_65C816) {
+    pc.addr  += 2 
+}
+
+mode_Illegal3               :: #force_inline proc (using c: ^CPU_65C816) {
+    pc.addr  += 3
+}
+
+mode_Illegal4               :: #force_inline proc (using c: ^CPU_65C816) {
+    pc.addr  += 4
+}
+
+mode_Illegal8               :: #force_inline proc (using c: ^CPU_65C816) {
+    pc.addr  += 8
+}
 // XXX: it looks currently so bad, consider 32-bit register backends
 oper_ADC                    :: #force_inline proc (using c: ^CPU_65C816) { 
     if f.D == false {
@@ -2220,7 +2252,7 @@ oper_XCE                    :: #force_inline proc (using c: ^CPU_65C816) {
 // 1. http://forum.6502.org/viewtopic.php?f=4&t=2258
 // 2. ["Programming the 65816", 1992, pages 55, 201]
 // 3. ["Investigating 65C816 Interrupts", 2014     ]
-
+//
 oper_RST                    :: #force_inline proc (using c: ^CPU_65C816) { 
     sp.addr   = (c.sp.addr & 0x00FF) | 0x0100
     d         = 0
@@ -2339,5 +2371,225 @@ oper_NMI                    :: #force_inline proc (using c: ^CPU_65C816) {
 
 }
 
+// CPU: CMOS versions of 6502
+// 
+//      Do nothing - all PC calculations are made in mode_ILL[num] according
+//      to value of cycles, wasted in no-op
+//
+oper_ILL                     :: #force_inline proc (using c: ^CPU_65C816) { }
 
+// BBR, BBS, RMB and SMB, aka “Rockwell extensions” later included in later 
+// WDC 65C02 versions
+//
+// Don't use them if You want running Your code on 65c816, they were removed
+// consider TSB and TRB instead
+//
+oper_BBR0                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0000_0001) == 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
 
+oper_BBR1                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0000_0010) == 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBR2                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0000_0100) == 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBR3                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0000_1000) == 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBR4                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0001_0000) == 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBR5                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0010_0000) == 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBR6                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0100_0000) == 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBR7                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_1000_0000) == 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBS0                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0000_0001) != 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBS1                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0000_0010) != 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBS2                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0000_0100) != 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBS3                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0000_1000) != 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBS4                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0001_0000) != 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBS5                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0010_0000) != 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBS6                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_0100_0000) != 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_BBS7                    :: #force_inline proc (using c: ^CPU_65C816) {
+    if (tb.val & 0b_1000_0000) != 0 {
+        pc.addr   = ab.addr
+        cycles   += 2 if px else 1
+    }
+}
+
+oper_RMB0                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, byte )
+    t.val    &= 0b_1111_1110
+    _         = stor_m( ab, t    )
+}
+
+oper_RMB1                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, byte )
+    t.val    &= 0b_1111_1101
+    _         = stor_m( ab, t    )
+}
+
+oper_RMB2                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, byte )
+    t.val    &= 0b_1111_1011
+    _         = stor_m( ab, t    )
+}
+
+oper_RMB3                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, byte )
+    t.val    &= 0b_1111_0111
+    _         = stor_m( ab, t    )
+}
+
+oper_RMB4                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, byte )
+    t.val    &= 0b_1110_1111
+    _         = stor_m( ab, t    )
+}
+
+oper_RMB5                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, byte )
+    t.val    &= 0b_1101_1111
+    _         = stor_m( ab, t    )
+}
+
+oper_RMB6                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, byte )
+    t.val    &= 0b_1011_1111
+    _         = stor_m( ab, t    )
+}
+
+oper_RMB7                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, byte )
+    t.val    &= 0b_0111_1111
+    _         = stor_m( ab, t    )
+}
+
+oper_SMB0                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, byte )
+    t.val    |= 0b_0000_0001
+    _         = stor_m( ab, t    )
+}
+
+oper_SMB1                    :: #force_inline proc (using c: ^CPU_65C816) { 
+    t.val     = read_m( ab, byte )
+    t.val    |= 0b_0000_0010
+    _         = stor_m( ab, t    )
+}
+
+oper_SMB2                    :: #force_inline proc (using c: ^CPU_65C816) {
+    t.val     = read_m( ab, byte )
+    t.val    |= 0b_0000_0100
+    _         = stor_m( ab, t    )
+}
+
+oper_SMB3                    :: #force_inline proc (using c: ^CPU_65C816) {
+    t.val     = read_m( ab, byte )
+    t.val    |= 0b_0000_1000
+    _         = stor_m( ab, t    )
+}
+
+oper_SMB4                    :: #force_inline proc (using c: ^CPU_65C816) {
+    t.val     = read_m( ab, byte )
+    t.val    |= 0b_0001_0000
+    _         = stor_m( ab, t    )
+}
+
+oper_SMB5                    :: #force_inline proc (using c: ^CPU_65C816) {
+    t.val     = read_m( ab, byte )
+    t.val    |= 0b_0010_0000
+    _         = stor_m( ab, t    )
+}
+
+oper_SMB6                    :: #force_inline proc (using c: ^CPU_65C816) {
+    t.val     = read_m( ab, byte )
+    t.val    |= 0b_0100_0000
+    _         = stor_m( ab, t    )
+}
+
+oper_SMB7                    :: #force_inline proc (using c: ^CPU_65C816) {
+    t.val     = read_m( ab, byte )
+    t.val    |= 0b_1000_0000
+    _         = stor_m( ab, t    )
+}
+
+// eof

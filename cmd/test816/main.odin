@@ -300,7 +300,7 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, mode: string, 
     for test in tests {
         prepare_test(p, test.initial)
         for {
-            c->exec(0)
+            c->run(0)
             if (!c.in_mvn) && (!c.in_mvp) do break
         }
         test_cycles  = len(test.cycles)

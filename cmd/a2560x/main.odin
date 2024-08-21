@@ -99,7 +99,7 @@ main_loop :: proc(p: ^platform.Platform) {
             } else {
                 desired_cycles = 2 * CPU_SPEED
             }
-            p.cpu->exec(desired_cycles)
+            p.cpu->run(desired_cycles)
         }
 
         // Step 2: process keyboard in (XXX: do it - mouse)
