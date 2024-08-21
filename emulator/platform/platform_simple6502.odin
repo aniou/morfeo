@@ -12,17 +12,17 @@ import "emulator:memory"
 import "core:fmt"
 import "core:log"
 
-test816_make :: proc() -> ^Platform {
+make_simple6502 :: proc() -> ^Platform {
     p          := new(Platform)
-    p.bus       = bus.test816_make("bus0", nil)
-    p.bus.ram0  = memory.make_ram("ram0", 256 * 65536)      // 16 megabytes
-    p.cpu       = cpu.w65c816_make("cpu0", p.bus)
+    p.bus       = bus.make_simple6502("bus0", nil)
+    p.bus.ram0  = memory.make_ram("ram0", 65536)
+    p.cpu       = cpu.make_w65c02s("cpu0", p.bus)
 
-    p.delete    = test816_delete
+    p.delete    = delete_simple6502
     return p
 }
 
-test816_delete :: proc(p: ^Platform) {
+delete_simple6502 :: proc(p: ^Platform) {
     p.bus.ram0->delete()
          p.cpu->delete()
          p.bus->delete()

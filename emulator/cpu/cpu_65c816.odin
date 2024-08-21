@@ -120,13 +120,15 @@ CPU_65C816 :: struct {
     irq:         bit_set[CPU_65C816_irq],
 
     // misc variables, used by emulator
-    ir:     u8,                 // instruction register
-    px:     bool,               // page was crossed?
-    wdm:    bool,               // support for non-standard WDM (0x42) command?
-    abort:  bool,               // emulator should abort?
-    cycles: u32,                // number of cycless for this command
-    stall:  u32,                // number of cycles to wait to execute current (ir) command
-    state:  CPU_65C816_state,   // current CPU state
+    ir:       u8,                 // instruction register
+    px:       bool,               // page was crossed?
+    abort:    bool,               // emulator should abort? XXX: unused
+    cycles:   u32,                // number of cycless for this command
+    stall:    u32,                // number of cycles to wait to execute current (ir) command
+    state:    CPU_65C816_state,   // current CPU state
+    wdm:      bool,               // support for non-standard WDM (0x42) command?
+    real6502: bool,               // flag for cases when is a difference
+                                  // between E(mulated) mode nad real hw
 
     // only for MVN/MVP support
     in_mvn: bool,      // CPU is in middle in MVN - lower precedence than irq
@@ -148,6 +150,7 @@ w65c816_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.all_cycles = 0
 
     c             := CPU_65C816{cpu = cpu, type = CPU_65C816_type.W65C816S}
+    c.real6502     = false
     c.a            = DataRegister_65C816{}
     c.x            = DataRegister_65C816{}
     c.y            = DataRegister_65C816{}
@@ -742,11 +745,23 @@ mode_Absolute_PBR           :: #force_inline proc (using c: ^CPU_65C816) {
 //
 // XXX - implement that variant
 //
+// Note that this is one of the rare instances where emulation mode has
+// different behavior than the 65C02 or NMOS 6502. Since the 65C02 and NMOS
+// 6502 have a 16-bit address space, when the X register is $80, an LDA $FFC0,X
+// instruction (for example) loads from address $0040; however on the 65C816,
+// it loads from address $010040 (rather than address $000040). In practice,
+// this is not a problem since 65C02 and NMOS 6502 code would almost certainly
+// use an LDA $C0,X instruction (rather than LDA $FFC0,X) because zero page
+// addressing always wraps at the page boundary on a 65C02 and NMOS 6502 (i.e.
+// when the X register is $80, LDA $C0,X loads from address $40). 
+//
+// [Bruce Clark (2015) "65C816 Opcodes"]
+
 mode_Absolute_X                :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )
     ab.bank   = dbr
-    ab.bwrap  = false
+    ab.bwrap  = true if real6502 else false
     ab.index  = x.val
     px        = test_p( ab )
     pc.addr  += 2
@@ -764,7 +779,7 @@ mode_Absolute_Y                :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )
     ab.bank   = dbr
-    ab.bwrap  = false
+    ab.bwrap  = true if real6502 else false
     ab.index  = y.val
     px        = test_p( ab )
     pc.addr  += 2
@@ -773,7 +788,7 @@ mode_Absolute_Y                :: #force_inline proc (using c: ^CPU_65C816) {
 // XXX
 // If, for whatever reason, you do not wish to have direct page wrap around in
 // emulation mode, it will not occur when the DL register is nonzero. 
-// [Bruce Clark, 2015]
+// [Bruce Clark (2015) "65C816 Opcodes"]
 
 
 //
@@ -847,6 +862,24 @@ mode_DP_Indirect_Y          :: #force_inline proc (using c: ^CPU_65C816) {
     ab.bank   = dbr
     ab.index  = read_r( y, y.size )
     ab.bwrap  = false
+    ab.pwrap  = false
+    px        = test_p( ab )
+}
+
+// XXX: optimize it
+mode_ZP_Indirect_Y          :: #force_inline proc (using c: ^CPU_65C816) {
+    pc.addr  += 1
+    ab.addr   = read_m( pc, byte )  // 0 | D + LL
+    pc.addr  += 1
+    ab.addr  += d
+    ab.bank   = 0
+    ab.bwrap  = true
+    ab.pwrap  = true 
+
+    ab.addr   = read_m( ab, word )  // 0 hh ll + Y
+    ab.bank   = 0
+    ab.index  = read_r( y, y.size )
+    ab.bwrap  = true
     ab.pwrap  = false
     px        = test_p( ab )
 }
@@ -1022,33 +1055,6 @@ mode_Absolute_Indirect         :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 2
 }
 
-
-//
-// CPU: all, except MOS 6502
-// OPC ($LLHH)    operand is address;
-//                effective address is contents of word at address: C.w($HHLL)
-//
-// Note that on the 65C816, as on the 65C02, (absolute) addressing does not
-// wrap at a page boundary, i.e. for a JMP ($12FF) the low byte of the
-// destination address is taken from $12FF and the high byte of the destination
-// address is taken from $1300. On the NMOS 6502, (absolute) addressing did
-// wrap on a page boundary, which was unintentional (i.e. a bug); there, a JMP
-// ($12FF) took the low byte of the destination address from $12FF but took the
-// high byte of the destination address from $1200 (rather than $1300)
-// [65C816opcodes]
-//
-/*
-mode_Absolute_Indirect      :: #force_inline proc (using c: ^CPU_65C816) {
-    pc   += 1
-    w0    = read_l( pc     )
-    pc   += 1
-    w0   |= read_h( pc     )
-
-    ab    = read_l( w0     )
-    ab   |= read_h( w0+1   )
-}
-
-*/
 //
 // CPU: only MOS 6502
 // OPC ($LLHH)    operand is address;
@@ -1137,20 +1143,21 @@ mode_Implied                :: #force_inline proc (using c: ^CPU_65C816) {
 //
 mode_ZP_and_Relative        :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 1
-    tb.val    = read_m( pc, byte )              // data to test
+    ab.addr   = read_m( pc, byte )
+    tb.val    = read_m( ab, byte )              // data to test
 
     pc.addr  += 1
-    ab.addr   = read_m( pc, byte )              // relative calculated form pc of next cmd
-    pc.addr  += 1
+    ab.addr   = read_m( pc, byte )              // relative calculated from pc of next cmd
+    pc.addr  += 1                               // thus we need to position pc on next cmd
+
     ab.addr   = adds_b( pc.addr, ab.addr )
     px        = test_p( pc.addr, ab.addr )
-    ab.bank   = pc.bank
 }
 
 // CPU: W65C02S
 // OPC
 //
-// mode_Illegal[1-4,8] does nothing except increasing PC. They are defined
+// mode_Illegal[1-3] does nothing except increasing PC. They are defined
 // separately because it keeps a coherent model of code, when PC is set in
 // mode_* routines
 //
@@ -1166,13 +1173,6 @@ mode_Illegal3               :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr  += 3
 }
 
-mode_Illegal4               :: #force_inline proc (using c: ^CPU_65C816) {
-    pc.addr  += 4
-}
-
-mode_Illegal8               :: #force_inline proc (using c: ^CPU_65C816) {
-    pc.addr  += 8
-}
 // XXX: it looks currently so bad, consider 32-bit register backends
 oper_ADC                    :: #force_inline proc (using c: ^CPU_65C816) { 
     if f.D == false {

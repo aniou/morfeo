@@ -21,7 +21,7 @@ a2560x_make :: proc() -> ^Platform {
     p.bus.gpu1  = gpu.vicky3_make("B", 1)
     p.bus.ps2   = ps2.ps2_make("ps2", pic)
     p.bus.rtc   = rtc.bq4802_make("rtc0", pic)
-    p.bus.ram0  = memory.ram_make("ram0", 0x40_0000)
+    p.bus.ram0  = memory.make_ram("ram0", 0x40_0000)
     p.cpu       = cpu.m68k_make("cpu0", p.bus)
 
     p.delete    = a2560x_delete

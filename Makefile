@@ -43,7 +43,8 @@ release: $(musashi_objects)
 
 run: $(musashi_objects)
 #	odin run cmd/a2560x $(build_flags) -- $(morfeo_args)
-	odin run cmd/test816 $(build_flags)
+#	odin run cmd/test816 $(build_flags)
+	odin run cmd/test6502 $(build_flags)
 
 mini6502:
 	odin build cmd/mini6502 -debug $(build_flags)
@@ -51,4 +52,5 @@ mini6502:
 test816:
 	odin build cmd/test816 $(build_flags)
 doc:
-	odin doc emulator/cpu/ $(build_flags2)
+#	odin doc emulator/cpu/ $(build_flags2)
+	odin doc cmd/test6502/ $(build_flags2)
