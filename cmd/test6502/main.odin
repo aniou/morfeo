@@ -230,13 +230,13 @@ print_state :: proc(state: CPU_State, c: ^cpu.CPU) {
 }
 
 
-do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, name: string) -> (ok: bool) {
+do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, name: int) -> (ok: bool) {
     // reading raw data
     ok = true
-    fname := fmt.aprintf("external/tests-6502/wdc65c02/v1/%s.json", name)
+    fname := fmt.aprintf("external/tests-6502/wdc65c02/v1/%02x.json", name)
     data, status := os.read_entire_file_from_filename(fname)
     if !status {
-        log.error("Failed to load the file!")
+        log.errorf("Failed to load the file: %s", fname)
         ok = false
         return
     }
@@ -265,7 +265,7 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, name: string) 
             if (!c.in_mvn) && (!c.in_mvp) do break
         }
         test_cycles  = len(test.cycles)
-        if name == "5c" do test_cycles = 8   // correction for current test data
+        if name == 0x5C do test_cycles = 8   // correction for current test data
         fail := verify_test(p, test_cycles, test.final)
         if fail {
             log.error("test: ", test.name)
@@ -278,7 +278,13 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, name: string) 
     }
     ms_elapsed := u64(time.tick_since(start) / time.Microsecond)
     if curr_test != -1 {
-        log.infof("test %03i/%03i mode %s opcode %s tests %d time %i μs", curr_test, all_tests, "n", name, count, ms_elapsed)
+        opdata := cpu.CPU_W65C06_opcodes[name]
+        log.infof("test %03i/%03i mode %s opcode %02x %-4s %8s tests %d time %i μs", 
+              curr_test, all_tests, "n", name, 
+              opdata.opcode, 
+              cpu.CPU_65xxx_mode_name[opdata.mode],
+              count, ms_elapsed
+        )
     }
     return
 }
@@ -288,67 +294,64 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, name: string) 
 
 main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
 
-    //codes :: [?]string {
-    //    "ea"
-    //}
-    codes :: [?]string {
-        "54",                                               // 
-        "44",                                               // 
-        "a1", "a3", "a5", "a7", "a9", "ad", "af",           // lda
-        "b1", "b2", "b3", "b5", "b7", "b9", "bd", "bf",     // lda
-        "90", "b0", "f0", "30", "d0",                       // bcc, bcs, beq, bmi, bne 
-        "10", "80", "50", "70", "82",                       // bpl, bra, bvc, bvs, brl
-        "a2", "a6", "ae", "b6", "be",                       // ldx 
-        "a0", "a4", "ac", "b4", "bc",                       // ldy
-        "fb",                                               // xce
-        "4c", "5c", "6c", "7c", "dc",                       // jmp
-        "22", "20", "fc",                                   // jsl, jsr
-        "41", "43", "45", "47", "49", "4d", "4f",           // eor
-        "51", "52", "53", "55", "57", "59", "5d", "5f",     // eor
-        "01", "03", "05", "07", "09", "0d", "0f",           // ora
-        "11", "12", "13", "15", "17", "19", "1d", "1f",     // ora
-        "21", "23", "25", "27", "29", "2d", "2f",           // and
-        "31", "32", "33", "35", "37", "39", "3d", "3f",     // and
-        "06", "0a", "0e", "16", "1e",                       // asl
-        "26", "2a", "2e", "36", "3e",                       // rol
-        "46", "4a", "4e", "56", "5e",                       // lsr
-        "66", "6a", "6e", "76", "7e",                       // ror
-        "1a", "e6", "ee", "f6", "fe", "e8", "c8",           // inc, inx, iny
-        "3a", "c6", "ce", "d6", "de", "ca", "88",           // dec, dex, dey
-        "c1", "c3", "c5", "c7", "c9", "cd", "cf",           // cmp
-        "d1", "d2", "d3", "d5", "d7", "d9", "dd", "df",     // cmp
-        "e0", "e4", "ec",                                   // cpx
-        "c0", "c4", "cc",                                   // cpy
-        "18", "d8", "58", "b8", "38", "f8", "78",           // clc, sec etc.
-        "81", "83", "85", "87", "8d", "8f",                 // sta
-        "91", "92", "93", "95", "97", "99", "9d", "9f",     // sta
-        "86", "8e", "96",                                   // stx
-        "84", "8c", "94",                                   // sty
-        "64", "74", "9c", "9e",                             // stz
-        "aa", "a8", "ba", "8a", "9a", "9b", "98", "bb",     // tax, tay etc.
-        "eb",                                               // xba
-        "5b", "1b", "7b", "3b",                             // tcd, tcs, tdc, tsc
-        "48", "da", "5a",                                   // pha, phx, phy
-        "68", "fa", "7a",                                   // pla, plx, ply
-        "24", "2c", "34", "3c", 
-        "89",
-        "ea", "42",                                         // nop, wdm
-        "14", "1c", "04", "0c",                             // trb, tsb
-        "c2", "e2",                                         // rep, sep
-        "71", "72", "73", "75", "77", "79", "7d", "7f",     // adc
-        "8b", "0b", "4b", "08",                             // phb, phd, phk, php, 
-        "ab", "2b", "28",                                   // plb, pld, plp
-        "6b", "60", "40",                                   // rtl, rts, rti
-        "f4", "d4", "62",                                   // pea, pei, per
-        "00", "02",                                         // brk, cop
-        "61", "63", "65", "67", "69", "6d", "6f",           // adc
-        "e1", "e3", "e5", "e7", "e9", "ed", "ef",           // sbc
-        "f1", "f2", "f3", "f5", "f7", "f9", "fd", "ff",     // sbc
+    codes :: [?]int {
+        0x54,                                               // 
+        0x44,                                               // 
+        0xa1, 0xa3, 0xa5, 0xa7, 0xa9, 0xad, 0xaf,           // lda
+        0xb1, 0xb2, 0xb3, 0xb5, 0xb7, 0xb9, 0xbd, 0xbf,     // lda
+        0x90, 0xb0, 0xf0, 0x30, 0xd0,                       // bcc, bcs, beq, bmi, bne 
+        0x10, 0x80, 0x50, 0x70, 0x82,                       // bpl, bra, bvc, bvs, brl
+        0xa2, 0xa6, 0xae, 0xb6, 0xbe,                       // ldx 
+        0xa0, 0xa4, 0xac, 0xb4, 0xbc,                       // ldy
+        0xfb,                                               // xce
+        0x4c, 0x5c, 0x6c, 0x7c, 0xdc,                       // jmp
+        0x22, 0x20, 0xfc,                                   // jsl, jsr
+        0x41, 0x43, 0x45, 0x47, 0x49, 0x4d, 0x4f,           // eor
+        0x51, 0x52, 0x53, 0x55, 0x57, 0x59, 0x5d, 0x5f,     // eor
+        0x01, 0x03, 0x05, 0x07, 0x09, 0x0d, 0x0f,           // ora
+        0x11, 0x12, 0x13, 0x15, 0x17, 0x19, 0x1d, 0x1f,     // ora
+        0x21, 0x23, 0x25, 0x27, 0x29, 0x2d, 0x2f,           // and
+        0x31, 0x32, 0x33, 0x35, 0x37, 0x39, 0x3d, 0x3f,     // and
+        0x06, 0x0a, 0x0e, 0x16, 0x1e,                       // asl
+        0x26, 0x2a, 0x2e, 0x36, 0x3e,                       // rol
+        0x46, 0x4a, 0x4e, 0x56, 0x5e,                       // lsr
+        0x66, 0x6a, 0x6e, 0x76, 0x7e,                       // ror
+        0x1a, 0xe6, 0xee, 0xf6, 0xfe, 0xe8, 0xc8,           // inc, inx, iny
+        0x3a, 0xc6, 0xce, 0xd6, 0xde, 0xca, 0x88,           // dec, dex, dey
+        0xc1, 0xc3, 0xc5, 0xc7, 0xc9, 0xcd, 0xcf,           // cmp
+        0xd1, 0xd2, 0xd3, 0xd5, 0xd7, 0xd9, 0xdd, 0xdf,     // cmp
+        0xe0, 0xe4, 0xec,                                   // cpx
+        0xc0, 0xc4, 0xcc,                                   // cpy
+        0x18, 0xd8, 0x58, 0xb8, 0x38, 0xf8, 0x78,           // clc, sec etc.
+        0x81, 0x83, 0x85, 0x87, 0x8d, 0x8f,                 // sta
+        0x91, 0x92, 0x93, 0x95, 0x97, 0x99, 0x9d, 0x9f,     // sta
+        0x86, 0x8e, 0x96,                                   // stx
+        0x84, 0x8c, 0x94,                                   // sty
+        0x64, 0x74, 0x9c, 0x9e,                             // stz
+        0xaa, 0xa8, 0xba, 0x8a, 0x9a, 0x9b, 0x98, 0xbb,     // tax, tay etc.
+        0xeb,                                               // xba
+        0x5b, 0x1b, 0x7b, 0x3b,                             // tcd, tcs, tdc, tsc
+        0x48, 0xda, 0x5a,                                   // pha, phx, phy
+        0x68, 0xfa, 0x7a,                                   // pla, plx, ply
+        0x24, 0x2c, 0x34, 0x3c, 
+        0x89,
+        0xea, 0x42,                                         // nop, wdm
+        0x14, 0x1c, 0x04, 0x0c,                             // trb, tsb
+        0xc2, 0xe2,                                         // rep, sep
+        0x71, 0x72, 0x73, 0x75, 0x77, 0x79, 0x7d, 0x7f,     // adc
+        0x8b, 0x0b, 0x4b, 0x08,                             // phb, phd, phk, php, 
+        0xab, 0x2b, 0x28,                                   // plb, pld, plp
+        0x6b, 0x60, 0x40,                                   // rtl, rts, rti
+        0xf4, 0xd4, 0x62,                                   // pea, pei, per
+        0x00, 0x02,                                         // brk, cop
+        0x61, 0x63, 0x65, 0x67, 0x69, 0x6d, 0x6f,           // adc
+        0xe1, 0xe3, 0xe5, 0xe7, 0xe9, 0xed, 0xef,           // sbc
+        0xf1, 0xf2, 0xf3, 0xf5, 0xf7, 0xf9, 0xfd, 0xff,     // sbc
         //"db"                                                // STP has no json test
         //"cb"                                                // WAI has no json test
     }
 
-    do_test(p, -1, -1, "ea") or_return          // CPU warm-up
+    do_test(p, -1, -1, 0xEA) or_return          // CPU warm-up
     tests_count  := len(codes)
     current_test := 1
     for name in codes {
