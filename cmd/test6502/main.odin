@@ -77,12 +77,12 @@ verify_test :: proc(p: ^platform.Platform, cycles: int, state: CPU_State) -> (er
     c    := &p.cpu.model.(cpu.CPU_65C816)
 
     if c.cycles != u32(cycles) {
-        log.errorf("CYCLES  %d expected %d", c.cycles, cycles)
+        log.errorf("diff: CYCLES %d expected %d", c.cycles, cycles)
         err = true
     }
 
     if c.pc.addr != state.pc {
-        log.errorf("PC       %04x expected      %04x", c.pc.addr, state.pc)
+        log.errorf("diff: PC   %04x expected      %04x", c.pc.addr, state.pc)
         err = true
     }
 
@@ -96,23 +96,23 @@ verify_test :: proc(p: ^platform.Platform, cycles: int, state: CPU_State) -> (er
     // Thus we mask high byte in SP 
     //
     if (c.sp.addr & 0x00FF) != state.s {
-        log.errorf("SP  %06x expected %06x", c.sp.addr, state.s)
+        log.errorf("diff: SP  %06x expected %06x", c.sp.addr, state.s)
         err = true
     }
 
     a := cpu.read_r( c.a, cpu.word )
     if state.a != a {
-        log.errorf("A     %04x expected   %04x", a, state.a)
+        log.errorf("diff: A     %04x expected   %04x", a, state.a)
         err = true
     }
 
     if c.x.val != state.x {
-        log.errorf("X     %04x expected   %04x", c.x.val, state.x)
+        log.errorf("diff: X     %04x expected   %04x", c.x.val, state.x)
         err = true
     }
 
     if c.y.val != state.y {
-        log.errorf("Y     %04x expected   %04x", c.y.val, state.y)
+        log.errorf("diff: Y     %04x expected   %04x", c.y.val, state.y)
         err = true
     }
 
@@ -126,17 +126,17 @@ verify_test :: proc(p: ^platform.Platform, cycles: int, state: CPU_State) -> (er
     final_C := true  if state.p  & 0x01 == 0x01 else false
 
     if c.f.N != final_N {
-        log.errorf("N   %6t expected %6t", c.f.N, final_N)
+        log.errorf("diff: N   %6t expected %6t", c.f.N, final_N)
         err = true
     }
 
     if c.f.V != final_V {
-        log.errorf("V   %6t expected %6t", c.f.V, final_V)
+        log.errorf("diff: V   %6t expected %6t", c.f.V, final_V)
         err = true
     }
 
     if c.f.M != final_M {
-        log.errorf("M   %6t expected %6t", c.f.M, final_M)
+        log.errorf("diff: M   %6t expected %6t", c.f.M, final_M)
         err = true
     }
 
@@ -149,22 +149,22 @@ verify_test :: proc(p: ^platform.Platform, cycles: int, state: CPU_State) -> (er
     //}
 
     if c.f.D != final_D {
-        log.errorf("D   %6t expected %6t", c.f.D, final_D)
+        log.errorf("diff: D   %6t expected %6t", c.f.D, final_D)
         err = true
     }
 
     if c.f.I != final_I {
-        log.errorf("I   %6t expected %6t", c.f.I, final_I)
+        log.errorf("diff: I   %6t expected %6t", c.f.I, final_I)
         err = true
     }
 
     if c.f.Z != final_Z {
-        log.errorf("Z   %6t expected %6t", c.f.Z, final_Z)
+        log.errorf("diff: Z   %6t expected %6t", c.f.Z, final_Z)
         err = true
     }
 
     if c.f.C != final_C {
-        log.errorf("C   %6t expected %6t", c.f.C, final_C)
+        log.errorf("diff: C   %6t expected %6t", c.f.C, final_C)
         err = true
     }
 
@@ -173,7 +173,7 @@ verify_test :: proc(p: ^platform.Platform, cycles: int, state: CPU_State) -> (er
     for entry in state.ram {
         val = p.bus.ram0->read(.bits_8, entry[0])
         if val != entry[1] {
-            log.errorf("MEM   %06x  %02x expected   %02x", entry[0], val, entry[1])
+            log.errorf("diff: MEM   %06x  %02x expected   %02x", entry[0], val, entry[1])
             err = true
         } else {
             p.bus.ram0->write(.bits_8, entry[0], 0)
@@ -258,6 +258,9 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, name: int) -> 
     c           := &p.cpu.model.(cpu.CPU_65C816) 
     start       := time.tick_now() 
     test_cycles :  int
+    opdata      := cpu.CPU_W65C06_opcodes[name]
+
+
     for test in tests {
         prepare_test(p, test.initial)
         for {
@@ -268,7 +271,12 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, name: int) -> 
         if name == 0x5C do test_cycles = 8   // correction for current test data
         fail := verify_test(p, test_cycles, test.final)
         if fail {
-            log.error("test: ", test.name)
+            log.errorf("op  : %02x %-4s %-8s test_id %s", 
+                name,
+                opdata.opcode, 
+                cpu.CPU_65xxx_mode_name[opdata.mode],
+                test.name
+            )
             print_state(test.initial, p.cpu)
             print_state(test.final, p.cpu)
             ok = false
@@ -278,8 +286,7 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, name: int) -> 
     }
     ms_elapsed := u64(time.tick_since(start) / time.Microsecond)
     if curr_test != -1 {
-        opdata := cpu.CPU_W65C06_opcodes[name]
-        log.infof("test %03i/%03i mode %s opcode %02x %-4s %8s tests %d time %i μs", 
+        log.infof("test %03i/%03i mode %s opcode %02x %-4s %-8s tests %d time %i μs", 
               curr_test, all_tests, "n", name, 
               opdata.opcode, 
               cpu.CPU_65xxx_mode_name[opdata.mode],
@@ -297,58 +304,58 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
     codes :: [?]int {
         0x54,                                               // 
         0x44,                                               // 
-        0xa1, 0xa3, 0xa5, 0xa7, 0xa9, 0xad, 0xaf,           // lda
-        0xb1, 0xb2, 0xb3, 0xb5, 0xb7, 0xb9, 0xbd, 0xbf,     // lda
-        0x90, 0xb0, 0xf0, 0x30, 0xd0,                       // bcc, bcs, beq, bmi, bne 
-        0x10, 0x80, 0x50, 0x70, 0x82,                       // bpl, bra, bvc, bvs, brl
-        0xa2, 0xa6, 0xae, 0xb6, 0xbe,                       // ldx 
-        0xa0, 0xa4, 0xac, 0xb4, 0xbc,                       // ldy
-        0xfb,                                               // xce
-        0x4c, 0x5c, 0x6c, 0x7c, 0xdc,                       // jmp
-        0x22, 0x20, 0xfc,                                   // jsl, jsr
-        0x41, 0x43, 0x45, 0x47, 0x49, 0x4d, 0x4f,           // eor
-        0x51, 0x52, 0x53, 0x55, 0x57, 0x59, 0x5d, 0x5f,     // eor
-        0x01, 0x03, 0x05, 0x07, 0x09, 0x0d, 0x0f,           // ora
-        0x11, 0x12, 0x13, 0x15, 0x17, 0x19, 0x1d, 0x1f,     // ora
-        0x21, 0x23, 0x25, 0x27, 0x29, 0x2d, 0x2f,           // and
-        0x31, 0x32, 0x33, 0x35, 0x37, 0x39, 0x3d, 0x3f,     // and
-        0x06, 0x0a, 0x0e, 0x16, 0x1e,                       // asl
-        0x26, 0x2a, 0x2e, 0x36, 0x3e,                       // rol
-        0x46, 0x4a, 0x4e, 0x56, 0x5e,                       // lsr
-        0x66, 0x6a, 0x6e, 0x76, 0x7e,                       // ror
-        0x1a, 0xe6, 0xee, 0xf6, 0xfe, 0xe8, 0xc8,           // inc, inx, iny
-        0x3a, 0xc6, 0xce, 0xd6, 0xde, 0xca, 0x88,           // dec, dex, dey
-        0xc1, 0xc3, 0xc5, 0xc7, 0xc9, 0xcd, 0xcf,           // cmp
-        0xd1, 0xd2, 0xd3, 0xd5, 0xd7, 0xd9, 0xdd, 0xdf,     // cmp
-        0xe0, 0xe4, 0xec,                                   // cpx
-        0xc0, 0xc4, 0xcc,                                   // cpy
-        0x18, 0xd8, 0x58, 0xb8, 0x38, 0xf8, 0x78,           // clc, sec etc.
-        0x81, 0x83, 0x85, 0x87, 0x8d, 0x8f,                 // sta
-        0x91, 0x92, 0x93, 0x95, 0x97, 0x99, 0x9d, 0x9f,     // sta
-        0x86, 0x8e, 0x96,                                   // stx
-        0x84, 0x8c, 0x94,                                   // sty
-        0x64, 0x74, 0x9c, 0x9e,                             // stz
-        0xaa, 0xa8, 0xba, 0x8a, 0x9a, 0x9b, 0x98, 0xbb,     // tax, tay etc.
-        0xeb,                                               // xba
-        0x5b, 0x1b, 0x7b, 0x3b,                             // tcd, tcs, tdc, tsc
-        0x48, 0xda, 0x5a,                                   // pha, phx, phy
-        0x68, 0xfa, 0x7a,                                   // pla, plx, ply
-        0x24, 0x2c, 0x34, 0x3c, 
+        0xA1, 0xA3, 0xA5, 0xA7, 0xA9, 0xAD, 0xAF,           //
+        0xB1, 0xB2, 0xB3, 0xB5, 0xB7, 0xB9, 0xBD, 0xBF,     //
+        0x90, 0xB0, 0xF0, 0x30, 0xD0,                       //
+        0x10, 0x80, 0x50, 0x70, 0x82,                       //
+        0xA2, 0xA6, 0xAE, 0xB6, 0xBE,                       //
+        0xA0, 0xA4, 0xAC, 0xB4, 0xBC,                       //
+        0xFB,                                               //
+        0x4C, 0x5C, 0x6C, 0x7C, 0xDC,                       //
+        0x22, 0x20, 0xFC,                                   //
+        0x41, 0x43, 0x45, 0x47, 0x49, 0x4D, 0x4F,           //
+        0x51, 0x52, 0x53, 0x55, 0x57, 0x59, 0x5D, 0x5F,     //
+        0x01, 0x03, 0x05, 0x07, 0x09, 0x0D, 0x0F,           //
+        0x11, 0x12, 0x13, 0x15, 0x17, 0x19, 0x1D, 0x1F,     //
+        0x21, 0x23, 0x25, 0x27, 0x29, 0x2D, 0x2F,           //
+        0x31, 0x32, 0x33, 0x35, 0x37, 0x39, 0x3D, 0x3F,     //
+        0x06, 0x0A, 0x0E, 0x16, 0x1E,                       //
+        0x26, 0x2A, 0x2E, 0x36, 0x3E,                       //
+        0x46, 0x4A, 0x4E, 0x56, 0x5E,                       //
+        0x66, 0x6A, 0x6E, 0x76, 0x7E,                       //
+        0x1A, 0xE6, 0xEE, 0xF6, 0xFE, 0xE8, 0xC8,           //
+        0x3A, 0xC6, 0xCE, 0xD6, 0xDE, 0xCA, 0x88,           //
+        0xC1, 0xC3, 0xC5, 0xC7, 0xC9, 0xCD, 0xCF,           //
+        0xD1, 0xD2, 0xD3, 0xD5, 0xD7, 0xD9, 0xDD, 0xDF,     //
+        0xE0, 0xE4, 0xEC,                                   //
+        0xC0, 0xC4, 0xCC,                                   //
+        0x18, 0xD8, 0x58, 0xB8, 0x38, 0xF8, 0x78,           //
+        0x81, 0x83, 0x85, 0x87, 0x8D, 0x8F,                 //
+        0x91, 0x92, 0x93, 0x95, 0x97, 0x99, 0x9D, 0x9F,     //
+        0x86, 0x8E, 0x96,                                   //
+        0x84, 0x8C, 0x94,                                   //
+        0x64, 0x74, 0x9C, 0x9E,                             //
+        0xAA, 0xA8, 0xBA, 0x8A, 0x9A, 0x9B, 0x98, 0xBB,     //
+        0xEB,                                               //
+        0x5B, 0x1B, 0x7B, 0x3B,                             //
+        0x48, 0xDA, 0x5A,                                   //
+        0x68, 0xFA, 0x7A,                                   //
+        0x24, 0x2C, 0x34, 0x3C, 
         0x89,
-        0xea, 0x42,                                         // nop, wdm
-        0x14, 0x1c, 0x04, 0x0c,                             // trb, tsb
-        0xc2, 0xe2,                                         // rep, sep
-        0x71, 0x72, 0x73, 0x75, 0x77, 0x79, 0x7d, 0x7f,     // adc
-        0x8b, 0x0b, 0x4b, 0x08,                             // phb, phd, phk, php, 
-        0xab, 0x2b, 0x28,                                   // plb, pld, plp
-        0x6b, 0x60, 0x40,                                   // rtl, rts, rti
-        0xf4, 0xd4, 0x62,                                   // pea, pei, per
-        0x00, 0x02,                                         // brk, cop
-        0x61, 0x63, 0x65, 0x67, 0x69, 0x6d, 0x6f,           // adc
-        0xe1, 0xe3, 0xe5, 0xe7, 0xe9, 0xed, 0xef,           // sbc
-        0xf1, 0xf2, 0xf3, 0xf5, 0xf7, 0xf9, 0xfd, 0xff,     // sbc
-        //"db"                                                // STP has no json test
-        //"cb"                                                // WAI has no json test
+        0xEA, 0x42,                                         //
+        0x14, 0x1C, 0x04, 0x0C,                             //
+        0xC2, 0xE2,                                         //
+        0x71, 0x72, 0x73, 0x75, 0x77, 0x79, 0x7D, 0x7F,     //
+        0x8B, 0x0B, 0x4B, 0x08,                             //
+        0xAB, 0x2B, 0x28,                                   //
+        0x6B, 0x60, 0x40,                                   //
+        0xF4, 0xD4, 0x62,                                   //
+        0x00, 0x02,                                         //
+        0x61, 0x63, 0x65, 0x67, 0x69, 0x6D, 0x6F,           //
+        0xE1, 0xE3, 0xE5, 0xE7, 0xE9, 0xED, 0xEF,           // 
+        0xF1, 0xF2, 0xF3, 0xF5, 0xF7, 0xF9, 0xFD, 0xFF,     //
+        //db,                                               // STP has no json test
+        //cb,                                               // WAI has no json test
     }
 
     do_test(p, -1, -1, 0xEA) or_return          // CPU warm-up
