@@ -1054,7 +1054,7 @@ execute_w65c02s :: proc(cpu: ^CPU_65C816) {
 
     case 0xe1:                                  // SBC ($12,X)    2  6+d
         mode_DP_X_Indirect            (cpu)
-        oper_SBC                      (cpu)
+        oper_SBC_65C02                      (cpu)
 
     case 0xe2:                                  // -              2  2
         mode_Illegal2                 (cpu)
@@ -1070,7 +1070,7 @@ execute_w65c02s :: proc(cpu: ^CPU_65C816) {
 
     case 0xe5:                                  // SBC $12        2  3+d
         mode_DP                       (cpu)
-        oper_SBC                      (cpu)
+        oper_SBC_65C02                      (cpu)
 
     case 0xe6:                                  // INC $12        2  5
         mode_DP                       (cpu)
@@ -1086,7 +1086,7 @@ execute_w65c02s :: proc(cpu: ^CPU_65C816) {
 
     case 0xe9:                                  // SBC #$12       2  2+d
         mode_Immediate                (cpu)
-        oper_SBC                      (cpu)
+        oper_SBC_65C02                      (cpu)
 
     case 0xea:                                  // NOP            1  2
         mode_Implied                  (cpu)
@@ -1102,7 +1102,7 @@ execute_w65c02s :: proc(cpu: ^CPU_65C816) {
 
     case 0xed:                                  // SBC $1234      3  4+d
         mode_Absolute_DBR             (cpu)
-        oper_SBC                      (cpu)
+        oper_SBC_65C02                      (cpu)
 
     case 0xee:                                  // INC $1234      3  6
         mode_Absolute_DBR             (cpu)
@@ -1118,11 +1118,11 @@ execute_w65c02s :: proc(cpu: ^CPU_65C816) {
 
     case 0xf1:                                  // SBC ($12),Y    2  5+d+p
         mode_ZP_Indirect_Y            (cpu)
-        oper_SBC                      (cpu)
+        oper_SBC_65C02                      (cpu)
 
     case 0xf2:                                  // SBC ($12)      2  5+d
         mode_DP_Indirect              (cpu)
-        oper_SBC                      (cpu)
+        oper_SBC_65C02                      (cpu)
 
     case 0xf3:                                  // -              1  1
         mode_Illegal1                 (cpu)
@@ -1134,7 +1134,7 @@ execute_w65c02s :: proc(cpu: ^CPU_65C816) {
 
     case 0xf5:                                  // SBC $12,X      2  4+d
         mode_DP_X                     (cpu)
-        oper_SBC                      (cpu)
+        oper_SBC_65C02                      (cpu)
 
     case 0xf6:                                  // INC $12,X      2  6
         mode_DP_X                     (cpu)
@@ -1150,7 +1150,7 @@ execute_w65c02s :: proc(cpu: ^CPU_65C816) {
 
     case 0xf9:                                  // SBC $1234,Y    3  4+d+p
         mode_Absolute_Y               (cpu)
-        oper_SBC                      (cpu)
+        oper_SBC_65C02                      (cpu)
 
     case 0xfa:                                  // PLX            1  4
         mode_Implied                  (cpu)
@@ -1166,7 +1166,7 @@ execute_w65c02s :: proc(cpu: ^CPU_65C816) {
 
     case 0xfd:                                  // SBC $1234,X    3  4+d+p
         mode_Absolute_X               (cpu)
-        oper_SBC                      (cpu)
+        oper_SBC_65C02                      (cpu)
 
     case 0xfe:                                  // INC $1234,X    3  7
         mode_Absolute_X               (cpu)

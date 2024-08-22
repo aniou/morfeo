@@ -1322,6 +1322,15 @@ oper_BRA                    :: #force_inline proc (using c: ^CPU_65C816) {
 //
 // [Bruce Clark (2015) "65C816 Opcodes"]
 //
+// BRK and COP are treated as two byte instructions by the 65C816.  However,
+// standard assembly language syntax for BRK usually doesn't accept an operand,
+// although one may be added by the programmer using an appropriate assembler
+// pseudo-op.  COP, on the other hand, must be assembled with an operand.  The
+// byte that follows BRK or COP is customarily referred to as a "signature
+// byte."
+//
+// http://6502.org/tutorials/65c816interrupts.html
+//
 oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) { 
     if !f.E {
         tb.val    = pc.bank
@@ -1333,7 +1342,7 @@ oper_BRK                    :: #force_inline proc (using c: ^CPU_65C816) {
     }
 
     tw.val    = pc.addr
-    tw.val   += 1                           // specification say "+2" but mode_ sets +1
+    tw.val   += 1 if !real6502 else 0       // specification say "+2" for 65c816 but mode_ already sets +1
     _         = push_r( sp, tw      )
     sp.addr   = subu_r( sp, tw.size )
 
@@ -1735,16 +1744,28 @@ oper_PHK                    :: #force_inline proc (using c: ^CPU_65C816) {
     sp.addr   = subu_r( sp, tb.size )
 }
 
+// While there are only six flags in the processor status register within the
+// CPU, the value pushed to the stack contains additional state in bit 4 called
+// the B flag that can be useful to software. The value of B depends on what
+// caused the flags to be pushed. Note that this flag does not represent
+// a register that can hold a value, but rather a transient signal in the CPU
+// controlling whether it was processing an interrupt when the flags were
+// pushed. B is 0 when pushed by interrupts (NMI and IRQ) and 1 when pushed by
+// instructions (BRK and PHP). 
+//
+// https://www.nesdev.org/wiki/Status_flags#The_B_flag
+//
+
 oper_PHP                    :: #force_inline proc (using c: ^CPU_65C816) { 
     tb.val    = 0
-    tb.val   |= 0x80 if f.N        else 0
-    tb.val   |= 0x40 if f.V        else 0
-    tb.val   |= 0x20 if f.M || f.E else 0   // always 1 in E mode
-    tb.val   |= 0x10 if f.X        else 0
-    tb.val   |= 0x08 if f.D        else 0
-    tb.val   |= 0x04 if f.I        else 0
-    tb.val   |= 0x02 if f.Z        else 0
-    tb.val   |= 0x01 if f.C        else 0
+    tb.val   |= 0x80 if f.N              else 0
+    tb.val   |= 0x40 if f.V              else 0
+    tb.val   |= 0x20 if f.M || f.E       else 0   // always 1 in E mode
+    tb.val   |= 0x10 if f.X || f.E       else 0   // Break flag in 6502
+    tb.val   |= 0x08 if f.D              else 0
+    tb.val   |= 0x04 if f.I              else 0
+    tb.val   |= 0x02 if f.Z              else 0
+    tb.val   |= 0x01 if f.C              else 0
     _         = push_r( sp, tb      )
     sp.addr   = subu_r( sp, tb.size )
 }
@@ -1918,7 +1939,7 @@ oper_RTI                    :: #force_inline proc (using c: ^CPU_65C816) {
         pc.bank   = pull_v( sp, byte )
         sp.addr   = addu_r( sp, byte )
     } else {
-        cycles   -= 1
+        cycles   -= 1 if ! real6502 else 0
     }
     
 }
@@ -1941,6 +1962,52 @@ oper_RTS                    :: #force_inline proc (using c: ^CPU_65C816) {
     pc.addr   = pull_v( sp, word )
     pc.addr  += 1
     sp.addr   = addu_r( sp, word )
+}
+
+// ADC/SBC requires more attention and works better when nybble-like adder
+// is created, but for now it looks like...
+oper_SBC_65C02              :: #force_inline proc (using c: ^CPU_65C816) {
+    if f.D == false {
+        data1    := u32(read_r(a, a.size ))
+        tmp      := data1
+        data2    := u32(read_m( ab, a.size ))
+        data1    -= data2
+        data1    -= 0 if f.C else 1
+        f.V       = test_v( a.size, tmp, ~data2, data1 )
+        a.val     = u16(data1)
+        f.C       = test_v( a.size, ~data1 )
+        f.N       = test_n( a )
+        f.Z       = test_z( a )
+    } else {
+        data0     = read_m( ab, a.size )
+        data1    := u32(read_r(a, a.size ))
+        data2    := u32(data0)
+        carry    := u32(1) if f.C    else 0
+
+        // http://6502.org/tutorials/decimal_mode.html#A
+        //
+        // 4a. AL = (A & $0F) - (B & $0F) + C-1
+        // 4b. A = A - B + C-1
+        // 4c. If A < 0, then A = A - $60
+        // 4d. If AL < 0, then A = A - $06
+        // 4e. The accumulator result is the lower 8 bits of A
+
+        // XXX - convert it to properr nybble-like operations without unneeded and/or operations
+
+        o       :  u32
+        al1     := (data1 & 0x0F ) - (data2 & 0x0F ) + 0x1 * (carry - 1)
+        o        =  data1          -  data2          + 0x1 * (carry - 1)
+        f.V      = test_v( a.size, u32(data1), u32(~data0), u32(o)    )
+
+        f.C      = o & 0xFFFF_FF00 == 0
+        o       -= 0x60 if o   & 0x8000 != 0 else 0
+        o       -= 0x06 if al1 & 0x8000 != 0 else 0
+
+        //fmt.printf("final o: %06x\n", o)
+        a.val     = u16(o)
+        f.N       = test_n( a )
+        f.Z       = test_z( a )
+    }
 }
 
 oper_SBC                    :: #force_inline proc (using c: ^CPU_65C816) { 
@@ -2302,7 +2369,6 @@ oper_ABT                    :: #force_inline proc (using c: ^CPU_65C816) {
     }
 
     tw.val    = pc.addr
-    tw.val   += 1                           // specification say "+2" but mode_ sets +1
     _         = push_r( sp, tw      )
     sp.addr   = subu_r( sp, tw.size )
 
@@ -2329,7 +2395,6 @@ oper_IRQ                    :: #force_inline proc (using c: ^CPU_65C816) {
     }
 
     tw.val    = pc.addr
-    tw.val   += 1                           // specification say "+2" but mode_ sets +1
     _         = push_r( sp, tw      )
     sp.addr   = subu_r( sp, tw.size )
 
@@ -2356,7 +2421,6 @@ oper_NMI                    :: #force_inline proc (using c: ^CPU_65C816) {
     }
 
     tw.val    = pc.addr
-    tw.val   += 1                           // specification say "+2" but mode_ sets +1
     _         = push_r( sp, tw      )
     sp.addr   = subu_r( sp, tw.size )
 

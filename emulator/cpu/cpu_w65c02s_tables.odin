@@ -4,10 +4,16 @@
 package cpu
 
 // base cycles, reduced according to following tables
+//
+// note: BRK (00) has 7 cycles on 65c02 anyway, but code
+//       is shared between 65c816 when it is a 8-e cycles,
+//       thus 8 was set in following table to limit
+//       special cases in program
+//
 @(private)
 cycles_w65c02s := [256]u32 {
  // 0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f    
-    7, 6, 2, 1, 5, 3, 5, 5, 3, 2, 2, 1, 6, 4, 6, 5, // 0
+    8, 6, 2, 1, 5, 3, 5, 5, 3, 2, 2, 1, 6, 4, 6, 5, // 0
     2, 5, 5, 1, 5, 4, 6, 5, 2, 4, 2, 1, 6, 4, 6, 5, // 1
     6, 6, 2, 1, 3, 3, 5, 5, 4, 2, 2, 1, 4, 4, 6, 5, // 2
     2, 5, 5, 1, 4, 4, 6, 5, 2, 4, 2, 1, 4, 4, 6, 5, // 3
