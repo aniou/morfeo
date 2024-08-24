@@ -58,12 +58,21 @@ At this moment emulator was built and tested only on Ubuntu 22.04 LTS.
 ```shell
 git clone https://github.com/aniou/morfeo
 cd morfeo
-git submodule init
+git submodule init lib/getargs
+git submodule init external/Musashi
 git submodule update
 make
 ```
 
-4. Type ``make`` for impatient or ``make help` for detailed options. 
+4. If You want to run test programs for 65xx-based core then You need two
+additional modules. **WARNING:** they need about 20G of additional space!
+
+```shell
+git submodule init external/tests-65816
+git submodule init external/tests-6502
+```
+
+5. Type ``make`` for impatient or ``make help`` for detailed options. 
 
 # Running a2560x
 
