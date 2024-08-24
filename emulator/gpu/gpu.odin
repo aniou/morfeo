@@ -1,5 +1,7 @@
 package gpu
 
+import "core:time"
+
 import "lib:emu"
 
 GPU :: struct {
@@ -60,9 +62,9 @@ GPU :: struct {
 
     background:        [3]u8,    // r, g, b
     frames:            u32,      // number of generated frames, for TIMER*
-    delay:             u32,      // number of milliseconds to wait between frames
-                                 // 16 for 60Hz, 14 for 70Hz
-    last_tick:         u32,      // when last tick was made
+    delay:             time.Duration,      // number of milliseconds to wait between frames
+                                           // 16 for 60Hz, 14 for 70Hz
+    last_tick:         time.Tick,          // when last tick was made
 
     model: union {GPU_Vicky2, GPU_Vicky3}
 }

@@ -1,0 +1,387 @@
+
+WDC W65C02 opcode summary, v0.2.1
+
+:Author: /NollKollTroll
+:Url:    http://forum.6502.org/viewtopic.php?f=1&t=6618&hilit=opcode+timings
+:Orig:   W65C02 opcode summary v0.2.1.txt (Thu Jun 03, 2021 8:22 am)
+
+Notes to cycles:
+    p = 1 if a page boundary is crossed, 0 otherwise
+    t = 1 if branch taken, 0 otherwise
+    d = 1 if in decimal mode
+
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        ADC                                
+69 2   2+d         imm       mm....mm   ADC #$12      Add memory to accumulator with     
+65 2   3+d         zp        mm....mm   ADC $12       carry                              
+75 2   4+d         zp,X      mm....mm   ADC $12,X     A + M + C -> A, C                  
+6D 3   4+d         abs       mm....mm   ADC $1234                                        
+7D 3   4+d+p       abs,X     mm....mm   ADC $1234,X                                      
+79 3   4+d+p       abs,Y     mm....mm   ADC $1234,Y                                      
+61 2   6+d         (zp,X)    mm....mm   ADC ($12,X)                                      
+71 2   5+d+p       (zp),Y    mm....mm   ADC ($12),Y                                      
+72 2   5+d         (zp)      mm....mm   ADC ($12)                                        
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        AND                                
+29 2   2           imm       m.....m.   AND #$12      And memory with accumulator        
+25 2   3           zp        m.....m.   AND $12       A AND M -> A                       
+35 2   4           zp,X      m.....m.   AND $12,X                                        
+2D 3   4           abs       m.....m.   AND $1234                                        
+3D 3   4+p         abs,X     m.....m.   AND $1234,X                                      
+39 3   4+p         abs,Y     m.....m.   AND $1234,Y                                      
+21 2   6           (zp,X)    m.....m.   AND ($12,X)                                      
+31 2   5+p         (zp),Y    m.....m.   AND ($12),Y                                      
+32 2   5           (zp)      m.....m.   AND ($12)                                        
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        ASL                                
+0A 1   2           acc       m.....mm   ASL A         Shift left one bit (memory or      
+06 2   5           zp        m.....mm   ASL $12       accumulator)                       
+16 2   6           zp,X      m.....mm   ASL $12,X     C <- [76543210] <- 0               
+0E 3   6           abs       m.....mm   ASL $1234                                        
+1E 3   6+p         abs,X     m.....mm   ASL $1234,X                                      
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        DESC
+0F 3   5+t+t*p     zp,rel    ........   BBR 0,$12,$34 Branch on bit reset                
+1F 3   5+t+t*p     zp,rel    ........   BBR 1,$12,$34                                    
+2F 3   5+t+t*p     zp,rel    ........   BBR 2,$12,$34                                    
+3F 3   5+t+t*p     zp,rel    ........   BBR 3,$12,$34                                    
+4F 3   5+t+t*p     zp,rel    ........   BBR 4,$12,$34                                    
+5F 3   5+t+t*p     zp,rel    ........   BBR 5,$12,$34                                    
+6F 3   5+t+t*p     zp,rel    ........   BBR 6,$12,$34                                    
+7F 3   5+t+t*p     zp,rel    ........   BBR 7,$12,$34                                    
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        DESC
+8F 3   5+t+t*p     zp,rel    ........   BBS 0,$12,$34 Branch on bit set                  
+9F 3   5+t+t*p     zp,rel    ........   BBS 1,$12,$34                                    
+AF 3   5+t+t*p     zp,rel    ........   BBS 2,$12,$34                                    
+BF 3   5+t+t*p     zp,rel    ........   BBS 3,$12,$34                                    
+CF 3   5+t+t*p     zp,rel    ........   BBS 4,$12,$34                                    
+DF 3   5+t+t*p     zp,rel    ........   BBS 5,$12,$34                                    
+EF 3   5+t+t*p     zp,rel    ........   BBS 6,$12,$34                                    
+FF 3   5+t+t*p     zp,rel    ........   BBS 7,$12,$34                                    
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        DESC
+10 2   2+t+t*p     rel       ........   BPL $12       Branch if N = 0
+30 2   2+t+t*p     rel       ........   BMI $12       Branch if N = 1
+50 2   2+t+t*p     rel       ........   BVC $12       Branch if V = 0
+70 2   2+t+t*p     rel       ........   BVS $12       Branch if V = 1
+80 2   3           rel       ........   BRA $12       Branch always                      
+90 2   2+t+t*p     rel       ........   BCC $12       Branch if C = 0
+B0 2   2+t+t*p     rel       ........   BCS $12       Branch if C = 1
+D0 2   2+t+t*p     rel       ........   BNE $12       Branch if Z = 0
+F0 2   2+t+t*p     rel       ........   BEQ $12       Branch if Z = 1
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        BIT                                
+89 2   2           imm       ......m.   BIT #$12      Test bits in memory with           
+24 2   3           zp        76....m.   BIT $12       accumulator                        
+34 2   4           zp,X      76....m.   BIT $12,X     Bits 7 and 6 of memory are         
+2C 3   4           abs       76....m.   BIT $1234     transferred to bit 7 and 6 of SR   
+3C 3   4+p         abs,X     76....m.   BIT $1234,X   (N,V), the zero bit is set to the  
+                                                      result of operand AND accumulator.
+                                                      A AND M, M7 -> N, M6 -> V
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        BRK                                
+00 1   7           rel       ...101..   BRK           Break                              
+                                                      Interrupt, push PC+2, push SR
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        DESC
+18 1   2           imp       .......0   CLC           0 -> C
+D8 1   2           imp       ....0...   CLD           0 -> D
+58 1   2           imp       .....0..   CLI           0 -> I (clear irq disable)
+B8 1   2           imp       .0......   CLV           0 -> V
+38 1   2           imp       .......1   SEC           1 -> C
+F8 1   2           imp       ....1...   SED           1 -> D
+78 1   2           imp       .....1..   SEI           1 -> I (set   irq disable)
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        CMP                                
+C9 2   2           imm       m.....mm   CMP #$12      A - M (compare)
+C5 2   3           zp        m.....mm   CMP $12       A - M (compare)
+D5 2   4           zp,X      m.....mm   CMP $12,X     A - M (compare)
+CD 3   4           abs       m.....mm   CMP $1234     A - M (compare) 
+DD 3   4+p         abs,X     m.....mm   CMP $1234,X   A - M (compare) 
+D9 3   4+p         abs,Y     m.....mm   CMP $1234,Y   A - M (compare) 
+C1 2   6           (zp,X)    m.....mm   CMP ($12,X)   A - M (compare) 
+D1 2   5+p         (zp),Y    m.....mm   CMP ($12),Y   A - M (compare) 
+D2 2   5           (zp)      m.....mm   CMP ($12)     A - M (compare) 
+
+E0 2   2           imm       m.....mm   CPX #$12      X - M (compare)
+E4 2   3           zp        m.....mm   CPX $12       X - M (compare)
+EC 3   4           abs       m.....mm   CPX $1234     X - M (compare)
+
+C0 2   2           imm       m.....mm   CPY #$12      Y - M (compare)
+C4 2   3           zp        m.....mm   CPY $12       Y - M (compare)
+CC 3   4           abs       m.....mm   CPY $1234     Y - M (compare)
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        DESC
+3A 1   2           acc       m.....m.   DEC A         M - 1 -> M
+C6 2   5           zp        m.....m.   DEC $12       M - 1 -> M
+D6 2   6           zp,X      m.....m.   DEC $12,X     M - 1 -> M
+CE 3   6           abs       m.....m.   DEC $1234     M - 1 -> M
+DE 3   7           abs,X     m.....m.   DEC $1234,X   M - 1 -> M
+
+CA 1   2           imp       m.....m.   DEX           X - 1 -> X
+88 1   2           imp       m.....m.   DEY           Y - 1 -> Y
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        EOR                                
+49 2   2           imm       m.....m.   EOR #$12      Exclusive-OR memory with           
+45 2   3           zp        m.....m.   EOR $12       accumulator                        
+55 2   4           zp,X      m.....m.   EOR $12,X     A EOR M -> A                       
+4D 3   4           abs       m.....m.   EOR $1234                                        
+5D 3   4+p         abs,X     m.....m.   EOR $1234,X                                      
+59 3   4+p         abs,Y     m.....m.   EOR $1234,Y                                      
+41 2   6           (zp,X)    m.....m.   EOR ($12,X)                                      
+51 2   5+p         (zp),Y    m.....m.   EOR ($12),Y                                      
+52 2   5           (zp)      m.....m.   EOR ($12)                                        
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        DESC
+1A 1   2           acc       m.....m.   INC A         M + 1 -> M
+E6 2   5           zp        m.....m.   INC $12       M + 1 -> M
+EE 3   6           abs       m.....m.   INC $1234     M + 1 -> M
+F6 2   6           zp,X      m.....m.   INC $12,X     M + 1 -> M
+FE 3   7           abs,X     m.....m.   INC $1234,X   M + 1 -> M
+
+E8 1   2           imp       m.....m.   INX           X + 1 -> X
+C8 1   2           imp       m.....m.   INY           Y + 1 -> Y
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        JMP                                
+4C 3   3           abs       ........   JMP $1234     Jump to new location               
+6C 3   6           (abs)     ........   JMP ($1234)   (PC+1) -> PCL        (or 5 cycles)
+7C 3   6           (abs,X)   ........   JMP ($1234,X) (PC+2) -> PCH                      
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        JSR                                
+20 3   6           abs       ........   JSR $1234     Jump to new location, saving       
+                                                      return address
+                                                      Push (PC+2)
+                                                      (PC+1) -> PCL
+                                                      (PC+2) -> PCH
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        LDA                                
+A9 2   2           imm       m.....m.   LDA #$12      Load accumulator with memory       
+A5 2   3           zp        m.....m.   LDA $12       M -> A                             
+B5 2   4           zp,X      m.....m.   LDA $12,X                                        
+AD 3   4           abs       m.....m.   LDA $1234                                        
+BD 3   4+p         abs,X     m.....m.   LDA $1234,X                                      
+B9 3   4+p         abs,Y     m.....m.   LDA $1234,Y                                      
+A1 2   6           (zp,X)    m.....m.   LDA ($12,X)                                      
+B1 2   5+p         (zp),Y    m.....m.   LDA ($12),Y                                      
+B2 2   5           (zp)      m.....m.   LDA ($12)                                        
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        LDX                                
+A2 2   2           imm       m.....m.   LDX #$12      Load index X with memory           
+A6 2   3           zp        m.....m.   LDX $12       M -> X                             
+B6 2   4           zp,Y      m.....m.   LDX $12,Y                                        
+AE 3   4           abs       m.....m.   LDX $1234                                        
+BE 3   4+p         abs,Y     m.....m.   LDX $1234,Y                                      
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        LDY                                
+A0 2   2           imm       m.....m.   LDY #$12      Load index Y with memory           
+A4 2   3           zp        m.....m.   LDY $12       M -> Y                             
+B4 2   4           zp,X      m.....m.   LDY $12,X                                        
+AC 3   4           abs       m.....m.   LDY $1234                                        
+BC 3   4+p         abs,X     m.....m.   LDY $1234,X                                      
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        LSR                                
+4A 1   2           acc       0.....mm   LSR A         Shift one bit right (memory or     
+46 2   5           zp        0.....mm   LSR $12       accumulator)                       
+56 2   6           zp,X      0.....mm   LSR $12,X     0 -> [76543210] -> C               
+4E 3   6           abs       0.....mm   LSR $1234                                        
+5E 3   6+p         abs,X     0.....mm   LSR $1234,X                                      
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        NOP                                
+EA 1   2           imp       ........   NOP           No operation                       
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        NOP                                
+03 1   1           imp       ........   -             W65C02 treats invalid opcodes as   
+13 1   1           imp       ........   -             NOPs. No official syntax to use.   
+23 1   1           imp       ........   -                                                
+33 1   1           imp       ........   -                                                
+43 1   1           imp       ........   -                                                
+53 1   1           imp       ........   -                                                
+63 1   1           imp       ........   -                                                
+73 1   1           imp       ........   -                                                
+83 1   1           imp       ........   -                                                
+93 1   1           imp       ........   -                                                
+A3 1   1           imp       ........   -                                                
+B3 1   1           imp       ........   -                                                
+C3 1   1           imp       ........   -                                                
+D3 1   1           imp       ........   -                                                
+E3 1   1           imp       ........   -                                                
+F3 1   1           imp       ........   -                                                
+0B 1   1           imp       ........   -                                                
+1B 1   1           imp       ........   -                                                
+2B 1   1           imp       ........   -                                                
+3B 1   1           imp       ........   -                                                
+4B 1   1           imp       ........   -                                                
+5B 1   1           imp       ........   -                                                
+6B 1   1           imp       ........   -                                                
+7B 1   1           imp       ........   -                                                
+8B 1   1           imp       ........   -                                                
+9B 1   1           imp       ........   -                                                
+AB 1   1           imp       ........   -                                                
+BB 1   1           imp       ........   -                                                
+EB 1   1           imp       ........   -                                                
+FB 1   1           imp       ........   -                                                
+                                                      
+02 2   2           imp       ........   -                                                
+22 2   2           imp       ........   -                                                
+42 2   2           imp       ........   -                                                
+62 2   2           imp       ........   -                                                
+82 2   2           imp       ........   -                                                
+C2 2   2           imp       ........   -                                                
+E2 2   2           imp       ........   -                                                
+                                                      
+44 2   3           imp       ........   -                                                
+                                                      
+54 2   4           imp       ........   -                                                
+D4 2   4           imp       ........   -                                                
+F4 2   4           imp       ........   -                                                
+                                                      
+DC 3   4           imp       ........   -                                                
+FC 3   4           imp       ........   -                                                
+                                                      
+5C 3   8           imp       ........   -                                                
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        ORA                                
+09 2   2           imm       m.....m.   ORA #$12      OR memory with accumulator         
+05 2   3           zp        m.....m.   ORA $12       A OR M -> A                        
+15 2   4           zp,X      m.....m.   ORA $12,X                                        
+0D 3   4           abs       m.....m.   ORA $1234                                        
+1D 3   4+p         abs,X     m.....m.   ORA $1234,X                                      
+19 3   4+p         abs,Y     m.....m.   ORA $1234,Y                                      
+01 2   6           (zp,X)    m.....m.   ORA ($12,X)                                      
+11 2   5+p         (zp),Y    m.....m.   ORA ($12),Y                                      
+12 2   5           (zp)      m.....m.   ORA ($12)                                        
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        DESC
+48 1   3           imp       ........   PHA           A  -> Ms, SP – 1 -> SP
+08 1   3           imp       ........   PHP           SR -> Ms, SP – 1 -> SP
+DA 1   3           imp       ........   PHX           X  -> Ms, SP – 1 -> SP
+5A 1   3           imp       ........   PHY           Y  -> Ms, SP – 1 -> SP
+
+68 1   4           imp       m.....m.   PLA           SP + 1 -> SP, Ms -> A
+28 1   4           imp       mm.1mmmm   PLP           SP + 1 -> SP, Ms -> SR
+FA 1   4           imp       m.....m.   PLX           SP + 1 -> SP, Ms -> X
+7A 1   4           imp       m.....m.   PLY           SP + 1 -> SP, Ms -> Y
+                                                      
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        RMB                                
+07 2   5           zp        ........   RMB 0,$12     Reset memory bit                   
+17 2   5           zp        ........   RMB 1,$12                                        
+27 2   5           zp        ........   RMB 2,$12                                        
+37 2   5           zp        ........   RMB 3,$12                                        
+47 2   5           zp        ........   RMB 4,$12                                        
+57 2   5           zp        ........   RMB 5,$12                                        
+67 2   5           zp        ........   RMB 6,$12                                        
+77 2   5           zp        ........   RMB 7,$12                                        
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        ROL                                
+2A 1   2           acc       m.....mm   ROL A         Rotate one bit left (memory or     
+26 2   5           zp        m.....mm   ROL $12       accumulator)                       
+36 2   6           zp,X      m.....mm   ROL $12,X     C <- [76543210] <- C               
+2E 3   6           abs       m.....mm   ROL $1234                                        
+3E 3   6+p         abs,X     m.....mm   ROL $1234,X                                      
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        ROR                                
+6A 1   2           acc       m.....mm   ROR A         Rotate one bit right (memory or    
+66 2   5           zp        m.....mm   ROR $12       accumulator)                       
+76 2   6           zp,X      m.....mm   ROR $12,X     C -> [76543210] -> C               
+6E 3   6           abs       m.....mm   ROR $1234                                        
+7E 3   6+p         abs,X     m.....mm   ROR $1234,X                                      
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        RTI                                
+40 1   6           imp       mm.1mmmm   RTI           Return from interrupt              
+                                                      Pull SP, pull PC
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        RTS                                
+60 1   6           imp       ........   RTS           Return from subroutine             
+                                                      Pull PC, PC+1 -> PC
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        SBC                                
+E9 2   2+d         imm       mm....mm   SBC #$12      Subtract memory from accumulator   
+E5 2   3+d         zp        mm....mm   SBC $12       with borrow                        
+F5 2   4+d         zp,X      mm....mm   SBC $12,X     A - M - (~C) -> A                  
+ED 3   4+d         abs       mm....mm   SBC $1234                                        
+FD 3   4+d+p       abs,X     mm....mm   SBC $1234,X                                      
+F9 3   4+d+p       abs,Y     mm....mm   SBC $1234,Y                                      
+E1 2   6+d         (zp,X)    mm....mm   SBC ($12,X)                                      
+F1 2   5+d+p       (zp),Y    mm....mm   SBC ($12),Y                                      
+F2 2   5+d         (zp)      mm....mm   SBC ($12)                                        
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        SMB                                
+87 2   5           zp        ........   SMB 0,$12     Set memory bit                     
+97 2   5           zp        ........   SMB 1,$12                                        
+A7 2   5           zp        ........   SMB 2,$12                                        
+B7 2   5           zp        ........   SMB 3,$12                                        
+C7 2   5           zp        ........   SMB 4,$12                                        
+D7 2   5           zp        ........   SMB 5,$12                                        
+E7 2   5           zp        ........   SMB 6,$12                                        
+F7 2   5           zp        ........   SMB 7,$12                                        
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        STA                                
+85 2   3           zp        ........   STA $12       Store accumulator in memory        
+95 2   4           zp,X      ........   STA $12,X     A -> M                             
+8D 3   4           abs       ........   STA $1234                                        
+9D 3   5           abs,X     ........   STA $1234,X                                      
+99 3   5           abs,Y     ........   STA $1234,Y                                      
+81 2   6           (zp,X)    ........   STA ($12,X)                                      
+91 2   6           (zp),Y    ........   STA ($12),Y                                      
+92 2   5           (zp)      ........   STA ($12)                                        
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        STP                                
+DB 1   3           imp       ........   STP           Stop the processor                 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        STX                                
+86 2   3           zp        ........   STX $12       Store index X in memory            
+96 2   4           zp,Y      ........   STX $12,Y     X -> M                             
+8E 3   4           abs       ........   STX $1234                                        
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        STY                                
+84 2   3           zp        ........   STY $12       Store index Y in memory            
+94 2   4           zp,X      ........   STY $12,X     Y -> M                             
+8C 3   4           abs       ........   STY $1234                                        
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        STZ                                
+64 2   3           zp        ........   STZ $12       Store zero in memory               
+74 2   4           zp,X      ........   STZ $12,X     0 -> M                             
+9C 3   4           abs       ........   STZ $1234                                        
+9E 3   5           abs,X     ........   STZ $1234,X                                      
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        TAX                                
+AA 1   2           imp       m.....m.   TAX           A -> X
+A8 1   2           imp       m.....m.   TAY           A -> Y
+BA 1   2           imp       m.....m.   TSX           SP -> X
+8A 1   2           imp       m.....m.   TXA           X -> A
+98 1   2           imp       m.....m.   TYA           Y -> A
+9A 1   2           imp       ........   TXS           X -> SP
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        TRB                                
+14 2   5           zp        ......m.   TRB $12       Test and reset bits                
+1C 3   6           abs       ......m.   TRB $1234     ~A ^ M -> M                        
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        TSB                                
+04 2   5           zp        ......m.   TSB $12       Test and set bits                  
+0C 3   6           abs       ......m.   TSB $1234     A V M ->  M                        
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        WAI                                
+CB 1   2           imp       ........   WAI           Wait for interrupt                 
+== === =========== ========= ======================== ==================================
+
+Legend to flags:
+    m  modified
+    .  not modified
+    1  set
+    0  cleared
+    6  memory bit 6
+    7  memory bit 7
+
+Info collected from / checked against:
+    http://www.zophar.net/fileuploads/2/10533qqcap/6502ref.html
+    http://nparker.llx.com/a2/opcodes.html
+    http://www.6502.org/tutorials/65c02opcodes.html
+    http://www.westerndesigncenter.com/wdc/documentation/w65c02s.pdf
+    http://www.obelisk.me.uk/65C02/reference.html
+    http://github.com/Klaus2m5/AVR_emulated_6502_4SBC/blob/master/Manuals/65C02_Emu_speed_calc.pdf
+
+My own tests on real HW, a Teensy 4.1 controlling a W65C02S6TPG-14, were used
+to verify the cycles for many of the opcodes. The other docs disagree on many
+of the timings.

@@ -6,6 +6,9 @@
 *.dylib
 *.o
 
+# Tag files
+tags
+
 # Editor files
 *.swp
 
@@ -13,4 +16,6 @@
 #external/*
 
 # built binaries
-morfeo
+a2560x
+test_65c816
+test_w65c02s

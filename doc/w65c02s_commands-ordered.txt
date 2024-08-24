@@ -1,0 +1,256 @@
+00 1   7           rel       ...101..   BRK           
+01 2   6           (zp,X)    m.....m.   ORA ($12,X)   
+02 2   2           imp       ........   -             
+03 1   1           imp       ........   -             
+04 2   5           zp        ......m.   TSB $12       
+05 2   3           zp        m.....m.   ORA $12       
+06 2   5           zp        m.....mm   ASL $12       
+07 2   5           zp        ........   RMB 0,$12     
+08 1   3           imp       ........   PHP           
+09 2   2           imm       m.....m.   ORA #$12      
+0A 1   2           acc       m.....mm   ASL A         
+0B 1   1           imp       ........   -             
+0C 3   6           abs       ......m.   TSB $1234     
+0D 3   4           abs       m.....m.   ORA $1234     
+0E 3   6           abs       m.....mm   ASL $1234     
+0F 3   5+t+t*p     zp,rel    ........   BBR 0,$12,$34 
+10 2   2+t+t*p     rel       ........   BPL $12       
+11 2   5+p         (zp),Y    m.....m.   ORA ($12),Y   
+12 2   5           (zp)      m.....m.   ORA ($12)     
+13 1   1           imp       ........   -             
+14 2   5           zp        ......m.   TRB $12       
+15 2   4           zp,X      m.....m.   ORA $12,X     
+16 2   6           zp,X      m.....mm   ASL $12,X     
+17 2   5           zp        ........   RMB 1,$12     
+18 1   2           imp       .......0   CLC           
+19 3   4+p         abs,Y     m.....m.   ORA $1234,Y   
+1A 1   2           imp       m.....m.   INC A         
+1B 1   1           imp       ........   -             
+1C 3   6           abs       ......m.   TRB $1234     
+1D 3   4+p         abs,X     m.....m.   ORA $1234,X   
+1E 3   6+p         abs,X     m.....mm   ASL $1234,X   
+1F 3   5+t+t*p     zp,rel    ........   BBR 1,$12,$34 
+20 3   6           abs       ........   JSR $1234     
+21 2   6           (zp,X)    m.....m.   AND ($12,X)   
+22 2   2           imp       ........   -             
+23 1   1           imp       ........   -             
+24 2   3           zp        76....m.   BIT $12       
+25 2   3           zp        m.....m.   AND $12       
+26 2   5           zp        m.....mm   ROL $12       
+27 2   5           zp        ........   RMB 2,$12     
+28 1   4           imp       mm.1mmmm   PLP           
+29 2   2           imm       m.....m.   AND #$12      
+2A 1   2           acc       m.....mm   ROL A         
+2B 1   1           imp       ........   -             
+2C 3   4           abs       76....m.   BIT $1234     
+2D 3   4           abs       m.....m.   AND $1234     
+2E 3   6           abs       m.....mm   ROL $1234     
+2F 3   5+t+t*p     zp,rel    ........   BBR 2,$12,$34 
+30 2   2+t+t*p     rel       ........   BMI $12       
+31 2   5+p         (zp),Y    m.....m.   AND ($12),Y   
+32 2   5           (zp)      m.....m.   AND ($12)     
+33 1   1           imp       ........   -             
+34 2   4           zp,X      76....m.   BIT $12,X     
+35 2   4           zp,X      m.....m.   AND $12,X     
+36 2   6           zp,X      m.....mm   ROL $12,X     
+37 2   5           zp        ........   RMB 3,$12     
+38 1   2           imp       .......1   SEC           
+39 3   4+p         abs,Y     m.....m.   AND $1234,Y   
+3A 1   2           imp       m.....m.   DEC A         
+3B 1   1           imp       ........   -             
+3C 3   4+p         abs,X     76....m.   BIT $1234,X   
+3D 3   4+p         abs,X     m.....m.   AND $1234,X   
+3E 3   6+p         abs,X     m.....mm   ROL $1234,X   
+3F 3   5+t+t*p     zp,rel    ........   BBR 3,$12,$34 
+40 1   6           imp       mm.1mmmm   RTI           
+41 2   6           (zp,X)    m.....m.   EOR ($12,X)   
+42 2   2           imp       ........   -             
+43 1   1           imp       ........   -             
+44 2   3           imp       ........   -             
+45 2   3           zp        m.....m.   EOR $12       
+46 2   5           zp        0.....mm   LSR $12       
+47 2   5           zp        ........   RMB 4,$12     
+48 1   3           imp       ........   PHA           
+49 2   2           imm       m.....m.   EOR #$12      
+4A 1   2           acc       0.....mm   LSR A         
+4B 1   1           imp       ........   -             
+4C 3   3           abs       ........   JMP $1234     
+4D 3   4           abs       m.....m.   EOR $1234     
+4E 3   6           abs       0.....mm   LSR $1234     
+4F 3   5+t+t*p     zp,rel    ........   BBR 4,$12,$34 
+50 2   2+t+t*p     rel       ........   BVC $12       
+51 2   5+p         (zp),Y    m.....m.   EOR ($12),Y   
+52 2   5           (zp)      m.....m.   EOR ($12)     
+53 1   1           imp       ........   -             
+54 2   4           imp       ........   -             
+55 2   4           zp,X      m.....m.   EOR $12,X     
+56 2   6           zp,X      0.....mm   LSR $12,X     
+57 2   5           zp        ........   RMB 5,$12     
+58 1   2           imp       .....0..   CLI           
+59 3   4+p         abs,Y     m.....m.   EOR $1234,Y   
+5A 1   3           imp       ........   PHY           
+5B 1   1           imp       ........   -             
+5C 3   8           imp       ........   -             
+5D 3   4+p         abs,X     m.....m.   EOR $1234,X   
+5E 3   6+p         abs,X     0.....mm   LSR $1234,X   
+5F 3   5+t+t*p     zp,rel    ........   BBR 5,$12,$34 
+60 1   6           imp       ........   RTS           
+61 2   6+d         (zp,X)    mm....mm   ADC ($12,X)   
+62 2   2           imp       ........   -             
+63 1   1           imp       ........   -             
+64 2   3           zp        ........   STZ $12       
+65 2   3+d         zp        mm....mm   ADC $12       
+66 2   5           zp        m.....mm   ROR $12       
+67 2   5           zp        ........   RMB 6,$12     
+68 1   4           imp       m.....m.   PLA           
+69 2   2+d         imm       mm....mm   ADC #$12      
+6A 1   2           acc       m.....mm   ROR A         
+6B 1   1           imp       ........   -             
+6C 3   5           (abs)     ........   JMP ($1234)   
+6D 3   4+d         abs       mm....mm   ADC $1234     
+6E 3   6           abs       m.....mm   ROR $1234     
+6F 3   5+t+t*p     zp,rel    ........   BBR 6,$12,$34 
+70 2   2+t+t*p     rel       ........   BVS $12       
+71 2   5+d+p       (zp),Y    mm....mm   ADC ($12),Y   
+72 2   5+d         (zp)      mm....mm   ADC ($12)     
+73 1   1           imp       ........   -             
+74 2   4           zp,X      ........   STZ $12,X     
+75 2   4+d         zp,X      mm....mm   ADC $12,X     
+76 2   6           zp,X      m.....mm   ROR $12,X     
+77 2   5           zp        ........   RMB 7,$12     
+78 1   2           imp       .....1..   SEI           
+79 3   4+d+p       abs,Y     mm....mm   ADC $1234,Y   
+7A 1   4           imp       m.....m.   PLY           
+7B 1   1           imp       ........   -             
+7C 3   6           (abs,X)   ........   JMP ($1234,X) 
+7D 3   4+d+p       abs,X     mm....mm   ADC $1234,X   
+7E 3   6+p         abs,X     m.....mm   ROR $1234,X   
+7F 3   5+t+t*p     zp,rel    ........   BBR 7,$12,$34 
+80 2   3           imp       ........   BRA $12       
+81 2   6           (zp,X)    ........   STA ($12,X)   
+82 2   2           imp       ........   -             
+83 1   1           imp       ........   -             
+84 2   3           zp        ........   STY $12       
+85 2   3           zp        ........   STA $12       
+86 2   3           zp        ........   STX $12       
+87 2   5           zp        ........   SMB 0,$12     
+88 1   2           imp       m.....m.   DEY           
+89 2   2           imm       ......m.   BIT #$12      
+8A 1   2           imp       m.....m.   TXA           
+8B 1   1           imp       ........   -             
+8C 3   4           abs       ........   STY $1234     
+8D 3   4           abs       ........   STA $1234     
+8E 3   4           abs       ........   STX $1234     
+8F 3   5+t+t*p     zp,rel    ........   BBS 0,$12,$34 
+90 2   2+t+t*p     rel       ........   BCC $12       
+91 2   6           (zp),Y    ........   STA ($12),Y   
+92 2   5           (zp)      ........   STA ($12)     
+93 1   1           imp       ........   -             
+94 2   4           zp,X      ........   STY $12,X     
+95 2   4           zp,X      ........   STA $12,X     
+96 2   4           zp,Y      ........   STX $12,Y     
+97 2   5           zp        ........   SMB 1,$12     
+98 1   2           imp       m.....m.   TYA           
+99 3   5           abs,Y     ........   STA $1234,Y   
+9A 1   2           imp       ........   TXS           
+9B 1   1           imp       ........   -             
+9C 3   4           abs       ........   STZ $1234     
+9D 3   5           abs,X     ........   STA $1234,X   
+9E 3   5           abs,X     ........   STZ $1234,X   
+9F 3   5+t+t*p     zp,rel    ........   BBS 1,$12,$34 
+A0 2   2           imm       m.....m.   LDY #$12      
+A1 2   6           (zp,X)    m.....m.   LDA ($12,X)   
+A2 2   2           imm       m.....m.   LDX #$12      
+A3 1   1           imp       ........   -             
+A4 2   3           zp        m.....m.   LDY $12       
+A5 2   3           zp        m.....m.   LDA $12       
+A6 2   3           zp        m.....m.   LDX $12       
+A7 2   5           zp        ........   SMB 2,$12     
+A8 1   2           imp       m.....m.   TAY           
+A9 2   2           imm       m.....m.   LDA #$12      
+AA 1   2           imp       m.....m.   TAX           
+AB 1   1           imp       ........   -             
+AC 3   4           abs       m.....m.   LDY $1234     
+AD 3   4           abs       m.....m.   LDA $1234     
+AE 3   4           abs       m.....m.   LDX $1234     
+AF 3   5+t+t*p     zp,rel    ........   BBS 2,$12,$34 
+B0 2   2+t+t*p     rel       ........   BCS $12       
+B1 2   5+p         (zp),Y    m.....m.   LDA ($12),Y   
+B2 2   5           (zp)      m.....m.   LDA ($12)     
+B3 1   1           imp       ........   -             
+B4 2   4           zp,X      m.....m.   LDY $12,X     
+B5 2   4           zp,X      m.....m.   LDA $12,X     
+B6 2   4           zp,Y      m.....m.   LDX $12,Y     
+B7 2   5           zp        ........   SMB 3,$12     
+B8 1   2           imp       .0......   CLV           
+B9 3   4+p         abs,Y     m.....m.   LDA $1234,Y   
+BA 1   2           imp       m.....m.   TSX           
+BB 1   1           imp       ........   -             
+BC 3   4+p         abs,X     m.....m.   LDY $1234,X   
+BD 3   4+p         abs,X     m.....m.   LDA $1234,X   
+BE 3   4+p         abs,Y     m.....m.   LDX $1234,Y   
+BF 3   5+t+t*p     zp,rel    ........   BBS 3,$12,$34 
+C0 2   2           imm       m.....mm   CPY #$12      
+C1 2   6           (zp,X)    m.....mm   CMP ($12,X)   
+C2 2   2           imp       ........   -             
+C3 1   1           imp       ........   -             
+C4 2   3           zp        m.....mm   CPY $12       
+C5 2   3           zp        m.....mm   CMP $12       
+C6 2   5           zp        m.....m.   DEC $12       
+C7 2   5           zp        ........   SMB 4,$12     
+C8 1   2           imp       m.....m.   INY           
+C9 2   2           imm       m.....mm   CMP #$12      
+CA 1   2           imp       m.....m.   DEX           
+CB 1   2           imp       ........   WAI           
+CC 3   4           abs       m.....mm   CPY $1234     
+CD 3   4           abs       m.....mm   CMP $1234     
+CE 3   6           abs       m.....m.   DEC $1234     
+CF 3   5+t+t*p     zp,rel    ........   BBS 4,$12,$34 
+D0 2   2+t+t*p     rel       ........   BNE $12       
+D1 2   5+p         (zp),Y    m.....mm   CMP ($12),Y   
+D2 2   5           (zp)      m.....mm   CMP ($12)     
+D3 1   1           imp       ........   -             
+D4 2   4           imp       ........   -             
+D5 2   4           zp,X      m.....mm   CMP $12,X     
+D6 2   6           zp,X      m.....m.   DEC $12,X     
+D7 2   5           zp        ........   SMB 5,$12     
+D8 1   2           imp       ....0...   CLD           
+D9 3   4+p         abs,Y     m.....mm   CMP $1234,Y   
+DA 1   3           imp       ........   PHX           
+DB 1   3           imp       ........   STP           
+DC 3   4           imp       ........   -             
+DD 3   4+p         abs,X     m.....mm   CMP $1234,X   
+DE 3   7           abs,X     m.....m.   DEC $1234,X   
+DF 3   5+t+t*p     zp,rel    ........   BBS 5,$12,$34 
+E0 2   2           imm       m.....mm   CPX #$12      
+E1 2   6+d         (zp,X)    mm....mm   SBC ($12,X)   
+E2 2   2           imp       ........   -             
+E3 1   1           imp       ........   -             
+E4 2   3           zp        m.....mm   CPX $12       
+E5 2   3+d         zp        mm....mm   SBC $12       
+E6 2   5           zp        m.....m.   INC $12       
+E7 2   5           zp        ........   SMB 6,$12     
+E8 1   2           imp       m.....m.   INX           
+E9 2   2+d         imm       mm....mm   SBC #$12      
+EA 1   2           imp       ........   NOP           
+EB 1   1           imp       ........   -             
+EC 3   4           abs       m.....mm   CPX $1234     
+ED 3   4+d         abs       mm....mm   SBC $1234     
+EE 3   6           abs       m.....m.   INC $1234     
+EF 3   5+t+t*p     zp,rel    ........   BBS 6,$12,$34 
+F0 2   2+t+t*p     rel       ........   BEQ $12       
+F1 2   5+d+p       (zp),Y    mm....mm   SBC ($12),Y   
+F2 2   5+d         (zp)      mm....mm   SBC ($12)     
+F3 1   1           imp       ........   -             
+F4 2   4           imp       ........   -             
+F5 2   4+d         zp,X      mm....mm   SBC $12,X     
+F6 2   6           zp,X      m.....m.   INC $12,X     
+F7 2   5           zp        ........   SMB 7,$12     
+F8 1   2           imp       ....1...   SED           
+F9 3   4+d+p       abs,Y     mm....mm   SBC $1234,Y   
+FA 1   4           imp       m.....m.   PLX           
+FB 1   1           imp       ........   -             
+FC 3   4           imp       ........   -             
+FD 3   4+d+p       abs,X     mm....mm   SBC $1234,X   
+FE 3   7           abs,X     m.....m.   INC $1234,X   
+FF 3   5+t+t*p     zp,rel    ........   BBS 7,$12,$34 

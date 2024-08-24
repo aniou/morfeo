@@ -1,6 +1,13 @@
 # MORFE/O - Meyer's Own Re-combinable FrankenEmulator / Odin version
 
-A new emulator m68k-based of [Foenix machines](https://c256foenix.com/).
+So, there is - slowly evolving - emulator framework, capable for easy
+emulation of various sets of CPUs, GPUs and memory models.
+
+# Available targets
+
+## a2560x
+
+An emulator of m68k-based of [Foenix machines](https://c256foenix.com/).
 Currently only a kind of ``a2560x`` platform is supported, but morfeo
 is modular and extensible...
 
@@ -18,6 +25,23 @@ well.
 ![splash screen](doc/morfeo-1.png)
 ![running system](doc/morfeo-2.png)
 
+## test_65c816
+
+It is a test suite for an 65C816 core emulation. Test are based on sets
+provided by [https://github.com/SingleStepTests]
+
+Both 65C816 and W65C02S (see below) are built on common foundation and
+are subjects to further improvement.
+
+Note: STP and WAI require implementation
+
+## test_w65c02s
+
+It is a test suite for an W65C02S core emulation. Test are based on sets
+provided by [https://github.com/SingleStepTests]
+
+Note: STP and WAI require implementation
+
 # Building
 
 At this moment emulator was built and tested only on Ubuntu 22.04 LTS.
@@ -34,14 +58,23 @@ At this moment emulator was built and tested only on Ubuntu 22.04 LTS.
 ```shell
 git clone https://github.com/aniou/morfeo
 cd morfeo
-git submodule init
+git submodule init lib/getargs
+git submodule init external/Musashi
 git submodule update
 make
 ```
 
-4. Type ``make help`` for further options.
+4. If You want to run test programs for 65xx-based core then You need two
+additional modules. **WARNING:** they need about 20G of additional space!
 
-# Running
+```shell
+git submodule init external/tests-65816
+git submodule init external/tests-6502
+```
+
+5. Type ``make`` for impatient or ``make help`` for detailed options. 
+
+# Running a2560x
 
 At this moment only two keys are supported. See for standard output logs
 for unsupported functions and not-implemented-yet memory regions!
@@ -73,11 +106,13 @@ Because a proper ID bits in GABE emulation part are not implemented yet.
 * irq support
 * timer support
 * current memory map of a2560x platform
+* better 65C816 implementation (**new**)
+* an W65C02S implementation (**new**)
 
 ### In which areas morfeo is worse than morfe?
 
 * lack of debugging tools for code
-* lack of 65c816 support
+* ~lack of 65c816 support~
 * Golang is more portable 
 * more memory leaks
 

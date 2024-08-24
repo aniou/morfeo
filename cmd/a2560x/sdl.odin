@@ -1,7 +1,10 @@
 
 package morfeo
 
+import "core:fmt"
 import "core:log"
+import "core:time"
+
 import "vendor:sdl2"
 import "emulator:gpu"
 import "emulator:platform"
@@ -27,8 +30,9 @@ GUI :: struct {
     should_close: bool,
     switch_gpu:   bool,
     current_gpu:  int,
-    gpu:          ^gpu.GPU,             // currently active GPU
-
+    g:            ^gpu.GPU,             // currently active GPU
+    gpu0:         ^gpu.GPU,             // first GPU
+    gpu1:         ^gpu.GPU,             // second GPU
 }
 
 gui: GUI
@@ -54,15 +58,22 @@ create_texture :: proc() -> ^sdl2.Texture {
     return texture
 }
 
-// XXX add some parameters about screen size
-init_sdl :: proc(gpu_number: int = 1) -> (ok: bool) {
+init_sdl :: proc(p: ^platform.Platform, gpu_number: int = 1) -> (ok: bool) {
     gui = GUI{}
 
+    // XXX: parametrize it and fetch default resolutions from current gpu
     gui.x_size      = 800
     gui.y_size      = 600
     gui.scale_mult  = 2
-	gui.fullscreen  = false
-    gui.current_gpu = 0 if gpu_number == 0 else 1
+    gui.fullscreen  = false
+
+    // set initial parameters and force refresh in render_gui() by switch_gpu = 1
+    // current_gpu number shuffle is a trick for switch_gpu routine at first run
+    gui.gpu0        = p.bus.gpu0
+    gui.gpu1        = p.bus.gpu1
+    gui.current_gpu = 1                if gpu_number == 0      else 0
+    gui.g           = p.bus.gpu0       if gui.current_gpu == 0 else p.bus.gpu1
+    gui.switch_gpu  = true
 
     // init
     if sdl_res := sdl2.Init(sdl2.INIT_EVERYTHING); sdl_res < 0 {
@@ -72,7 +83,7 @@ init_sdl :: proc(gpu_number: int = 1) -> (ok: bool) {
 
     // windows
     gui.window = sdl2.CreateWindow(
-                 WINDOW_NAME, 
+                 fmt.ctprintf("morfeo: gpu%d", gui.current_gpu),
                  sdl2.WINDOWPOS_UNDEFINED, 
                  sdl2.WINDOWPOS_UNDEFINED, 
                  gui.x_size * gui.scale_mult, 
@@ -94,7 +105,7 @@ init_sdl :: proc(gpu_number: int = 1) -> (ok: bool) {
         return false
     }
 
-	ok = new_renderer_and_texture()
+    ok = new_renderer_and_texture()
     return ok
 }
 
@@ -113,37 +124,37 @@ new_renderer_and_texture :: proc() -> (ok: bool) {
     sdl2.SetTextureBlendMode(gui.texture_bm0, sdl2.BlendMode.NONE)
 
     sdl2.SetHint("SDL_HINT_RENDER_BATCHING", "1")
-	
-	return true
+    
+    return true
 }
 
 update_window_size :: proc() {
-	scale: i32
+    scale: i32
 
-	// exit from fullscreen if necessary
-	if gui.fullscreen {
-			//gui.window.SetDisplayMode(orig_mode)
-			//gui.window.SetFullscreen(0)
-			scale = 1                       // we do not scale in fullscreen
-	} else {
-			scale = gui.scale_mult
-	}
+    // exit from fullscreen if necessary
+    if gui.fullscreen {
+            //gui.window.SetDisplayMode(orig_mode)
+            //gui.window.SetFullscreen(0)
+            scale = 1                       // we do not scale in fullscreen
+    } else {
+            scale = gui.scale_mult
+    }
 
     sdl2.DestroyRenderer(gui.renderer)
     sdl2.DestroyTexture(gui.texture_txt)
     sdl2.DestroyTexture(gui.texture_bm0)
     sdl2.DestroyTexture(gui.texture_bm1)
 
-	sdl2.SetWindowSize(gui.window, gui.x_size * scale, gui.y_size * scale)
+    sdl2.SetWindowSize(gui.window, gui.x_size * scale, gui.y_size * scale)
 
-	_ = new_renderer_and_texture()
+    _ = new_renderer_and_texture()
 
-	// return to fullscreen if necessary
-	/*
-	if gui.fullscreen {
-			sdl.SetWindowFullscreen(gui.window)
-	}
-	*/
+    // return to fullscreen if necessary
+    /*
+    if gui.fullscreen {
+            sdl.SetWindowFullscreen(gui.window)
+    }
+    */
 }
 
 // XXX - move scaling code into gpu recalculate window to avoid unneccessary multiplication
@@ -235,4 +246,81 @@ process_input :: proc(p: ^platform.Platform) {
             }
         }
     }
+}
+
+render_gui :: proc(p: ^platform.Platform) -> bool {
+
+        // Step 1: process keyboard in (XXX: do it - mouse)
+        process_input(p)
+
+        // Step 2: handle GPU switching
+        if gui.switch_gpu {
+            gui.current_gpu        = 1        if gui.current_gpu == 0 else 0
+            gui.g                  = gui.gpu0 if gui.current_gpu == 0 else gui.gpu1
+            gui.switch_gpu         = false
+            gui.g.screen_resized   = true
+            sdl2.SetWindowTitle(gui.window, fmt.ctprintf("morfeo: gpu%d", gui.current_gpu))
+        }
+
+        // Step 3: handle screen resize
+        if gui.g.screen_resized {
+                gui.x_size = gui.g.screen_x_size
+                gui.y_size = gui.g.screen_y_size
+
+                gui.g.screen_resized = false
+                update_window_size()
+        }
+
+        // Step 4: call active GPU to render things
+        //         XXX: support two windows and rendering of two monitors at once
+        if time.tick_since(gui.gpu0.last_tick) >= gui.gpu0.delay {
+            if gui.current_gpu   == 0 do gui.g->render()
+            gui.gpu0.frames      += 1
+            gui.gpu0.last_tick    = time.tick_now()
+        }
+
+        if time.tick_since(gui.gpu1.last_tick) >= gui.gpu1.delay {
+            if gui.current_gpu   == 1 do gui.g->render()
+            gui.gpu1.frames      += 1
+            gui.gpu1.last_tick    = time.tick_now()
+        }
+
+        // Step 5 : draw to screen
+        // Step 5a: background
+        //
+        sdl2.SetRenderDrawColor(gui.renderer, gui.g.bg_color_r,
+                                              gui.g.bg_color_g,
+                                              gui.g.bg_color_b,
+                                              sdl2.ALPHA_OPAQUE)
+        sdl2.RenderClear(gui.renderer)
+
+        // Step 5b: bitmap 0 and 1
+        //
+        if gui.g.bitmap_enabled & gui.g.graphic_enabled {
+            if gui.g.bm0_enabled {
+                sdl2.UpdateTexture(gui.texture_bm0, nil, gui.g.BM0FB, gui.x_size*4)
+                sdl2.RenderCopy(gui.renderer, gui.texture_bm0, nil, nil)
+            }
+            if gui.g.bm1_enabled {
+                sdl2.UpdateTexture(gui.texture_bm1, nil, gui.g.BM1FB, gui.x_size*4)
+                sdl2.RenderCopy(gui.renderer, gui.texture_bm1, nil, nil)
+            }
+        }
+
+        // Step 5c: text
+        //
+        if gui.g.text_enabled {
+            sdl2.UpdateTexture(gui.texture_txt, nil, gui.g.TFB, gui.x_size*4)
+            sdl2.RenderCopy(gui.renderer, gui.texture_txt, nil, nil)
+        }
+
+        // Step 5d: border
+        //
+        if gui.g.border_enabled do draw_border(gui.g)
+
+        // Step  6: present to screen
+        sdl2.RenderPresent(gui.renderer)
+
+        // Step 7: back to main loop
+        return gui.should_close
 }

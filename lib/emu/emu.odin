@@ -56,3 +56,15 @@ not_implemented :: proc(procedure, dev_name: string, mode: Request_Size, addr: u
                 u16(addr >> 16), u16(addr & 0x0000_ffff)
     )
 }
+
+// used by main program
+show_cpu_speed :: proc(cycles: u32) -> (u32, string) {
+        switch {
+        case cycles > 1000000:
+                return cycles / 1000000, "MHz"
+        case cycles > 1000:
+                return cycles / 100, "kHz"
+        case:
+                return cycles, "Hz"
+        }
+}

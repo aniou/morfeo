@@ -50,7 +50,7 @@ write8 :: #force_inline proc(ram: ^RAM, addr: u32, val: u8) {
     return
 }
 
-ram_make :: proc(name: string, size: int) -> ^RAM {
+make_ram :: proc(name: string, size: int) -> ^RAM {
 
     ram       := new(RAM)
     ram.name   = name

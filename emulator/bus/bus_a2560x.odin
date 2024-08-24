@@ -18,9 +18,15 @@ a2560x_make :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
     d.pic     = pic
     d.read    = a2560x_read
     d.write   = a2560x_write
+    d.delete  = a2560x_delete
 
     ebus = d
     return d
+}
+
+a2560x_delete :: proc(bus: ^Bus) {
+    free(bus)
+    return
 }
 
 a2560x_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {

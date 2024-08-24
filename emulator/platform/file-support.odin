@@ -12,6 +12,7 @@ import "lib:emu"
 import "emulator:bus"
 import "emulator:cpu"
 
+// XXX - move it to emu?
 
 /*
 It is computed by summing the decoded byte values and extracting the LSB of the
