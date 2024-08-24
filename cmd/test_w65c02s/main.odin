@@ -1,4 +1,4 @@
-package test816
+package test_w65c02s
 
 import "lib:emu"
 import "lib:getargs"
@@ -36,7 +36,7 @@ CPU_Test :: struct {
 }
 
 prepare_test :: proc(p: ^platform.Platform, state: CPU_State) {
-    c    := &p.cpu.model.(cpu.CPU_65C816)
+    c    := &p.cpu.model.(cpu.CPU_65xxx)
 
     // step 1: prepare CPU values
     c.pc.addr  = state.pc
@@ -74,7 +74,7 @@ prepare_test :: proc(p: ^platform.Platform, state: CPU_State) {
 }
 
 verify_test :: proc(p: ^platform.Platform, cycles: int, state: CPU_State) -> (err: bool) {
-    c    := &p.cpu.model.(cpu.CPU_65C816)
+    c    := &p.cpu.model.(cpu.CPU_65xxx)
 
     if c.cycles != u32(cycles) {
         log.errorf("diff: CYCLES %d expected %d", c.cycles, cycles)
@@ -201,7 +201,7 @@ cpu_flags :: proc(p: u8) -> (result: string) {
 }
 
 print_state :: proc(state: CPU_State, c: ^cpu.CPU) {
-    c    := &c.model.(cpu.CPU_65C816)
+    c    := &c.model.(cpu.CPU_65xxx)
 
     state_flags := cpu_flags(state.p)
     log.errorf("data: PC %04x|SP %04x|A %04x|X %04x|Y %04x|%s|AB %02x:%04x %04x|%s %s %s|",
@@ -255,7 +255,7 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, name: int) -> 
 
     // do work
     count       := 0
-    c           := &p.cpu.model.(cpu.CPU_65C816) 
+    c           := &p.cpu.model.(cpu.CPU_65xxx) 
     start       := time.tick_now() 
     test_cycles :  int
     opdata      := cpu.CPU_W65C06_opcodes[name]

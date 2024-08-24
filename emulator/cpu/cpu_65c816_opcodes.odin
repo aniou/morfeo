@@ -1,7 +1,7 @@
 
 package cpu
 
-w65c816_run_opcode :: proc(cpu: ^CPU_65C816) {
+execute_w65c816 :: proc(cpu: ^CPU_65xxx) {
     switch (cpu.ir) {
 
     case 0x00:                                    // BRK

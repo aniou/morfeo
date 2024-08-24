@@ -109,10 +109,10 @@ main_loop :: proc(p: ^platform.Platform) {
         loops += 1
         if time.tick_since(debug_ticks) > time.Second {
             debug_ticks  = time.tick_now()
-            speed, unit := emu.show_cpu_speed(p.cpu.cycles)
+            speed, unit := emu.show_cpu_speed(p.cpu.all_cycles)
             log.debugf("loops %d cpu cycles %d speed %d %s ms_elapsed %d desired_cycles %d",
                             loops,
-                            p.cpu.cycles,
+                            p.cpu.all_cycles,
                             speed,
                             unit,
                             ms_elapsed,
@@ -120,7 +120,7 @@ main_loop :: proc(p: ^platform.Platform) {
             )
 
             loops        = 0
-            p.cpu.cycles = 0
+            p.cpu.all_cycles = 0
         }
     }
     return

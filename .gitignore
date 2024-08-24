@@ -16,5 +16,6 @@ tags
 #external/*
 
 # built binaries
-morfeo
-test816
+a2560x
+test_65c816
+test_w65c02s
