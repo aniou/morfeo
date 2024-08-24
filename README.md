@@ -92,6 +92,12 @@ git submodule init external/tests-6502
 
 # Running a2560x
 
+Run:
+
+```shell
+./a2560x --gpu=1 --disk0 data/test-fat32.img data/foenixmcp-a2560x.hex
+```
+
 At this moment only two keys are supported. See for standard output logs
 for unsupported functions and not-implemented-yet memory regions!
 
