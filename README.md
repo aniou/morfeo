@@ -27,20 +27,24 @@ well.
 
 ## test_65c816
 
-It is a test suite for an 65C816 core emulation. Test are based on sets
-provided by [https://github.com/SingleStepTests]
+It is a test suite for an 65C816 core emulation. 
 
-Both 65C816 and W65C02S (see below) are built on common foundation and
-are subjects to further improvement.
+Based on sets provided by [SingleStepTests](https://github.com/SingleStepTests)
 
 Note: STP and WAI require implementation
 
 ## test_w65c02s
 
-It is a test suite for an W65C02S core emulation. Test are based on sets
-provided by [https://github.com/SingleStepTests]
+It is a test suite for an W65C02S core emulation. 
+
+Based on sets provided by [SingleStepTests](https://github.com/SingleStepTests)
 
 Note: STP and WAI require implementation
+
+# Word about 65C816 and W65C02 versions
+
+Both 65C816 and W65C02S are built on common foundation and
+are subjects to further improvement.
 
 # Building
 
@@ -65,7 +69,9 @@ make
 ```
 
 4. If You want to run test programs for 65xx-based core then You need two
-additional modules. **WARNING:** they need about 20G of additional space!
+additional modules.
+
+**WARNING:** they need about 20G of additional space!
 
 ```shell
 git submodule init external/tests-65816
