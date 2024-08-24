@@ -3,6 +3,10 @@
 So, there is - slowly evolving - emulator framework, capable for easy
 emulation of various sets of CPUs, GPUs and memory models.
 
+At this moment MORFE/O supports 32bit m68k CPU (Musashi Core) and 
+provides native implementation of 16/24bit WDC 65C816 and 8bit 
+WDC W65C02S cores.
+
 # Available targets
 
 ## a2560x
