@@ -31,7 +31,10 @@ It is a test suite for an 65C816 core emulation.
 
 Based on sets provided by [SingleStepTests](https://github.com/SingleStepTests)
 
-Note: STP and WAI require implementation
+Notes:
+* STP and WAI require implementation
+
+* tests for MVN and MVP are invalid and disabled
 
 ## test_w65c02s
 
@@ -39,7 +42,10 @@ It is a test suite for an W65C02S core emulation.
 
 Based on sets provided by [SingleStepTests](https://github.com/SingleStepTests)
 
-Note: STP and WAI require implementation
+Notes:
+* STP and WAI require implementation
+
+* there are not tests for STP and WAI
 
 # Word about 65C816 and W65C02 versions
 
