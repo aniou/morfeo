@@ -454,7 +454,21 @@ test_v_v2 :: #force_inline proc(size: bool, sum: u32) -> (overflow: bool) {
     return 
 }
 
-test_v :: proc { test_v_v1, test_v_v2 }
+test_v_v3 :: #force_inline proc(size: bool, a, b, s: u16) -> (result: bool) {
+    switch size {
+    case byte:
+        arg_sign_eq    := ((a ~ b )  &   0x80) == 0
+        prod_sign_neq  := ((a ~ s )  &   0x80) != 0
+        result          = arg_sign_eq && prod_sign_neq
+    case word:
+        arg_sign_eq    := ((a ~ b )  & 0x8000) == 0
+        prod_sign_neq  := ((a ~ s )  & 0x8000) != 0
+        result          = arg_sign_eq && prod_sign_neq
+    }
+    return result
+}
+
+test_v :: proc { test_v_v1, test_v_v2, test_v_v3 }
 
 
 // set or clear highest bit (15 or 7, according to register size) 
@@ -931,7 +945,43 @@ mode_Illegal3               :: #force_inline proc (using c: ^CPU_65xxx) {
     pc.addr  += 3
 }
 
-// XXX: it looks currently so bad, consider 32-bit register backends
+// an better version of ADC, built on logical simulation 
+// of 4bit adders, currently works for 8bit numbers
+oper_ADC_6502               :: #force_inline proc (using c: ^CPU_65xxx) { 
+    arga     := read_r( a, a.size )
+    argb     := read_m(ab, a.size )
+
+    // low 4 bits
+    al       := arga & 0x0f
+    bl       := argb & 0x0f
+    sl       := al + bl
+    sl       += 0x01        if f.C        else 0
+
+    decc     := sl > 0x09
+    binc     := sl > 0x0f
+    f.C       = decc | binc if f.D        else binc
+    sl       += 0x06        if f.D & f.C  else 0
+    sl       &= 0x0f
+
+    // high 4 bits
+    ah       := arga & 0xf0
+    bh       := argb & 0xf0
+    sh       := ah + bh
+    sh       += 0x10        if f.C        else 0
+
+    decc      = sh > 0x90
+    binc      = sh > 0xf0
+    f.C       = decc | binc if f.D        else binc
+    f.V       = test_v( a.size, arga, argb, sh | sl )       // V is set before D 
+    sh       += 0x60        if f.D & f.C  else 0
+    sh       &= 0xf0
+
+    // combine low adders into result
+    a.val     = sh | sl
+    f.N       = test_n( a )
+    f.Z       = test_z( a )
+}
+
 oper_ADC                    :: #force_inline proc (using c: ^CPU_65xxx) { 
     if f.D == false {
         data1    := u32(read_r(a, a.size ))

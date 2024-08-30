@@ -302,6 +302,9 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, name: int) -> 
 main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
 
     codes :: [?]int {
+        0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71, 0x72, // ADC
+    }
+    codes2 :: [?]int {
         0x54,                                               // 
         0x44,                                               // 
         0xA1, 0xA3, 0xA5, 0xA7, 0xA9, 0xAD, 0xAF,           //
