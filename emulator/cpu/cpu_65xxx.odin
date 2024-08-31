@@ -446,6 +446,8 @@ test_v_v1 :: #force_inline proc(size: bool, a, b, s: u32) -> (result: bool) {
 // XXX: in case of u32 register and 8/16 bit operations we
 //      need simply check change on "upper" bits to detect
 //      overflow?
+//
+// XXX: probably BAD!
 test_v_v2 :: #force_inline proc(size: bool, sum: u32) -> (overflow: bool) {
     switch size {
     case byte:    overflow = (sum & 0xFFFF_FF00) != 0
@@ -950,37 +952,70 @@ mode_Illegal3               :: #force_inline proc (using c: ^CPU_65xxx) {
 oper_ADC_6502               :: #force_inline proc (using c: ^CPU_65xxx) { 
     arga     := read_r( a, a.size )
     argb     := read_m(ab, a.size )
+    bsum     := u16(0)                                  // partial binary sum
 
-    // low 4 bits
+    log.debugf("ADC: %s %s %02x %02x",
+      "c" if f.C else ".",
+      "d" if f.D else ".",
+      arga,
+      argb,
+    )
+
+    // first 4 bits
     al       := arga & 0x0f
     bl       := argb & 0x0f
     sl       := al + bl
-    sl       += 0x01        if f.C        else 0
+    sl       += 0x01        if f.C       else 0
 
     decc     := sl > 0x09
     binc     := sl > 0x0f
-    f.C       = decc | binc if f.D        else binc
-    sl       += 0x06        if f.D & f.C  else 0
+    f.C       = decc | binc if f.D       else binc
+    bsum      = sl                                      // unused
+    sl       += 0x06        if f.D & f.C else 0         // digital correction
     sl       &= 0x0f
 
-    // high 4 bits
+    // second 4 bits
     ah       := arga & 0xf0
     bh       := argb & 0xf0
     sh       := ah + bh
-    sh       += 0x10        if f.C        else 0
+    sh       += 0x10        if f.C       else 0
 
     decc      = sh > 0x90
     binc      = sh > 0xf0
-    f.C       = decc | binc if f.D        else binc
-    f.V       = test_v( a.size, arga, argb, sh | sl )       // V is set before D 
-    sh       += 0x60        if f.D & f.C  else 0
+    f.C       = decc | binc if f.D       else binc
+    bsum      = sh                                       // for V calc
+    sh       += 0x60        if f.D & f.C else 0          // digital correction
     sh       &= 0xf0
 
-    // combine low adders into result
+    // combine partial sums into result
     a.val     = sh | sl
+    f.V       = test_v( a.size, arga, argb, bsum )
     f.N       = test_n( a )
     f.Z       = test_z( a )
 }
+
+// XXX: some musings about alternate implementations
+//oper_ADC_6502               :: #force_inline proc (using c: ^CPU_65xxx) { 
+//    // single adder
+//    a        := (arg1 >> 8) 
+//    b        := (arg2 >> 8)
+//    f.C, bs   = b4_add(a, b, f.C, f.D)
+//    bs        = digcor(  bs, f.C, f.D)
+//    sum      |= (bs   << 8)
+//
+//    // four adders, per 4 bit in word: from n0_ to n3_
+//    // for V calculation we need only a last (n1 or n3) 
+//    // digital sum
+//    f.C, bs   = n0_add(a, b, f.C, f.D)
+//    sum      |= n0_dcr(  bs, f.C, f.D)
+//
+//    // alt3
+//    ds, bs, f.C = n0_add(a, b, f.C, f.D)       - unified digital corr.
+//  
+//    // alt4
+//    b0, f.C  = n0_add(a, b, f.C, f.D)
+//    d0       = n0_dcr(  bs, f.C, f.D)
+//}
 
 oper_ADC                    :: #force_inline proc (using c: ^CPU_65xxx) { 
     if f.D == false {
@@ -1936,7 +1971,9 @@ oper_STA                    :: #force_inline proc (using c: ^CPU_65xxx) {
 }
 
 // XXX: implement something
+// XXX: temporary, for test
 oper_STP                    :: #force_inline proc (using c: ^CPU_65xxx) { 
+    abort     = true
 }
 
 oper_STX                    :: #force_inline proc (using c: ^CPU_65xxx) { 

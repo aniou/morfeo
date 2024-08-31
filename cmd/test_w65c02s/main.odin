@@ -373,6 +373,32 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
 }
 
 
+math_test :: proc(p: ^platform.Platform) {
+    f, err := os.open("data/6502_decimal_test.bin")
+    if err != nil {
+    	log.error("error opening file: ", err)
+    }
+
+    _, err  = os.read(f, p.bus.ram0.data[:])
+    if err != nil {
+    	log.error("Error reading user input: ", err)
+    }
+    os.close(f)
+
+    c    := &p.cpu.model.(cpu.CPU_65xxx)
+    for {
+        c->run(3000)
+        if c.abort do break
+    }
+
+    status := p.bus.ram0->read(.bits_8, 0x0b)
+    if status == 0 {
+        log.info("math test passed")
+    } else {
+        log.error("math test failed")
+    }
+}
+
 main :: proc() {
     logger_options := log.Options{.Level};
     context.logger  = log.create_console_logger(opt = logger_options) 
@@ -382,7 +408,8 @@ main :: proc() {
     p := platform.make_simple6502()
     
     // running ----------------------------------------------------------
-    main_loop(p)
+    //main_loop(p)
+    math_test(p)
 
     // exiting ----------------------------------------------------------
     p->delete()
