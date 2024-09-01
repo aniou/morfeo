@@ -386,6 +386,9 @@ math_test :: proc(p: ^platform.Platform) {
     os.close(f)
 
     c    := &p.cpu.model.(cpu.CPU_65xxx)
+    c->reset()
+    c.sp.addr = 0xFF 
+    c->setpc(0x400)
     for {
         c->run(3000)
         if c.abort do break
@@ -393,9 +396,16 @@ math_test :: proc(p: ^platform.Platform) {
 
     status := p.bus.ram0->read(.bits_8, 0x0b)
     if status == 0 {
-        log.info("math test passed")
+        log.infof("math test passed (%02x)", status)
     } else {
-        log.error("math test failed")
+        log.errorf("math test failed (%02x): %s%s%s%s %04x", 
+            status,
+            "n" if c.f.N else ".",
+            "v" if c.f.V else ".",
+            "z" if c.f.Z else ".",
+            "c" if c.f.C else ".",
+            cpu.read_r( c.a, c.a.size ),
+        )
     }
 }
 
@@ -408,7 +418,7 @@ main :: proc() {
     p := platform.make_simple6502()
     
     // running ----------------------------------------------------------
-    //main_loop(p)
+    main_loop(p)
     math_test(p)
 
     // exiting ----------------------------------------------------------

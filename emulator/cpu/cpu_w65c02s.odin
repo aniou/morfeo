@@ -99,6 +99,7 @@ run_w65c02s :: proc(cpu: ^CPU, ticks: u32 = 1000) {
     for current_ticks <= ticks {
         step_w65c02s(c)
         current_ticks += c.cycles
+        if c.abort do break
     }
 
     return
@@ -131,6 +132,7 @@ step_w65c02s :: proc(cpu: ^CPU_65xxx) {
           cpu.ab.index    = 0
           cpu.ab.bwrap    = true
           cpu.ab.pwrap    = false
+          cpu.ppc         = cpu.pc
 
           cpu.cycles      = cycles_w65c02s[cpu.ir]
           cpu.cycles     += inc_flag_d_w65c02s[cpu.ir] if cpu.f.D else 0

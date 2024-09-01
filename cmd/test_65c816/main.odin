@@ -328,9 +328,14 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, mode: string, 
 
 main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
 
-    //codes :: [?]string { "00" }
+    codes :: [?]string { 
+        "61", "63", "65", "67", "69", "6d", "6f",           // adc
+        "71", "72", "73", "75", "77", "79", "7d", "7f",     // adc
+        "e1", "e3", "e5", "e7", "e9", "ed", "ef",           // sbc
+        "f1", "f2", "f3", "f5", "f7", "f9", "fd", "ff",     // sbc
+    }
 
-    codes :: [?]string {
+    codes2 :: [?]string {
         //"54",                                               // mvn - broken tests
         //"44",                                               // mvp - broken tests
         "a1", "a3", "a5", "a7", "a9", "ad", "af",           // lda
@@ -378,10 +383,6 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
         "14", "1c", "04", "0c",                             // trb, tsb
         "c2", "e2",                                         // rep, sep
         "db", "cb",                                         // stp, wai
-        "61", "63", "65", "67", "69", "6d", "6f",           // adc
-        "71", "72", "73", "75", "77", "79", "7d", "7f",     // adc
-        "e1", "e3", "e5", "e7", "e9", "ed", "ef",           // sbc
-        "f1", "f2", "f3", "f5", "f7", "f9", "fd", "ff",     // sbc
         "00", "02",                                         // brk, cop
     }
 
