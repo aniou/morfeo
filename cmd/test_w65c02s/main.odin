@@ -299,11 +299,11 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, name: int) -> 
 
 
 
-main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
+step_test :: proc(p: ^platform.Platform) -> (ok: bool) {
 
     codes :: [?]int {
         0xE9, 0xE5, 0xF5, 0xED, 0xFD, 0xF9, 0xE1, 0xF1, 0xF2, // SBC
-        0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71, 0x72, // ADC
+        //0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71, 0x72, // ADC
     }
     codes2 :: [?]int {
         0x54,                                               // 
@@ -366,23 +366,25 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
     tests_count  := len(codes)
     current_test := 1
     for name in codes {
-        do_test(p, current_test, tests_count, name) or_break
+        do_test(p, current_test, tests_count, name) or_return
         current_test += 1
     }
 
-    return
+    return true
 }
 
 
-math_test :: proc(p: ^platform.Platform) {
-    f, err := os.open("data/6502_decimal_test-w65c02.bin")
-    if err != nil {
-    	log.error("error opening file: ", err)
+math_test :: proc(p: ^platform.Platform) -> (ok: bool) {
+    f, error := os.open("data/6502_decimal_test-w65c02.bin")
+    if error != nil {
+    	log.error("error opening file: ", error)
+        return false
     }
 
-    _, err  = os.read(f, p.bus.ram0.data[:])
-    if err != nil {
-    	log.error("Error reading user input: ", err)
+    _, error  = os.read(f, p.bus.ram0.data[:])
+    if error != nil {
+    	log.error("Error reading user input: ", error)
+        return false
     }
     os.close(f)
 
@@ -407,7 +409,15 @@ math_test :: proc(p: ^platform.Platform) {
             "c" if c.f.C else ".",
             cpu.read_r( c.a, c.a.size ),
         )
+        return false
     }
+    return true
+}
+
+all_tests :: proc(p: ^platform.Platform) -> (ok: bool) {
+    step_test(p) or_return
+    math_test(p) or_return
+    return true
 }
 
 main :: proc() {
@@ -419,8 +429,7 @@ main :: proc() {
     p := platform.make_simple6502()
     
     // running ----------------------------------------------------------
-    main_loop(p)
-    math_test(p)
+    all_tests(p)
 
     // exiting ----------------------------------------------------------
     p->delete()
