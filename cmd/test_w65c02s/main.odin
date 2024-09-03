@@ -302,6 +302,7 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, name: int) -> 
 main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
 
     codes :: [?]int {
+        0xE9, 0xE5, 0xF5, 0xED, 0xFD, 0xF9, 0xE1, 0xF1, 0xF2, // SBC
         0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71, 0x72, // ADC
     }
     codes2 :: [?]int {
@@ -374,7 +375,7 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
 
 
 math_test :: proc(p: ^platform.Platform) {
-    f, err := os.open("data/6502_decimal_test.bin")
+    f, err := os.open("data/6502_decimal_test-w65c02.bin")
     if err != nil {
     	log.error("error opening file: ", err)
     }
@@ -396,9 +397,9 @@ math_test :: proc(p: ^platform.Platform) {
 
     status := p.bus.ram0->read(.bits_8, 0x0b)
     if status == 0 {
-        log.infof("math test passed (%02x)", status)
+        log.infof("6502_decimal_test passed (%02x)", status)
     } else {
-        log.errorf("math test failed (%02x): %s%s%s%s %04x", 
+        log.errorf("6502_decimal_test failed (%02x): %s%s%s%s %04x", 
             status,
             "n" if c.f.N else ".",
             "v" if c.f.V else ".",
