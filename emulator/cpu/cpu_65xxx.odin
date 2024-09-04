@@ -1017,6 +1017,13 @@ mode_Illegal3               :: #force_inline proc (using c: ^CPU_65xxx) {
     pc.addr  += 3
 }
 
+// ADC and SBC works almost in the same manner - because on real HW
+// subtraction means "addition of complement's one plus carry", but
+// decimal correction works in a slightly different manner. Of course
+// on real HW also decimal grate is shared, but I didn't want to 
+// create common routine with additional signals like DSA/DAA and
+// just made a separate parts with +6 in ADC and -6 in SDC
+//
 oper_ADC                :: #force_inline proc (using c: ^CPU_65xxx) { 
     ar1      := u32(read_r( a, a.size ))
     ar2      := u32(read_m(ab, a.size ))
@@ -1839,6 +1846,104 @@ oper_RTS                    :: #force_inline proc (using c: ^CPU_65xxx) {
     sp.addr   = addu_r( sp, word )
 }
 
+// a version that reassembles real circuit, like http://6502.org/users/dieter/bcd/bcd_2.htm
+// in maximum, reasonable degree - thus we don't simulate AND, XOR, OR gates for calculation
+// BCD overflow in ADC, but rest remain in place
+//
+// WARNING: looks like 65c816 (normal and emulated) has a slightly different BCD behaviour,
+//          that can be described as "internal BCD carry" that leads to additional decrement
+//          of higher nibble after decimal carry, when result was < 0
+//
+oper_SBC              :: #force_inline proc (using c: ^CPU_65xxx) { 
+    log.debugf("SBC   : ----------------------------")
+    ar1      := u32(read_r( a, a.size ))
+    ar2      := u32(read_m(ab, a.size ))
+    dc0      := false                                // initial value for digital carry
+
+    // byte ----------------------------------------------------------
+    // 4bits: sum, carry and digital correction
+    b0        = ar1 & 0x000f                                  // step 1b: prepare arguments
+    tmp      := ar2 & 0x000f
+    tmp      ~=       0x000f
+
+    b0       += tmp                                           // step 2 : add values
+    b0       +=       0x0001 if  f.C                   else 0 // step 3 : add carry
+    bc0      := b0 >  0x000f                                  // step 4b: check carry    (b0 & 0x10 == 0x10)
+
+    d0        = b0  & 0x000f                                  // step 5b: digital correction
+    d0       -=       0x0006 if !bc0 & f.D             else 0 
+    d0       -=       0x0001 if  dc0 & f.D & real65c02 else 0 // step 5c: additional digital carry (no-op in 1st)
+    dc0       = d0  > 0x000F
+    d0       &=       0x000f
+
+    // ------------------------------------------------------------------------
+    // 4bits: sum, carry and digital correction
+    b1        = ar1 & 0x00f0
+    tmp       = ar2 & 0x00f0
+    tmp      ~=       0x00f0
+
+    b1       += tmp
+    b1       +=       0x0010 if  bc0                   else 0
+    bc1      := b1 >  0x00f0 
+
+    d1        = b1  & 0x00f0
+    d1       -=       0x0060 if !bc1 & f.D             else 0
+    d1       -=       0x0010 if  dc0 & f.D & real65c02 else 0   // step 5c: additional digital carry
+    dc1      := d1  > 0x00F0
+    d1       &=       0x00f0
+
+    // ------------------------------------------------------------------------
+    if a.size == byte {
+        f.C       = bc1
+        a.val     = u16(d1 | d0)
+        f.V       = test_v(a.size, ar1, ~ar2, b1)  // V from binary sum
+        f.N       = test_n( a )
+        f.Z       = test_z( a )
+        return
+    } 
+
+    // ------------------------------------------------------------------------
+    // 4bits: sum, carry and digital correction
+    b2        = ar1 & 0x0f00
+    tmp       = ar2 & 0x0f00
+    tmp      ~=       0x0f00
+
+    b2       += tmp
+    b2       +=       0x0100 if  bc1                   else 0
+    bc2      := b2 >  0x0f00
+
+    d2        = b2  & 0x0f00
+    d2       -=       0x0600 if !bc2 & f.D             else 0
+    d2       -=       0x0100 if  dc1 & f.D & real65c02 else 0
+    dc2      := d2  > 0x0F00
+    d2       &=       0x0f00
+
+    // ------------------------------------------------------------------------
+    // 4bits: sum, carry and digital correction
+    b3        = ar1 & 0xf000
+    tmp       = ar2 & 0xf000
+    tmp      ~=       0xf000
+
+    b3       += tmp
+    b3       +=       0x1000 if  bc2                   else 0
+    bc3      := b3 >  0xf000
+
+    d3        = b3  & 0xf000
+    d3       -=       0x6000 if !bc3 & f.D             else 0
+    d3       -=       0x1000 if  dc2 & f.D & real65c02 else 0
+    dc3      := d3  > 0xF000
+    d3       &=       0xf000
+
+    // ------------------------------------------------------------------------
+    f.C       = bc3
+    a.val     = u16(d3 | d2 | d1 | d0)
+    f.V       = test_v(a.size, ar1, ~ar2, b3)  // V from binary sum
+    f.N       = test_n( a )
+    f.Z       = test_z( a )
+
+}
+
+// left just for a debug purposes
 oper_SBC_65C02_debug              :: #force_inline proc (using c: ^CPU_65xxx) { 
     log.debugf("SBC   : ----------------------------")
     ar1      := u32(read_r( a, a.size ))
@@ -1893,298 +1998,6 @@ oper_SBC_65C02_debug              :: #force_inline proc (using c: ^CPU_65xxx) {
         return
     } 
 
-}
-
-// a version that reassembles real circuit, like http://6502.org/users/dieter/bcd/bcd_2.htm
-// in maximum, reasonable degree - thus we don't simulate AND, XOR, OR gates for calculation
-// BCD overflow in ADC, but rest remain in place
-oper_SBC              :: #force_inline proc (using c: ^CPU_65xxx) { 
-    log.debugf("SBC   : ----------------------------")
-    ar1      := u32(read_r( a, a.size ))
-    ar2      := u32(read_m(ab, a.size ))
-    dc0      := false                                // initial value for digital carry
-    log.debugf("SBC   : ar1: %02x ar2: %02x c: %t (ar1-ar2): %04x", ar1, ar2, f.C, ar1-ar2)
-
-    // byte ----------------------------------------------------------
-    // 4bits: sum, carry and digital correction
-    b0        = ar1 & 0x000f                                  // step 1b: prepare arguments
-    tmp      := ar2 & 0x000f
-    tmp      ~=       0x000f
-
-    b0       += tmp                                           // step 2 : add values
-    b0       +=       0x0001 if  f.C                   else 0 // step 3 : add carry
-    bc0      := b0 >  0x000f                                  // step 4b: check carry    (b0 & 0x10 == 0x10)
-
-    d0        = b0  & 0x000f                                  // step 5b: digital correction
-    d0       -=       0x0006 if !bc0 & f.D             else 0 
-    d0       -=       0x0001 if  dc0 & f.D & real65c02 else 0 // step 5c: additional digital carry (no-op in 1st)
-    dc0       = d0  > 0x000F                                  //                         (d0 & 0x10 == 0x10)
-    d0       &=       0x000f
-
-    // ------------------------------------------------------------------------
-    // 4bits: sum, carry and digital correction
-    b1        = ar1 & 0x00f0
-    tmp       = ar2 & 0x00f0
-    tmp      ~=       0x00f0
-
-    b1       += tmp
-    b1       +=       0x0010 if  bc0                   else 0
-    bc1      := b1 >  0x00f0 
-
-    d1        = b1  & 0x00f0
-    d1       -=       0x0060 if !bc1 & f.D             else 0
-    d1       -=       0x0010 if  dc0 & f.D & real65c02 else 0   // step 5c: additional digital carry
-    dc1      := d1  > 0x00F0
-    d1       &=       0x00f0
-
-    if a.size == byte {
-        f.C       = bc1
-        a.val     = u16(d1 | d0)
-        f.V       = test_v(a.size, ar1, ~ar2, b1)  // V from binary sum
-        f.N       = test_n( a )
-        f.Z       = test_z( a )
-        return
-    } 
-
-    // ------------------------------------------------------------------------
-    // 4bits: sum, carry and digital correction
-    b2        = ar1 & 0x0f00
-    tmp       = ar2 & 0x0f00
-    tmp      ~=       0x0f00
-
-    b2       += tmp
-    b2       +=       0x0100 if  bc1                   else 0
-    bc2      := b2 >  0x0f00
-
-    d2        = b2  & 0x0f00
-    d2       -=       0x0600 if !bc2 & f.D             else 0
-    d2       -=       0x0100 if  dc1 & f.D & real65c02 else 0
-    dc2      := d2  > 0x0F00
-    d2       &=       0x0f00
-
-    // ------------------------------------------------------------------------
-    // 4bits: sum, carry and digital correction
-    b3        = ar1 & 0xf000
-    tmp       = ar2 & 0xf000
-    tmp      ~=       0xf000
-
-    b3       += tmp
-    b3       +=       0x1000 if  bc2                   else 0
-    bc3      := b3 >  0xf000
-
-    d3        = b3  & 0xf000
-    d3       -=       0x6000 if !bc3 & f.D             else 0
-    d3       -=       0x1000 if  dc2 & f.D & real65c02 else 0
-    dc3      := d3  > 0xF000
-    d3       &=       0xf000
-
-    f.C       = bc3
-    a.val     = u16(d3 | d2 | d1 | d0)
-    f.V       = test_v(a.size, ar1, ~ar2, b3)  // V from binary sum
-    f.N       = test_n( a )
-    f.Z       = test_z( a )
-
-}
-
-oper_SBC_65C02_ok                :: #force_inline proc (using c: ^CPU_65xxx) { 
-    log.debugf("SBC   : ----------------------------")
-    ar1      := u32(read_r( a, a.size ))
-    ar2      := u32(read_m(ab, a.size ))
-    log.debugf("SBC   : ar1: %02x ar2: %02x c: %t (ar1-ar2): %04x", ar1, ar2, f.C, ar1-ar2)
-
-// 4a. AL = (A & $0F) - (B & $0F) + C-1
-// 4b. A = A - B + C-1
-// 4c. If A < 0, then A = A - $60
-// 4d. If AL < 0, then A = A - $06
-// 4e. The accumulator result is the lower 8 bits of A
-
-    // byte ----------------------------------------------------------
-    // 4bits: sum, carry and digital correction
-    b0        = ar1 & 0x000f
-    b0       -= ar2 & 0x000f
-    b0       -=       0x0000  if f.C    else 0x0001
-    c0        = b0  < 0x0010
-    d0        = b0  & 0x000f
-
-    b1        = ar1 & 0x00f0
-    b1       -= ar2 & 0x00f0
-    b1       -=       0x0000  if c0     else 0x0010
-    c1        = b1  < 0x0100
-    d1        = b1  & 0x00f0
-
-    if f.D {
-        d0       -=       0x0006 if !c0   else 0
-        dc0      := d0  < 0x0010
-        d0       &=       0x000f
-
-        d1       -=       0x0060 if !c1   else 0
-        d1       -=       0x0010 if !dc0  else 0
-        dc1      := d1  < 0x0100
-        d1       &=       0x00f0
-    } 
-
-    if a.size == byte {
-        f.C       = c1
-        a.val     = u16(d1 | d0)
-        f.V       = test_v(a.size, ar1, ~ar2, b1)  // V from binary sum
-        f.N       = test_n( a )
-        f.Z       = test_z( a )
-        return
-    } 
-
-    //a.val     = u16(d3 | d2 | d1 | d0)
-    //f.V       = test_v( a.size, ar1, ar2, b3 )      // V from binary sum
-    //f.N       = test_n( a )
-    //f.Z       = test_z( a )
-
-}
-
-
-// ADC/SBC requires more attention and works better when nybble-like adder
-// is created, but for now it looks like...
-oper_SBC_65C0a2              :: #force_inline proc (using c: ^CPU_65xxx) {
-
-    if f.D == false {
-        data1    := u32(read_r(a, a.size ))
-        tmp      := data1
-        data2    := u32(read_m( ab, a.size ))
-
-        /*
-        log.debugf("SBC in: %s %s %02x %02x",
-          "c" if f.C else ".",
-          "d" if f.D else ".",
-          data1,
-          data2,
-        )
-        */
-
-        data1    -= data2
-        data1    -= 0 if f.C else 1
-        f.V       = test_v( a.size, tmp, ~data2, data1 )
-        a.val     = u16(data1)
-        f.C       = test_v( a.size, ~data1 )
-        f.N       = test_n( a )
-        f.Z       = test_z( a )
-    } else {
-        data0     = read_m( ab, a.size )
-        data1    := u32(read_r(a, a.size ))
-        data2    := u32(data0)
-        carry    := u32(1) if f.C    else 0
-
-        /*
-        log.debugf("SBC in: %s %s %02x %02x",
-          "c" if f.C else ".",
-          "d" if f.D else ".",
-          data0,
-          data1,
-        )
-        */
-
-        // http://6502.org/tutorials/decimal_mode.html#A
-        //
-        // 4a. AL = (A & $0F) - (B & $0F) + C-1
-        // 4b. A = A - B + C-1
-        // 4c. If A < 0, then A = A - $60
-        // 4d. If AL < 0, then A = A - $06
-        // 4e. The accumulator result is the lower 8 bits of A
-
-        // XXX - convert it to properr nybble-like operations without unneeded and/or operations
-
-        o       :  u32
-        al1     := (data1 & 0x0F ) - (data2 & 0x0F ) + 0x1 * (carry - 1)
-        o        =  data1          -  data2          + 0x1 * (carry - 1)
-        f.V      = test_v( a.size, u32(data1), u32(~data0), u32(o)    )
-        log.debugf("SBC   : ar1: %02x ar2: %02x c: %t (ar1-ar2): %04x", data1, data2, f.C, data1-data2)
-
-        f.C      = o & 0xFFFF_FF00 == 0
-        o       -= 0x60 if o   & 0x8000 != 0 else 0
-        o       -= 0x06 if al1 & 0x8000 != 0 else 0
-
-        //fmt.printf("final o: %06x\n", o)
-        a.val     = u16(o)
-        f.N       = test_n( a )
-        f.Z       = test_z( a )
-    }
-
-}
-
-oper_SBC_older                     :: #force_inline proc (using c: ^CPU_65xxx) { 
-    if f.D == false {
-        data1    := u32(read_r(a, a.size ))
-        tmp      := data1
-        data2    := u32(read_m( ab, a.size ))
-        data1    -= data2
-        data1    -= 0 if f.C else 1
-        f.V       = test_v( a.size, tmp, ~data2, data1 )
-        a.val     = u16(data1)
-        f.C       = test_v( a.size, ~data1 )
-        f.N       = test_n( a )
-        f.Z       = test_z( a )
-    } else {
-        data0     = read_m( ab, a.size )
-        data1    := u32(read_r(a, a.size ))
-        data2    := u32(data0)
-        carry    := u32(1) if f.C    else 0
-
-        // http://6502.org/tutorials/decimal_mode.html#A
-        //
-        // 4a. AL = (A & $0F) - (B & $0F) + C-1
-        // 4b. A = A - B + C-1
-        // 4c. If A < 0, then A = A - $60
-        // 4d. If AL < 0, then A = A - $06
-        // 4e. The accumulator result is the lower 8 bits of A
-
-        // XXX - convert it to properr nybble-like operations without unneeded and/or operations
-
-        o       :  u32
-        if f.M == byte {
-            o        =  data1         -  data2         + (carry - 1)
-            al1     := (data1 & 0x0F ) - (data2 & 0x0F ) + 0x1 * (carry - 1)
-            if  al1 & 0xFFFF_0000 != 0 { carry = 0 } else {carry = 1}
-            al2     := (data1 & 0xF0 ) - (data2 & 0xF0 ) + 0x10 * (carry - 1)
-            //fmt.printf("C: %t %06x %04x %04x %06x %06x %06x ", f.C, o, data1, data2, al1, al2, 0)
-            f.V      = test_v( a.size, u32(data1), u32(~data0), u32(o)    )
-            oh      := o & 0xFF00
-            o       -= 0x0060 if al2 & 0xFFFF_FF00 != 0  else 0
-            o       &= 0x00FF
-            o       |= oh
-            oh       = o & 0xFFF0
-            o       -= 0x0006 if al1 & 0xFFFF_FFF0 != 0  else 0
-            o       &= 0x000F
-            o       |= oh
-            f.C      = o & 0xFFFF_FF00 == 0
-            //fmt.printf("final o: %06x\n", o)
-        } else {
-            o        =  data1          -  data2          + 0x1 * (carry - 1)
-            al1     := (data1 & 0x0F ) - (data2 & 0x0F ) + 0x1 * (carry - 1)
-            if  al1 & 0xFFFF_0000 != 0 { carry = 0 } else {carry = 1}
-            al2     := (data1 & 0xF0 ) - (data2 & 0xF0 ) + 0x10 * (carry - 1)
-            if  al2 & 0xFFFF_0000 != 0 { carry = 0 } else { carry = 1 }
-            al3     := (data1 & 0xF00) - (data2 & 0xF00) + 0x100 * (carry - 1)
-            //fmt.printf("C: %t %06x %04x %04x %06x %06x %06x ", f.C, o, data1, data2, al1, al2, al3)
-            f.C      = o & 0xFFFF_0000 == 0
-            f.V      = test_v( a.size, u32(data1), u32(~data0), u32(o)    )
-            o       -= 0x6000 if o   & 0xFFFF_0000 != 0  else 0
-            oh      := o & 0xF000
-
-            o       -= 0x0600 if al3 & 0xFFFF_F000 != 0  else 0
-            o       &= 0x0FFF
-            o       |= oh
-            oh       = o & 0xFF00
-            o       -= 0x0060 if al2 & 0xFFFF_FF00 != 0  else 0
-            o       &= 0x00FF
-            o       |= oh
-            oh       = o & 0xFFF0
-            o       -= 0x0006 if al1 & 0xFFFF_FFF0 != 0  else 0
-            o       &= 0x000F
-            o       |= oh
-            //fmt.printf("final o: %06x\n", o)
-        }
-        
-        a.val     = u16(o)
-        f.N       = test_n( a )
-        f.Z       = test_z( a )
-    }
 }
 
 oper_SEC                    :: #force_inline proc (using c: ^CPU_65xxx) { 
