@@ -1855,7 +1855,6 @@ oper_RTS                    :: #force_inline proc (using c: ^CPU_65xxx) {
 //          of higher nibble after decimal carry, when result was < 0
 //
 oper_SBC              :: #force_inline proc (using c: ^CPU_65xxx) { 
-    log.debugf("SBC   : ----------------------------")
     ar1      := u32(read_r( a, a.size ))
     ar2      := u32(read_m(ab, a.size ))
     dc0      := false                                // initial value for digital carry
