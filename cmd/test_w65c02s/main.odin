@@ -416,7 +416,7 @@ math_test :: proc(p: ^platform.Platform) -> (ok: bool) {
 }
 
 all_tests :: proc(p: ^platform.Platform) -> (ok: bool) {
-    //step_test(p) or_return
+    step_test(p) or_return
     math_test(p) or_return
     return true
 }
