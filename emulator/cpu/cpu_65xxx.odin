@@ -550,108 +550,6 @@ set__h :: #force_inline proc (dr: DataRegister_65xxx, a: bool)    -> (result: u1
 //     return
 // }
 
-// adder is called from ADC/SBC ops in following way:
-//
-//    b0, f.C   = n0_add(ar1, ar2,  f.C,  f.D)
-//    a.val     = n0_dcr(b0, .add,  f.C,  f.D)
-//
-n0_add :: #force_inline proc(ar1, ar2: u16, cin, dec: bool) -> (res: u16, cout: bool) {
-    sum      := u32(ar1  & 0x000f)  // sum with carry
-    sum      += u32(ar2  & 0x000f)
-    sum      +=            0x0001   if cin  else 0
-
-    decc     := sum      > 0x0009   // carry logic
-    binc     := sum      > 0x000f
-    cout      = decc | binc         if dec  else binc
-
-    res       = u16(sum &  0x000f)
-    return
-}
-
-n1_add :: #force_inline proc(ar1, ar2: u16, cin, dec: bool) -> (sum: u16, cout: bool) {
-    sum       = ar1 & 0x00f0  // sum with carry
-    sum      += ar2 & 0x00f0
-    sum      +=       0x0010  if cin  else 0
-
-    decc     := sum > 0x0090  // carry logic
-    binc     := sum > 0x00f0
-    cout      = decc | binc   if dec  else binc
-
-    sum      &=       0x00f0
-    return
-}
-
-n2_add :: #force_inline proc(ar1, ar2: u16, cin, dec: bool) -> (sum: u16, cout: bool) {
-    sum       = ar1 & 0x0f00  // sum with carry
-    sum      += ar2 & 0x0f00
-    sum      +=       0x0100  if cin  else 0
-
-    decc     := sum > 0x0900  // carry logic
-    binc     := sum > 0x0f00
-    cout      = decc | binc   if dec  else binc
-
-    sum      &=       0x0f00
-    return
-}
-
-n3_add :: #force_inline proc(ar1, ar2: u16, cin, dec: bool) -> (sum: u16, cout: bool) {
-    sum       = ar1 & 0xf000  // sum with carry
-    sum      += ar2 & 0xf000
-    sum      +=       0x1000  if cin  else 0
-
-    decc     := sum > 0x9000  // carry logic
-    binc     := sum > 0xf000
-    cout      = decc | binc   if dec  else binc
-
-    sum      &=       0xf000
-    return
-}
-
-// digital correction routine
-n0_dcr :: #force_inline proc(arg: u16, dsa: DecimalOperation, cin, dec: bool) -> (res: u16) {
-    res = arg
-    if  cin & dec == false do return                // no decimal mode nor carry not set
-
-    switch dsa {
-        case .sub: res = (arg - 0x0006) & 0x000f
-        case .add: res = (arg + 0x0006) & 0x000f
-    }
-    return 
-}
-
-n1_dcr :: #force_inline proc(arg: u16, dsa: DecimalOperation, cin, dec: bool) -> (res: u16) {
-    res = arg
-    if  cin & dec == false do return                // no decimal mode nor carry not set
-
-    switch dsa {
-        case .sub: res = (arg - 0x0060) & 0x00f0
-        case .add: res = (arg + 0x0060) & 0x00f0
-    }
-    return 
-}
-
-n2_dcr :: #force_inline proc(arg: u16, dsa: DecimalOperation, cin, dec: bool) -> (res: u16) {
-    res = arg
-    if  cin & dec == false do return                // no decimal mode nor carry not set
-
-    switch dsa {
-        case .sub: res = (arg - 0x0600) & 0x0f00
-        case .add: res = (arg + 0x0600) & 0x0f00
-    }
-    return 
-}
-
-n3_dcr :: #force_inline proc(arg: u16, dsa: DecimalOperation, cin, dec: bool) -> (res: u16) {
-    res = arg
-    if  cin & dec == false do return                // no decimal mode nor carry not set
-
-    switch dsa {
-        case .sub: res = (res - 0x6000) & 0xf000
-        case .add: res = (res + 0x6000) & 0xf000
-    }
-    return 
-}
-
 
 // ----------------------------------------------------------------------------
 // addressing modes
@@ -1118,55 +1016,6 @@ mode_Illegal2               :: #force_inline proc (using c: ^CPU_65xxx) {
 mode_Illegal3               :: #force_inline proc (using c: ^CPU_65xxx) {
     pc.addr  += 3
 }
-
-/*
-    log.debugf("ADC in: %s %s %02x %02x",
-      "c" if f.C else ".",
-      "d" if f.D else ".",
-      ar1,
-      ar2,
-    )
-
-    log.debugf("ADC out: %s %s %s %02x",
-      "n" if f.N else ".",
-      "v" if f.V else ".",
-      "z" if f.Z else ".",
-      a.val,
-    )
-*/
-
-/*
-oper_ADC                    :: #force_inline proc (using c: ^CPU_65xxx) { 
-    ar1      := read_r( a, a.size )
-    ar2      := read_m(ab, a.size )
-
-    // byte
-    b0, f.C   = n0_add(ar1, ar2,  f.C,  f.D)
-    a.val     = n0_dcr(b0, .add,  f.C,  f.D)
-
-    b1, f.C   = n1_add(ar1, ar2,  f.C,  f.D)
-    a.val    |= n1_dcr(b1, .add,  f.C,  f.D)
-
-    if a.size == byte {
-        f.V       = test_v(a.size, ar1, ar2, b1)
-        f.N       = test_n( a )
-        f.Z       = test_z( a )
-        return
-    } 
-
-    // word
-    b2, f.C   = n2_add(ar1, ar2,  f.C,  f.D)
-    a.val    |= n2_dcr(b2, .add,  f.C,  f.D)
-
-    b3, f.C   = n3_add(ar1, ar2,  f.C,  f.D)
-    a.val    |= n3_dcr(b3, .add,  f.C,  f.D)
-
-    f.V       = test_v(a.size, ar1, ar2, b3)
-    f.N       = test_n( a )
-    f.Z       = test_z( a )
-
-}
-*/
 
 oper_ADC                :: #force_inline proc (using c: ^CPU_65xxx) { 
     ar1      := u32(read_r( a, a.size ))
@@ -1990,7 +1839,163 @@ oper_RTS                    :: #force_inline proc (using c: ^CPU_65xxx) {
     sp.addr   = addu_r( sp, word )
 }
 
-oper_SBC_65C02              :: #force_inline proc (using c: ^CPU_65xxx) { 
+oper_SBC_65C02_debug              :: #force_inline proc (using c: ^CPU_65xxx) { 
+    log.debugf("SBC   : ----------------------------")
+    ar1      := u32(read_r( a, a.size ))
+    ar2      := u32(read_m(ab, a.size ))
+    log.debugf("SBC   : ar1: %02x ar2: %02x c: %t (ar1-ar2): %04x", ar1, ar2, f.C, ar1-ar2)
+
+    // byte ----------------------------------------------------------
+    // 4bits: sum, carry and digital correction
+    c0        = f.C
+    b0        = ar1 & 0x000f
+    log.debugf("SBC   : ar2     : %04x %4b %4b %4b %4b C : %t", ar2, (ar2 >> 12) & 0xf, (ar2 >> 8) & 0xf, (ar2 >> 4) & 0xf, ar2 & 0xf , c0)
+    t0       := ~(ar2 & 0x000f)
+    t0        = t0 & 0x000f
+    log.debugf("SBC   : b0      : %04x %4b %4b %4b %4b C : %t", b0 , (b0  >> 12) & 0xf, (b0  >> 8) & 0xf, (b0  >> 4) & 0xf, b0  & 0xf , c0)
+    log.debugf("SBC   : ~ar2    : %04x %4b %4b %4b %4b C : %t", t0 , (t0  >> 12) & 0xf, (t0  >> 8) & 0xf, (t0  >> 4) & 0xf, t0  & 0xf , c0)
+    b0       += t0
+    log.debugf("SBC   : b0+ar2  : %04x %4b %4b %4b %4b C : %t", b0 , (b0  >> 12) & 0xf, (b0  >> 8) & 0xf, (b0  >> 4) & 0xf, b0  & 0xf , c0)
+    b0       +=       0x0001  if c0    else 0x0000
+    c0        = b0 & 0x10 == 0x10
+    log.debugf("SBC   : b0+ar2+c: %04x %4b %4b %4b %4b C : %t", b0 , (b0  >> 12) & 0xf, (b0  >> 8) & 0xf, (b0  >> 4) & 0xf, b0  & 0xf , c0)
+    d0        = b0  & 0x000f
+    d0       -=       0x0006 if !c0 & f.D  else 0x0000
+    //dc0     := d0  < 0x0010
+    dc0      := d0 & 0x10 == 0x10
+    d0       &=       0x000f
+
+    // 4bits: sum, carry and digital correction
+    b1        = ar1 & 0x00f0
+    log.debugf("SBC   : ar2     : %04x %4b %4b %4b %4b C : %t", ar2, (ar2 >> 12) & 0xf, (ar2 >> 8) & 0xf, (ar2 >> 4) & 0xf, ar2 & 0xf , c0)
+    t1       := ~(ar2 & 0x00f0)
+    t1        = t1 & 0x00f0
+    log.debugf("SBC   : b1      : %04x %4b %4b %4b %4b C : %t", b1 , (b1  >> 12) & 0xf, (b1  >> 8) & 0xf, (b1  >> 4) & 0xf, b1  & 0xf , c0)
+    log.debugf("SBC   : ~ar2    : %04x %4b %4b %4b %4b C : %t", t1 , (t1  >> 12) & 0xf, (t1  >> 8) & 0xf, (t1  >> 4) & 0xf, t1  & 0xf , c0)
+    b1       += t1
+    log.debugf("SBC   : b1+ar2  : %04x %4b %4b %4b %4b C : %t", b1 , (b1  >> 12) & 0xf, (b1  >> 8) & 0xf, (b1  >> 4) & 0xf, b1  & 0xf , c0)
+    b1       +=       0x0010  if c0     else 0x0000
+    c1        = b1 & 0x100 == 0x100
+    log.debugf("SBC   : b1+ar2+c: %04x %4b %4b %4b %4b C : %t", b1 , (b1  >> 12) & 0xf, (b1  >> 8) & 0xf, (b1  >> 4) & 0xf, b1  & 0xf , c1)
+
+    d1        = b1  & 0x00f0
+    d1       -=       0x0060 if !c1  & f.D  else 0
+    //d1       -=       0x0010 if dc0 & f.D  else 0
+    dc1      := d1  < 0x0100
+    d1       &=       0x00f0
+
+    if a.size == byte {
+        f.C       = c1
+        a.val     = u16(d1 | d0)
+        f.V       = test_v(a.size, ar1, ~ar2, b1)  // V from binary sum
+        f.N       = test_n( a )
+        f.Z       = test_z( a )
+        return
+    } 
+
+}
+
+// a version that reassembles real circuit, like http://6502.org/users/dieter/bcd/bcd_2.htm
+// in maximum, reasonable degree - thus we don't simulate AND, XOR, OR gates for calculation
+// BCD overflow in ADC, but rest remain in place
+oper_SBC              :: #force_inline proc (using c: ^CPU_65xxx) { 
+    log.debugf("SBC   : ----------------------------")
+    ar1      := u32(read_r( a, a.size ))
+    ar2      := u32(read_m(ab, a.size ))
+    dc0      := false                                // initial value for digital carry
+    log.debugf("SBC   : ar1: %02x ar2: %02x c: %t (ar1-ar2): %04x", ar1, ar2, f.C, ar1-ar2)
+
+    // byte ----------------------------------------------------------
+    // 4bits: sum, carry and digital correction
+    b0        = ar1 & 0x000f                         // step 1b: prepare arguments
+    tmp      := ar2 & 0x000f
+    tmp      ~=       0x000f
+
+    b0       += tmp                                  // step 2 : add values
+    b0       +=       0x0001 if  f.C        else 0   // step 3 : add carry
+    bc0      := b0 >  0x000f                         // step 4b: check carry    (b0 & 0x10 == 0x10)
+
+    d0        = b0  & 0x000f                         // step 5b: digital correction
+    d0       -=       0x0006 if !bc0 & f.D  else 0   //
+    d0       -=       0x0001 if  dc0 & f.D  else 0   // step 5c: additional digital carry (no-op in 1st)
+    //dc0       = d0  > 0x000F                         //                         (d0 & 0x10 == 0x10)
+    dc0      = d0 < 0x0010
+    d0       &=       0x000f
+
+    // ------------------------------------------------------------------------
+    // 4bits: sum, carry and digital correction
+    b1        = ar1 & 0x00f0
+    tmp       = ar2 & 0x00f0
+    tmp      ~=       0x00f0
+
+    b1       += tmp
+    b1       +=       0x0010 if  bc0        else 0
+    bc1      := b1 >  0x00f0                         //                         (b1 & 0x100 == 0x100)
+
+    d1        = b1  & 0x00f0
+    d1       -=       0x0060 if !bc1 & f.D  else 0
+    //d1       -=       0x0010 if  dc0 & f.D  else 0   // step 5c: additional digital carry
+    //dc1      := d1  > 0x00F0
+    dc1      := d1 < 0x0100
+    d1       &=       0x00f0
+
+    if a.size == byte {
+        f.C       = bc1
+        a.val     = u16(d1 | d0)
+        f.V       = test_v(a.size, ar1, ~ar2, b1)  // V from binary sum
+        f.N       = test_n( a )
+        f.Z       = test_z( a )
+        return
+    } 
+
+    // ------------------------------------------------------------------------
+    // 4bits: sum, carry and digital correction
+    b2        = ar1 & 0x0f00
+    tmp       = ar2 & 0x0f00
+    log.debugf("SBC   : tmp     : %04x %4b %4b %4b %4b C : %t", tmp, (tmp >> 12) & 0xf, (tmp >> 8) & 0xf, (tmp >> 4) & 0xf, tmp & 0xf , c1)
+    tmp      ~=       0x0f00
+
+    log.debugf("SBC   : b2      : %04x %4b %4b %4b %4b C : %t", b2 , (b2  >> 12) & 0xf, (b2  >> 8) & 0xf, (b2  >> 4) & 0xf, b2  & 0xf , c1)
+    log.debugf("SBC   : ~tmp    : %04x %4b %4b %4b %4b C : %t", tmp, (tmp >> 12) & 0xf, (tmp >> 8) & 0xf, (tmp >> 4) & 0xf, tmp & 0xf , c1)
+    b2       += tmp
+    log.debugf("SBC   : b2+ar2  : %04x %4b %4b %4b %4b C : %t", b2 , (b2  >> 12) & 0xf, (b2  >> 8) & 0xf, (b2  >> 4) & 0xf, b2  & 0xf , c1)
+    b2       +=       0x0100 if  bc1        else 0
+    bc2      := b2 >  0x0f00                         //                         (b1 & 0x1000 == 0x1000)
+    log.debugf("SBC   : b2+ar2+c: %04x %4b %4b %4b %4b C : %t", b2 , (b2  >> 12) & 0xf, (b2  >> 8) & 0xf, (b2  >> 4) & 0xf, b2  & 0xf , c1)
+
+    d2        = b2  & 0x0f00
+    d2       -=       0x0600 if !bc2 & f.D  else 0
+    //d2       -=       0x0100 if  dc1 & f.D  else 0
+    //dc2      := d2  > 0x0F00
+    dc2      := d2 < 0x1000
+    d2       &=       0x0f00
+
+    // ------------------------------------------------------------------------
+    // 4bits: sum, carry and digital correction
+    b3        = ar1 & 0xf000
+    tmp       = ar2 & 0xf000
+    tmp      ~=       0xf000
+
+    b3       += tmp
+    b3       +=       0x1000 if  bc2        else 0
+    bc3      := b3 >  0xf000                         //                         (b1 & 0x10000 == 0x10000)
+
+    d3        = b3  & 0xf000
+    d3       -=       0x6000 if !bc3 & f.D  else 0
+    //d3       -=       0x1000 if  dc2 & f.D  else 0
+    //dc3      := d3  > 0xF000
+    dc3      := d3 < 0x10000
+    d3       &=       0xf000
+
+    f.C       = bc3
+    a.val     = u16(d3 | d2 | d1 | d0)
+    f.V       = test_v(a.size, ar1, ~ar2, b3)  // V from binary sum
+    f.N       = test_n( a )
+    f.Z       = test_z( a )
+
+}
+
+oper_SBC_65C02_ok                :: #force_inline proc (using c: ^CPU_65xxx) { 
     log.debugf("SBC   : ----------------------------")
     ar1      := u32(read_r( a, a.size ))
     ar2      := u32(read_m(ab, a.size ))
@@ -2002,37 +2007,30 @@ oper_SBC_65C02              :: #force_inline proc (using c: ^CPU_65xxx) {
 // 4d. If AL < 0, then A = A - $06
 // 4e. The accumulator result is the lower 8 bits of A
 
-
     // byte ----------------------------------------------------------
     // 4bits: sum, carry and digital correction
     b0        = ar1 & 0x000f
     b0       -= ar2 & 0x000f
     b0       -=       0x0000  if f.C    else 0x0001
     c0        = b0  < 0x0010
-    log.debugf("SBC   : b0 : %02x c0 : %t", b0, c0)
+    d0        = b0  & 0x000f
 
     b1        = ar1 & 0x00f0
     b1       -= ar2 & 0x00f0
     b1       -=       0x0000  if c0     else 0x0010
     c1        = b1  < 0x0100
-    log.debugf("SBC   : b1 : %02x c1 : %t", b1, c1)
+    d1        = b1  & 0x00f0
 
     if f.D {
-    b0       &=        0x000f
-    d0        = (b0  - 0x0006) if !c0   else b0
-    dc0      := d0  < 0x0010
-    d0       &=       0x000f
-    log.debugf("SBC   : d0 : %02x dc0: %t", d0, dc0)
+        d0       -=       0x0006 if !c0   else 0
+        dc0      := d0  < 0x0010
+        d0       &=       0x000f
 
-    d1        = (b1  - 0x0060) if !c1   else b1
-    d1        = (d1  - 0x0010) if !dc0  else d1
-    d1       &=       0x00f0
-    log.debugf("SBC   : d1 : %02x val: %02x ", d1, d1|d0)
-    } else {
-        d0 = b0 & 0x000f
-        d1 = b1 & 0x00f0
-    }
-
+        d1       -=       0x0060 if !c1   else 0
+        d1       -=       0x0010 if !dc0  else 0
+        dc1      := d1  < 0x0100
+        d1       &=       0x00f0
+    } 
 
     if a.size == byte {
         f.C       = c1
@@ -2043,39 +2041,13 @@ oper_SBC_65C02              :: #force_inline proc (using c: ^CPU_65xxx) {
         return
     } 
 
-    // word ----------------------------------------------------------
-    // 4bits: sum, carry and digital correction 
-    b2        = ar1 & 0x0f00
-    b2       -= ar2 & 0x0f00
-    b2       -=       0x0100  if ! f.C     else 0
-    
-    decc      = b2  > 0x0900
-    binc      = b2  > 0x0f00                              
-    f.C       = decc | binc   if f.D       else binc      
-    
-    d2        = b2
-    d2       -=       0x0600  if f.D & f.C else 0
-    d2       &=       0x0f00
-
-    // 4bits: sum, carry and digital correction 
-    b3        = ar1 & 0xf000
-    b3       -= ar2 & 0xf000
-    b3       -=       0x1000  if ! f.C     else 0
-    
-    decc      = b3  > 0x9000
-    binc      = b3  > 0xf000
-    f.C       = decc | binc   if f.D       else binc
-    
-    d3        = b3
-    d3       -=       0x6000  if f.D & f.C else 0
-    d3       &=       0xf000
-
-    a.val     = u16(d3 | d2 | d1 | d0)
-    f.V       = test_v( a.size, ar1, ar2, b3 )      // V from binary sum
-    f.N       = test_n( a )
-    f.Z       = test_z( a )
+    //a.val     = u16(d3 | d2 | d1 | d0)
+    //f.V       = test_v( a.size, ar1, ar2, b3 )      // V from binary sum
+    //f.N       = test_n( a )
+    //f.Z       = test_z( a )
 
 }
+
 
 // ADC/SBC requires more attention and works better when nybble-like adder
 // is created, but for now it looks like...
@@ -2143,17 +2115,9 @@ oper_SBC_65C0a2              :: #force_inline proc (using c: ^CPU_65xxx) {
         f.Z       = test_z( a )
     }
 
-    /*
-    log.debugf("SBC out: %s %s %s %02x",
-      "n" if f.N else ".",
-      "v" if f.V else ".",
-      "z" if f.Z else ".",
-      a.val,
-    )
-    */
 }
 
-oper_SBC                     :: #force_inline proc (using c: ^CPU_65xxx) { 
+oper_SBC_older                     :: #force_inline proc (using c: ^CPU_65xxx) { 
     if f.D == false {
         data1    := u32(read_r(a, a.size ))
         tmp      := data1

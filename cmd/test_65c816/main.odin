@@ -299,6 +299,7 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, mode: string, 
     test_cycles :  int
     for test in tests {
         prepare_test(p, test.initial)
+        //if c.f.D do continue // skip decimal
         for {
             c->run(0)
             if (!c.in_mvn) && (!c.in_mvp) do break
@@ -326,13 +327,13 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, mode: string, 
 
 
 
-main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
+step_test :: proc(p: ^platform.Platform) -> (ok: bool) {
 
     codes :: [?]string { 
-        "61", "63", "65", "67", "69", "6d", "6f",           // adc
-        "71", "72", "73", "75", "77", "79", "7d", "7f",     // adc
         "e1", "e3", "e5", "e7", "e9", "ed", "ef",           // sbc
         "f1", "f2", "f3", "f5", "f7", "f9", "fd", "ff",     // sbc
+        //"61", "63", "65", "67", "69", "6d", "6f",           // adc
+        //"71", "72", "73", "75", "77", "79", "7d", "7f",     // adc
     }
 
     codes2 :: [?]string {
@@ -390,15 +391,60 @@ main_loop :: proc(p: ^platform.Platform) -> (err: bool) {
     tests_count  := len(codes) * 2
     current_test := 1
     for name in codes {
-        do_test(p, current_test, tests_count, "n", name) or_break
+        do_test(p, current_test, tests_count, "n", name) or_return
         current_test += 1
-        do_test(p, current_test, tests_count, "e", name) or_break
+        do_test(p, current_test, tests_count, "e", name) or_return
         current_test += 1
     }
 
-    return
+    return true
 }
 
+math_test :: proc(p: ^platform.Platform) -> (ok: bool) {
+    f, error := os.open("data/6502_decimal_test-65c816.bin")
+    if error != nil {
+        log.error("error opening file: ", error)
+        return false
+    }
+
+    _, error  = os.read(f, p.bus.ram0.data[:])
+    if error != nil {
+        log.error("Error reading user input: ", error)
+        return false
+    }
+    os.close(f)
+
+    c    := &p.cpu.model.(cpu.CPU_65xxx)
+    c->reset()
+    c.sp.addr = 0xFF
+    c->setpc(0x400)
+    for {
+        c->run(3000)
+        if c.abort do break
+    }
+
+    status := p.bus.ram0->read(.bits_8, 0x0b)
+    if status == 0 {
+        log.infof("6502_decimal_test passed (%02x)", status)
+    } else {
+        log.errorf("6502_decimal_test failed (%02x): %s%s%s%s %04x",
+            status,
+            "n" if c.f.N else ".",
+            "v" if c.f.V else ".",
+            "z" if c.f.Z else ".",
+            "c" if c.f.C else ".",
+            cpu.read_r( c.a, c.a.size ),
+        )
+        return false
+    }
+    return true
+}
+
+all_tests :: proc(p: ^platform.Platform) -> (ok: bool) {
+    step_test(p) or_return
+    math_test(p) or_return
+    return true
+}
 
 main :: proc() {
     logger_options := log.Options{.Level};
@@ -409,7 +455,7 @@ main :: proc() {
     p := platform.test816_make()
     
     // running ----------------------------------------------------------
-    main_loop(p)
+    all_tests(p)
 
     // exiting ----------------------------------------------------------
     p->delete()

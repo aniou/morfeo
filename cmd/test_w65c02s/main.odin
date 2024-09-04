@@ -263,6 +263,7 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, name: int) -> 
 
     for test in tests {
         prepare_test(p, test.initial)
+        //if c.f.D do continue // skip decimal
         for {
             c->run(0)
             if (!c.in_mvn) && (!c.in_mvp) do break
@@ -303,7 +304,7 @@ step_test :: proc(p: ^platform.Platform) -> (ok: bool) {
 
     codes :: [?]int {
         0xE9, 0xE5, 0xF5, 0xED, 0xFD, 0xF9, 0xE1, 0xF1, 0xF2, // SBC
-        //0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71, 0x72, // ADC
+        0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71, 0x72, // ADC
     }
     codes2 :: [?]int {
         0x54,                                               // 
