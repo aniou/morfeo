@@ -145,7 +145,7 @@ CPU_65xxx :: struct {
     // especially for adder implementation
     b0, b1, b2, b3: u32,   // binary sum for 4bit operation
     d0, d1, d2, d3: u32,   // binary sum after decimal correction, as above
-    c0, c1, c2, c3: bool,  // carry for particular adders
+    c0, c1, c2, c3: bool,  // carry for particular adders: XXX not used besides debug
     decc, binc:     bool,  // temporary, binary and digital carries
 }
 
