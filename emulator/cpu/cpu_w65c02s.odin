@@ -51,7 +51,7 @@ make_w65c02s :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.all_cycles = 0
 
     c             := CPU_65xxx{cpu = cpu, type = CPU_65xxx_type.W65C02S}
-    c.real6502     = true
+    c.real65c02    = true
     c.a            = DataRegister_65xxx{size = byte}
     c.x            = DataRegister_65xxx{size = byte}
     c.y            = DataRegister_65xxx{size = byte}

@@ -425,9 +425,9 @@ math_test :: proc(p: ^platform.Platform) -> (ok: bool) {
 
     status := p.bus.ram0->read(.bits_8, 0x0b)
     if status == 0 {
-        log.infof("6502_decimal_test passed (%02x)", status)
+        log.infof("65c816_decimal_test passed (%02x)", status)
     } else {
-        log.errorf("6502_decimal_test failed (%02x): %s%s%s%s %04x",
+        log.errorf("65c818_decimal_test failed (%02x): %s%s%s%s %04x",
             status,
             "n" if c.f.N else ".",
             "v" if c.f.V else ".",

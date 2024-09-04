@@ -49,7 +49,7 @@ make_w65c816 :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.all_cycles = 0
 
     c             := CPU_65xxx{cpu = cpu, type = CPU_65xxx_type.W65C816S}
-    c.real6502     = false
+    c.real65c02    = false
     c.a            = DataRegister_65xxx{}
     c.x            = DataRegister_65xxx{}
     c.y            = DataRegister_65xxx{}

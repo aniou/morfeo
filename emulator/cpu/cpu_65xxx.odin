@@ -132,7 +132,7 @@ CPU_65xxx :: struct {
     stall:    u32,                // number of cycles to wait to execute current (ir) command
     state:    CPU_65xxx_state,   // current CPU state
     wdm:      bool,               // support for non-standard WDM (0x42) command?
-    real6502: bool,               // flag for cases when is a difference
+    real65c02: bool,               // flag for cases when is a difference
                                   // between E(mulated) mode nad real hw
 
     // only for MVN/MVP support
@@ -605,7 +605,7 @@ mode_Absolute_X                :: #force_inline proc (using c: ^CPU_65xxx) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )
     ab.bank   = dbr
-    ab.bwrap  = true if real6502 else false
+    ab.bwrap  = true if real65c02 else false
     ab.index  = x.val
     px        = test_p( ab )
     pc.addr  += 2
@@ -623,7 +623,7 @@ mode_Absolute_Y                :: #force_inline proc (using c: ^CPU_65xxx) {
     pc.addr  += 1
     ab.addr   = read_m( pc, word )
     ab.bank   = dbr
-    ab.bwrap  = true if real6502 else false
+    ab.bwrap  = true if real65c02 else false
     ab.index  = y.val
     px        = test_p( ab )
     pc.addr  += 2
@@ -1217,7 +1217,7 @@ oper_BRK                    :: #force_inline proc (using c: ^CPU_65xxx) {
     }
 
     tw.val    = pc.addr
-    tw.val   += 1 if !real6502 else 0       // specification say "+2" for 65c816 but mode_ already sets +1
+    tw.val   += 1 if !real65c02 else 0       // specification say "+2" for 65c816 but mode_ already sets +1
     _         = push_r( sp, tw      )
     sp.addr   = subu_r( sp, tw.size )
 
@@ -1814,7 +1814,7 @@ oper_RTI                    :: #force_inline proc (using c: ^CPU_65xxx) {
         pc.bank   = pull_v( sp, byte )
         sp.addr   = addu_r( sp, byte )
     } else {
-        cycles   -= 1 if ! real6502 else 0
+        cycles   -= 1 if ! real65c02 else 0
     }
     
 }
@@ -1907,19 +1907,18 @@ oper_SBC              :: #force_inline proc (using c: ^CPU_65xxx) {
 
     // byte ----------------------------------------------------------
     // 4bits: sum, carry and digital correction
-    b0        = ar1 & 0x000f                         // step 1b: prepare arguments
+    b0        = ar1 & 0x000f                                  // step 1b: prepare arguments
     tmp      := ar2 & 0x000f
     tmp      ~=       0x000f
 
-    b0       += tmp                                  // step 2 : add values
-    b0       +=       0x0001 if  f.C        else 0   // step 3 : add carry
-    bc0      := b0 >  0x000f                         // step 4b: check carry    (b0 & 0x10 == 0x10)
+    b0       += tmp                                           // step 2 : add values
+    b0       +=       0x0001 if  f.C                   else 0 // step 3 : add carry
+    bc0      := b0 >  0x000f                                  // step 4b: check carry    (b0 & 0x10 == 0x10)
 
-    d0        = b0  & 0x000f                         // step 5b: digital correction
-    d0       -=       0x0006 if !bc0 & f.D  else 0   //
-    d0       -=       0x0001 if  dc0 & f.D  else 0   // step 5c: additional digital carry (no-op in 1st)
-    //dc0       = d0  > 0x000F                         //                         (d0 & 0x10 == 0x10)
-    dc0      = d0 < 0x0010
+    d0        = b0  & 0x000f                                  // step 5b: digital correction
+    d0       -=       0x0006 if !bc0 & f.D             else 0 
+    d0       -=       0x0001 if  dc0 & f.D & real65c02 else 0 // step 5c: additional digital carry (no-op in 1st)
+    dc0       = d0  > 0x000F                                  //                         (d0 & 0x10 == 0x10)
     d0       &=       0x000f
 
     // ------------------------------------------------------------------------
@@ -1929,14 +1928,13 @@ oper_SBC              :: #force_inline proc (using c: ^CPU_65xxx) {
     tmp      ~=       0x00f0
 
     b1       += tmp
-    b1       +=       0x0010 if  bc0        else 0
-    bc1      := b1 >  0x00f0                         //                         (b1 & 0x100 == 0x100)
+    b1       +=       0x0010 if  bc0                   else 0
+    bc1      := b1 >  0x00f0 
 
     d1        = b1  & 0x00f0
-    d1       -=       0x0060 if !bc1 & f.D  else 0
-    //d1       -=       0x0010 if  dc0 & f.D  else 0   // step 5c: additional digital carry
-    //dc1      := d1  > 0x00F0
-    dc1      := d1 < 0x0100
+    d1       -=       0x0060 if !bc1 & f.D             else 0
+    d1       -=       0x0010 if  dc0 & f.D & real65c02 else 0   // step 5c: additional digital carry
+    dc1      := d1  > 0x00F0
     d1       &=       0x00f0
 
     if a.size == byte {
@@ -1952,22 +1950,16 @@ oper_SBC              :: #force_inline proc (using c: ^CPU_65xxx) {
     // 4bits: sum, carry and digital correction
     b2        = ar1 & 0x0f00
     tmp       = ar2 & 0x0f00
-    log.debugf("SBC   : tmp     : %04x %4b %4b %4b %4b C : %t", tmp, (tmp >> 12) & 0xf, (tmp >> 8) & 0xf, (tmp >> 4) & 0xf, tmp & 0xf , c1)
     tmp      ~=       0x0f00
 
-    log.debugf("SBC   : b2      : %04x %4b %4b %4b %4b C : %t", b2 , (b2  >> 12) & 0xf, (b2  >> 8) & 0xf, (b2  >> 4) & 0xf, b2  & 0xf , c1)
-    log.debugf("SBC   : ~tmp    : %04x %4b %4b %4b %4b C : %t", tmp, (tmp >> 12) & 0xf, (tmp >> 8) & 0xf, (tmp >> 4) & 0xf, tmp & 0xf , c1)
     b2       += tmp
-    log.debugf("SBC   : b2+ar2  : %04x %4b %4b %4b %4b C : %t", b2 , (b2  >> 12) & 0xf, (b2  >> 8) & 0xf, (b2  >> 4) & 0xf, b2  & 0xf , c1)
-    b2       +=       0x0100 if  bc1        else 0
-    bc2      := b2 >  0x0f00                         //                         (b1 & 0x1000 == 0x1000)
-    log.debugf("SBC   : b2+ar2+c: %04x %4b %4b %4b %4b C : %t", b2 , (b2  >> 12) & 0xf, (b2  >> 8) & 0xf, (b2  >> 4) & 0xf, b2  & 0xf , c1)
+    b2       +=       0x0100 if  bc1                   else 0
+    bc2      := b2 >  0x0f00
 
     d2        = b2  & 0x0f00
-    d2       -=       0x0600 if !bc2 & f.D  else 0
-    //d2       -=       0x0100 if  dc1 & f.D  else 0
-    //dc2      := d2  > 0x0F00
-    dc2      := d2 < 0x1000
+    d2       -=       0x0600 if !bc2 & f.D             else 0
+    d2       -=       0x0100 if  dc1 & f.D & real65c02 else 0
+    dc2      := d2  > 0x0F00
     d2       &=       0x0f00
 
     // ------------------------------------------------------------------------
@@ -1977,14 +1969,13 @@ oper_SBC              :: #force_inline proc (using c: ^CPU_65xxx) {
     tmp      ~=       0xf000
 
     b3       += tmp
-    b3       +=       0x1000 if  bc2        else 0
-    bc3      := b3 >  0xf000                         //                         (b1 & 0x10000 == 0x10000)
+    b3       +=       0x1000 if  bc2                   else 0
+    bc3      := b3 >  0xf000
 
     d3        = b3  & 0xf000
-    d3       -=       0x6000 if !bc3 & f.D  else 0
-    //d3       -=       0x1000 if  dc2 & f.D  else 0
-    //dc3      := d3  > 0xF000
-    dc3      := d3 < 0x10000
+    d3       -=       0x6000 if !bc3 & f.D             else 0
+    d3       -=       0x1000 if  dc2 & f.D & real65c02 else 0
+    dc3      := d3  > 0xF000
     d3       &=       0xf000
 
     f.C       = bc3
