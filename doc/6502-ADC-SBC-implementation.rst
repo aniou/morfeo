@@ -21,8 +21,8 @@ In this document I want to show a my attempt to achieve balance between
 mathematical abstract of BCD algorithm, like in [Clar2016]_ and strict
 simulation of individual logic gates. I want code, that should be self
 -documenting and reflects logical steps and blocks of CPU but is also
-readable and because of that we are doing a simple math ('+') in place
-of series XOR's on particular bits.
+readable - and because of that I'm doing, for example, a simple math 
+('+') in place of series XOR's on particular bits.
 
 Some basics
 -------------------------------------------------------------------------------
@@ -33,21 +33,23 @@ gratings. In 6502 we have a two 4-bit adders, probably 65C816 has four,
 because of support of 16-bit numbers, but there is no available schemas of
 65C02/65C816 because of intellectual property protection.
 
-.. note:: Those, interested in details should take a look at article about MOS 
+.. Note:: Those, interested in details should take a look at article about MOS 
           Binary/BCD adder patent [Sang2019]_ and at patent itself: [6502adder]_.
 
 The subtraction operation is possible due to specific property of binary system:
-the subtraction of two arguments: ``arg1`` - ``arg2`` may be replaced by addition 
-of ``arg1`` and `two's complement`_ of ``arg2``.
+the subtraction of two arguments: ``ar1`` - ``ar2`` may be replaced by addition 
+of ``ar1`` and `two's complement`_ of ``ar2``.
 
 Procedure of calculation two's complement is simple: we need to flip (invert) all
 bits in argument and then **add one to that argument**, ignoring any overflow, so
-operation like ``09 - 02`` we can implement in following way::
+operation like ``09 - 02`` we can implement in following way:
 
-  arg1 (09)      : 1001   <= our first argument
-  arg2 (02)      : 0010
-  arg2 xor F     : 1101
-  arg2 xor F + 1 : 1110   <= our second argument
+Preparing arguments::
+
+  ar1 (09)      : 1001   <= our first argument
+  ar2 (02)      : 0010
+  ar2 xor F     : 1101
+  ar2 xor F + 1 : 1110   <= our second argument
 
 Math::
 
@@ -68,10 +70,6 @@ Following routines passes all available tests ([SSTest]_, [6502func-ca65]_) for
 65C02 and 65C816 in native and emulation mode. They were not tested on MOS6502
 behaviour, although there is a possibility to improve that situation in future.
 
-Just for convenience we use a 32-bit variables for 16-bit (65c816) operations,
-because it is easy to test overflow (carry) by testing bit 9 or 17 (for 16bit), 
-thus we need vars of size larger that size of arguments.
-
 Variables
 -------------------------------------------------------------------------------
 b0-b3
@@ -79,7 +77,8 @@ b0-b3
 
 d0-d3
   Result of decimal correction (if required) or simply copy of ``b0-b3``
-  result, it represents a block diagram of adder: adder -> correction -> A
+  result.
+  It reassembles a block flow from patent: ``adder -> correction -> A``
 
 bc0-bc3
   Binary Carry status
@@ -90,17 +89,18 @@ dc0-dc3
   a) decimal add
   
   b) additional decimal carry in subtract on physical 65C02 (but not on
-     emulated one!)
+     65C816 in emulation mode)
 
 real6502
-  Emulator-specific variable that denotes "real" 65C02 not emulated-one,
-  is has meaning for digital carry application, specific for that one model
+  Emulator-specific variable that denotes "real" 65C02 and not 65C816 in
+  emulation mode, is has meaning for digital carry application, specific 
+  for that specific model
 
 f.D, f.C, f.N, f.Z
   CPU status flags
 
-r.A
-  A register (accumulator)
+A
+  Accumulator, i.e. A register
 
 Coding convention
 -------------------------------------------------------------------------------
@@ -110,24 +110,85 @@ pseudocode.
 
 The routines uses a simple coding convention, when syntax like ``a += 1`` 
 means ``a = a + 1`` and operators like ``&``, ``|``, ``~`` correspond to
-bitwise ``and``, ``or`` and ``xor``.
+bitwise ``and``, ``or`` and ``xor``. A construct ``u16(...)`` means *cast
+to 16-bit unsigned int*.
 
-There are number of operations like ``b0 &= 0x000f`` when we are clearing
-unused bits that have no equivalent in CPU but are necessary in general
-programming language with variables larger than 4-bits.
+Just for convenience we use a 32-bit variables for 16-bit (65c816) operations,
+because it is easy to test overflow (carry) by testing bit 9 (for 8bit) or 17
+(for 16bit operations), thus we need vars of size larger that size of
+arguments. Because of that there are number of operations like ``b0 &= 0x000f``
+when we are clearing unused bits. They haven't equivalent in CPU, but they are
+necessary in general programming language, when we use a variables larger in
+size.
 
-The code itself is a more redundant that is may be, but I wanted to show
-clear and very simple path of doing things.
-
-A single conditional in form ``val1  if   condition  else val2`` should be
-read as: `if condition is true use val1 - else use val2`. In some cases
+A single conditional in form ``val1  if  condition  else  val2`` should be
+read as: *if condition is true use val1 - else use val2*. In some cases
 code like ``b0 += 0x0006 if something else 0`` may be replaced by more
 familiar ``if something { b0 += 0x0006 }`` but former construct provides
 more - in my opinion - pleasant notation: more regular, more like a set 
 of assembly instructions.  It is only a matter of aesthetics, though.
 
+Numbers at left denotes a footnote about specific part of code, see text
+below listing.
+
+The code itself is a more redundant that is may be, but I wanted to show
+clear and very simple path of doing things. Those, interested in detailed
+emulation of real HW behaviour shoult take a look at notes in `More accurate
+emulation`_
+
 ADC
 -------------------------------------------------------------------------------
+
+ ::
+
+        ar1       = [first argument]
+        ar2       = [second argument]
+
+        // 1st adder ----------------------------------------------------------
+        // step 1: prepare arguments
+        b0        = ar1 & 0x000f
+  (1)   tmp       = ar2 & 0x00f0
+
+        // step 2: add values and carry
+        b1       +=       tmp
+        b0       +=       0x0001 if        f.C  else 0
+
+        // step 3: check carry (digital and binary)
+  (2)   dc0       = b0  > 0x0009
+        bc0       = b0  > 0x000f
+        f.C       = bc0  | dc0   if f.D         else bc0
+
+        // step 4: digital correction
+        d0        = b0  & 0x000f
+  (3)   d0       +=       0x0006 if f.D & f.C   else 0
+        d0       &=       0x000f
+
+
+        // 2nd adder ----------------------------------------------------------
+        // step 1: prepare arguments
+  (4)   b1        = ar1 & 0x00f0
+        tmp       = ar2 & 0x00f0
+
+        // step 2: add values and carry
+        b1       += tmp
+        b1       +=       0x0010  if       f.C  else 0
+
+        // step 3: check carry (digital and binary)
+        dc1       = b1  > 0x0090
+        bc1       = b1  > 0x00f0
+        f.C       = bc1  | dc1    if f.D        else bc1
+
+        // step 4: digital correction
+        d1        = b1  & 0x000f
+        d1       +=       0x0060  if f.D & f.C  else 0
+        d1       &=       0x00f0
+
+        
+        // final     ----------------------------------------------------------
+        A         = u16(d1 | d0)
+        f.V       = test_v(a.size, ar1, ar2, b1)  // V from binary sum
+        f.N       = A  &  0x0080 == 0x0080
+        f.Z       = A            == 0x0000
 
 SBC
 -------------------------------------------------------------------------------
@@ -138,7 +199,7 @@ SBC
     ar2      := [8 bit value]
 
     // first 4 bits -----------------------------------------------------------
-    // step 1b: prepare arguments
+    // step 1: prepare arguments
     b0        = ar1 & 0x000f
     tmp      := ar2 & 0x000f
     tmp      ~=       0x000f
@@ -183,7 +244,7 @@ SBC
 
 
 
-More accurate emulation of process
+More accurate emulation
 -------------------------------------------------------------------------------
 
 
