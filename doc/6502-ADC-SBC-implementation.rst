@@ -6,6 +6,8 @@ Implementation of ADC and SBC operands on 65C02/65C816 family
 :Author:  Piotr Meyer
 :Contact: [firstname.lastname]@gmail.com
 :Address: https://github.com/aniou/morfeo/
+:Date:    2023-09-07
+:Version: 1.1
 
 Introduction
 -------------------------------------------------------------------------------
@@ -32,6 +34,14 @@ that operation: set of binary adders alongside with two decimal correction
 gratings. In 6502 we have a two 4-bit adders, probably 65C816 has four,
 because of support of 16-bit numbers, but there is no available schemes of
 65C02/65C816 due to intellectual property protection.
+
+Fortunately, there is a block diagram from U.S. Patent 3,991,307 (1976),
+that describes general adder, carry and decimal correction gratings. It
+is a good place to start:
+
+.. figure:: 6502-mos-adder-block-patent.png
+
+   U.S. Patent US-3991307-A (1976/11/09) Sheet 1 of 3
 
 .. Note:: Those, interested in details should take a look at article about MOS 
           Binary/BCD adder patent [Sang2019]_ and at patent itself: [6502adder]_.
