@@ -141,17 +141,18 @@ familiar ``if something { b0 += 0x0006 }`` but former construct provides
 more - in my opinion - pleasant notation: more regular, more like a set 
 of assembly instructions.  It is only a matter of aesthetics, though.
 
-The code itself is a more redundant then it needs, but I wanted to show
-clear and very simple path of doing things. Those, interested in detailed
+The code itself is more redundant than it needs, but I wanted to show
+clear and very simple way of doing things. Those, interested in detailed
 emulation of real HW behaviour should take a look at notes in `More accurate
 emulation`_
 
 ADC
 -------------------------------------------------------------------------------
-In following code is visually divided on two (or four for 16-bit operations)
-adders, responsible for operation on 4-bit values. It is clearly visible from
-masks and arguments in particular steps: ``0x000f`` means *lowest 4bit nybble*,
-``0x00f0`` means *next nybble* and so on, through ``0x0f00`` to ``0xf000``.
+Following code is visually divided on two adders (or four for 16-bit
+operations), responsible for operation on 4-bit values. It is clearly visible
+from masks and arguments in particular (described above) steps: ``0x000f``
+means *lowest 4bit nybble*, ``0x00f0`` means *next nybble* and so on, through
+``0x0f00`` to ``0xf000``.
 
 The same is with carry calculation or decimal correction, when ``0x0006`` is
 added (or subtracted) from lowest nybble, then ``0x0060`` on next and so on.
@@ -217,33 +218,33 @@ emulation of very accurate hardware layout) merged into single procedure,
 although in that case one should consider providing additional, separate bools:
 ``DAA`` for signal *decimal add operation* and ``DSA`` for *decimal subtract*.
 
-First difference we can see is in preparing arguments. ``SBC`` routine make 
+First difference we can see is in preparing arguments. ``SBC`` routine makes 
 a bit flip of second argument (like ALU in 6502). That gives us a **one's 
 complement** of argument, not **two's complement** required for successful
 replacement subtraction by addition (see: `Some basics`_ section).
 
 It is a decision of CPU creators and specific trait of that processor: one must
 manually set ``C`` flag before subtraction, otherwise product will be less by 
-one than expected. In cost of single command it allows to chains ``ADC/SBC``
+one than expected. At cost of a single command it allows to chain ``ADC/SBC``
 commands to operate on larger numbers and spare a fistful of logic gates.
 
-In my code I deliberately choose conformation to hardware behaviour and step
+In my code I deliberately chose conformation to hardware behaviour and step
 1 in both routines looks the same: add arguments then add a Carry.
 
 Step 2 is different - in 6502 `patent`_ we can see that combining binary and
-decimal carry is inhibited when ``DAA`` line is low, thus - for subtracting only
-binary carry is used. I can replicate that in code in expense for extra conditions
-but I choose simpler approach.
+decimal carry is inhibited when ``DAA`` line is low, thus - for subtracting
+only binary carry is used. I can replicate that in code at expense of extra
+conditionals, but I chose simpler approach.
 
-Step 3 is also different from ``ADC`` and from rest of code. I deliberately
-choose subtraction operation ``-6`` in place of real ``+10`` for decimal
+Step 3 is also different from ``ADC`` and from the rest of code. I deliberately
+chose subtraction operation ``-6`` in place of real ``+10`` for decimal
 correction, because even if former is conform with real hardware, it also
-introduces unnecessary complexity for reader. Step 1 and 2 are visible to
-programmer, because of requirements of setting ``C`` flag before operation:
+introduces unnecessary complexity for reader. Step 1 and 2 are visible to 
+a programmer, because of requirements of setting ``C`` flag before operation:
 internals of decimal correction are hidden.
 
 In that step there is also additional code - calculation of decimal carry
-(``dc*``) after decimal correction and propagation to next adder.
+(``dc0``) after decimal correction and propagation to next adder.
 
 It is a behaviour described and observed on "real" 65C02 chips and doesn't
 exists in emulated mode of 65C816. Because of that an extra variable
@@ -305,14 +306,14 @@ More accurate emulation
 -------------------------------------------------------------------------------
 As it was said: there is one set of adders/decimal correction gratings and so 
 on for both ``SBC`` and ``ADC`` operations. There are some notes for those, who 
-want are interested in most compatible emulation (or even simulation) of 6502:
+are interested in most compatible emulation (or even simulation) of 6502:
 
 1. First of all - take a look at Kevin's article *"The MOS 6502’s Parallel Binary
-   /BCD Adder patent"* [Sang2019]_ and `patent`_ itself, because that documents 
+   /BCD Adder patent"* [Sang2019]_ and `patent`_ itself, because those documents 
    show, how to calculate sum and carries by gate operations (XOR, AND, NOT...), 
    so there is a way to get rid every ``+=`` and ``-=`` from code.
 
-   There is also worthwhile to taking a look on a diagram from Dieter Mueller,
+   It is also worthwhile to take a look on a diagram from Dieter Mueller,
    [Muel2006]_ because it is a nice and simple way to show, how ``DSA`` and
    ``DAA`` flags may be combined with carry results.
 
@@ -330,13 +331,14 @@ want are interested in most compatible emulation (or even simulation) of 6502:
    because of that we need to emulate them as separate entities, not just boolean
    for *is this an add operation?*. 
 
-3. Both blocks can be easily merged into single routine or decomposed to 
-   routines. During my tests I took that approach but I realized, that it
-   has negative impact of simplicity and clarity, which were a priority for 
-   that project: tracking calls between routines and shifts *by 4, 8 and 12
-   bits* as well as additional variables is - in my opinion - more cumbersome
-   that simply looking at ``+ 0x0006`` and interpreting it with no time as 
-   *add 6 to first nybble*, ``+ 0x0060`` as *add 6 to second nybble* and so on.
+3. Both blocks can be easily merged into single routine or decomposed to
+   multiple, specialized routines. During my tests I took that approach but
+   then I realized, that it has negative impact on simplicity and clarity,
+   which were a priority for that project: tracking calls between routines and
+   shifts *by 4, 8 and 12 bits* as well as handling additional variables is
+   - in my opinion - more cumbersome that simply looking at ``+ 0x0006`` and
+   interpreting it with no time as *add 6 to first nybble*, ``+ 0x0060`` as
+   *add 6 to second nybble* and so on.
 
 
 Bibliography
