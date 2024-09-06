@@ -51,11 +51,15 @@ test_65c816:
 test_w65c02s:
 	odin build cmd/test_w65c02s $(build_flags)
 
-# two targets for debug purposes
+# targets for debug purposes
 run: $(musashi_objects)
-#	odin run cmd/a2560x $(build_flags) -- $(morfeo_args)
-#	odin run cmd/test_65c816 $(build_flags)
+	odin run cmd/a2560x $(build_flags) -- $(morfeo_args)
+
+r1: $(musashi_objects)
 	odin run cmd/test_w65c02s $(build_flags)
+
+r2: $(musashi_objects)
+	odin run cmd/test_65c816 $(build_flags)
 
 doc:
 	odin doc cmd/test_w65c02s/  $(odin_defs)
