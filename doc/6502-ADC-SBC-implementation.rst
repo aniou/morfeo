@@ -14,7 +14,7 @@ ones to emulate, thanks to BCD mode and subtle differences in handling
 in different flavours of CPU (6502, W65C02, 65C816 in both modes).
 
 Fortunately, there are numerous valuable documents, available in Internet,
-see "Bibliography" part - but available algorithms are still complicated
+see `Bibliography`_ part - but available algorithms are still complicated
 and there is a room to improve their clarity.
 
 In this document I want to show a my attempt to achieve balance between
