@@ -93,7 +93,7 @@ dc0-dc3
 real6502
   Emulator-specific variable that denotes "real" 65C02 and not 65C816 in
   emulation mode, is has meaning for digital carry application, specific 
-  for that specific model
+  for that particular model
 
 f.D, f.C, f.N, f.Z
   CPU status flags
