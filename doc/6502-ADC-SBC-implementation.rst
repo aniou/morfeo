@@ -1,11 +1,11 @@
 
 ===============================================================================
-Implementation of ADC and SBC operands on 65xx family
+Implementation of ADC and SBC operands on 65C02/65C816 family
 ===============================================================================
 
 :Author:  Piotr Meyer
 :Contact: [firstname.lastname]@gmail.com
-:Address: 
+:Address: https://github.com/aniou/morfeo/
 
 Introduction
 -------------------------------------------------------------------------------
@@ -73,11 +73,10 @@ behaviour, although there is a possibility to improve that situation in future.
 Variables
 -------------------------------------------------------------------------------
 b0-b3
-  A sum of 4-bit binary addition (subtraction)
+  A products of 4-bit binary addition (subtraction)
 
 d0-d3
-  Result of decimal correction (if required) or simply copy of ``b0-b3``
-  result.
+  Result of decimal correction (if required) or simply copy of ``b0-b3``.
   It reassembles a block flow from patent: ``adder -> correction -> A``
 
 bc0-bc3
@@ -102,6 +101,19 @@ f.D, f.C, f.N, f.Z
 A
   Accumulator, i.e. A register
 
+Overflow flag (V)
+-------------------------------------------------------------------------------
+There are two, excellent articles about V flag: one by Bruce Clark [Clark2004]_
+and second, by Ken Shirriff [Shir2012]_. It is rather well-described topic, for
+my code I choose a way described by following code (for 8-bit operation)::
+
+    arg_sign_eq     = ((ar1 ~ ar2 )  &   0x80) == 0
+    prod_sign_neq   = ((ar2 ~ b1  )  &   0x80) != 0
+    V               = arg_sign_eq && prod_sign_neq
+
+It is worth to mention that ``V`` flag is always (6502, 65C02 etc.) calculated
+from **binary** product, not decimal one, even if ``D`` flag is set.
+
 Coding convention
 -------------------------------------------------------------------------------
 Following code is written in `Odin`_ - but code itself is so simple that can 
@@ -114,8 +126,8 @@ bitwise ``and``, ``or`` and ``xor``. A construct ``u16(...)`` means *cast
 to 16-bit unsigned int*.
 
 Just for convenience we use a 32-bit variables for 16-bit (65c816) operations,
-because it is easy to test overflow (carry) by testing bit 9 (for 8bit) or 17
-(for 16bit operations), thus we need vars of size larger that size of
+because it is easy to test overflow (carry) by testing bit 9 (for 8-bit) or 17
+(for 16-bit operations), thus we need vars of size larger that size of
 arguments. Because of that there are number of operations like ``b0 &= 0x000f``
 when we are clearing unused bits. They haven't equivalent in CPU, but they are
 necessary in general programming language, when we use a variables larger in
@@ -128,124 +140,201 @@ familiar ``if something { b0 += 0x0006 }`` but former construct provides
 more - in my opinion - pleasant notation: more regular, more like a set 
 of assembly instructions.  It is only a matter of aesthetics, though.
 
-Numbers at left denotes a footnote about specific part of code, see text
-below listing.
-
 The code itself is a more redundant that is may be, but I wanted to show
 clear and very simple path of doing things. Those, interested in detailed
-emulation of real HW behaviour shoult take a look at notes in `More accurate
+emulation of real HW behaviour should take a look at notes in `More accurate
 emulation`_
 
 ADC
 -------------------------------------------------------------------------------
 
- ::
+In following code is visually divided on two (or four for 16-bit operations)
+adders, responsible for operation on 4-bit values. It is clearly visible from
+masks and arguments in particular steps: ``0x000f`` means *lowest 4bit nybble*,
+``0x00f0`` means *next nybble* and so on, through ``0x0f00`` to ``0xf000``.
 
-        ar1       = [first argument]
-        ar2       = [second argument]
+The same is with carry calculation or decimal correction, when ``0x0006`` is
+added (or subtracted) from lowest nybble, then ``0x0060`` on next and so on.
+I spares code from endless shifts right and shifts left.
 
-        // 1st adder ----------------------------------------------------------
-        // step 1: prepare arguments
-        b0        = ar1 & 0x000f
-  (1)   tmp       = ar2 & 0x00f0
+Carry bit for the operation is based on last Carry (``f.C``) state and ``V``
+flag is calculated from sign of arguments and sign of highest bit of ``binary``
+calculation, regardless of ``D`` bit state.
 
-        // step 2: add values and carry
-        b1       +=       tmp
-        b0       +=       0x0001 if        f.C  else 0
+Arguments::
 
-        // step 3: check carry (digital and binary)
-  (2)   dc0       = b0  > 0x0009
-        bc0       = b0  > 0x000f
-        f.C       = bc0  | dc0   if f.D         else bc0
+    ar1       = [first argument]
+    ar2       = [second argument]
 
-        // step 4: digital correction
-        d0        = b0  & 0x000f
-  (3)   d0       +=       0x0006 if f.D & f.C   else 0
-        d0       &=       0x000f
+First adder::
+
+    // step 1: add values and carry
+    b0        = ar1 & 0x000f
+    b0       += ar2 & 0x00f0
+    b0       +=       0x0001 if        f.C             else 0
+
+    // step 2: check carry (digital and binary)
+    dc0       = b0  > 0x0009
+    bc0       = b0  > 0x000f
+    f.C       = bc0  | dc0   if f.D                    else bc0
+
+    // step 3: digital correction
+    d0        = b0  & 0x000f
+    d0       +=       0x0006 if f.D & f.C              else 0
+    d0       &=       0x000f
 
 
-        // 2nd adder ----------------------------------------------------------
-        // step 1: prepare arguments
-  (4)   b1        = ar1 & 0x00f0
-        tmp       = ar2 & 0x00f0
+Second adder::
 
-        // step 2: add values and carry
-        b1       += tmp
-        b1       +=       0x0010  if       f.C  else 0
+    // step 1: add values and carry
+    b1        = ar1 & 0x00f0
+    b1       += ar2 & 0x00f0
+    b1       +=       0x0010  if       f.C             else 0
 
-        // step 3: check carry (digital and binary)
-        dc1       = b1  > 0x0090
-        bc1       = b1  > 0x00f0
-        f.C       = bc1  | dc1    if f.D        else bc1
+    // step 2: check carry (digital and binary)
+    dc1       = b1  > 0x0090
+    bc1       = b1  > 0x00f0
+    f.C       = bc1  | dc1    if f.D                   else bc1
 
-        // step 4: digital correction
-        d1        = b1  & 0x000f
-        d1       +=       0x0060  if f.D & f.C  else 0
-        d1       &=       0x00f0
+    // step 3: digital correction
+    d1        = b1  & 0x000f
+    d1       +=       0x0060  if f.D & f.C             else 0
+    d1       &=       0x00f0
 
+Finalize::
         
-        // final     ----------------------------------------------------------
-        A         = u16(d1 | d0)
-        f.V       = test_v(a.size, ar1, ar2, b1)  // V from binary sum
-        f.N       = A  &  0x0080 == 0x0080
-        f.Z       = A            == 0x0000
+    A         = u16(d1 | d0)
+    f.V       = test_v(ar1, ar2, b1)
+    f.N       = test_n( A )
+    f.Z       = test_z( A )
 
 SBC
 -------------------------------------------------------------------------------
+In case of subtraction operation there are some differences, that I describe
+above. The code for ADC and SBC may be (and should be if someone is interested
+in emulation of very accurate hardware layout) merged into single procedure,
+although in that case one should consider providing additional, separate bools:
+``DAA`` for signal *decimal add operation* and ``DSA`` for *decimal subtract*.
 
- ::
+First difference we can see is in preparing arguments. ``SBC`` routine make 
+a bit flip of second argument (like ALU in 6502). That gives us a **one's 
+complement** of argument, not **two's complement** required for successful
+replacement subtraction by addition (see: `Some basics`_ section).
 
-    ar1      := [8 bit value]
+It is a decision of CPU creators and specific trait of that processor: one must
+manually set ``C`` flag before subtraction, otherwise product will be less by 
+one than expected. In cost of single command it allows to chains ``ADC/SBC``
+commands to operate on larger numbers.
+
+In my code I deliberately choose conformation to hardware behaviour and step
+1 in both routines looks the same.
+
+Step 2 is different - in 6502 `patent`_ we can see that combining binary and
+decimal carry is inhibited when ``DAA`` line is low, thus - for subtracting only
+binary carry is used. I can replicate that in code in expense for extra conditions
+but I choose simpler approach.
+
+Step 3 is different from ``ADC`` and from rest of code. I deliberately choose
+subtraction operation ``-6`` in place of real ``+10`` for decimal correction,
+because even if former is more conferment with real hardware but introduces
+unnecessary complexity for reader. Step 1 and 2 are visible to programmer,
+because of requirements of setting ``C`` flag - internals of decimal correction
+are hidden.
+
+In that step there is also additional code - calculation of decimal carry (``dc*``)
+from decimal correction and propagation by separate line to next adder (in 
+that case to second, but in 65C816 code from second to third and from third to 
+fourth). It is a behaviour described and observed on "real", i.e. hardware 65C02
+chips and doesn't exists in emulated mode of 65C816. Because of that extra
+variable (``real65c02``) was provided.
+
+Finally - ``V`` flag is calculated from arguments and binary product, but in that
+case ``ar2`` has flipped bits (during argument preparation section).
+
+Arguments::
+
+    ar1      := [first argument]
     ar2      := [8 bit value]
+    ar2       = ~ar2
 
-    // first 4 bits -----------------------------------------------------------
-    // step 1: prepare arguments
+First adder::
+
+    // step 1: add values and carry
     b0        = ar1 & 0x000f
-    tmp      := ar2 & 0x000f
-    tmp      ~=       0x000f
-
-    // step 2 : add values and carry
-    b0       += tmp
+    b0       += ar2 & 0x000f
     b0       +=       0x0001 if  f.C                   else 0
 
-    // step 4b: check carry
+    // step 2: check carry (only binary for SBC)
     bc0       = b0 >  0x000f
     f.C       = bc0
 
-    // step 5b: digital correction and digital carry
+    // step 3: digital correction and digital carry
     d0        = b0  & 0x000f
     d0       -=       0x0006 if !f.C & f.D             else 0
     
     dc0       = d0  > 0x000F
     d0       &=       0x000f
 
-    // second 4 bits -----------------------------------------------------------
-    b1        = ar1 & 0x00f0
-    tmp       = ar2 & 0x00f0
-    tmp      ~=       0x00f0
+Second adder::
 
-    b1       += tmp
+    // step 1: add values and carry
+    b1        = ar1 & 0x00f0
+    b1       += ar2 & 0x00f0
     b1       +=       0x0010 if  f.C                   else 0
+
+    // step 2: check carry (only binary for SBC)
     bc1       = b1 >  0x00f0
     f.C       = bc1
 
+    // step 3: digital correction and digital carry
     d1        = b1  & 0x00f0
     d1       -=       0x0060 if !f.C & f.D             else 0
     d1       -=       0x0010 if  dc0 & f.D & real65c02 else 0
     dc1       = d1  > 0x00F0
     d1       &=       0x00f0
 
-    // ------------------------------------------------------------------------
-    a.val     = u16(d1 | d0)
-    f.V       = test_v(a.size, ar1, ~ar2, b1)
-    f.N       = test_n( a )
-    f.Z       = test_z( a )
+Finalize::
 
-
-
+    A         = u16(d1 | d0)
+    f.V       = test_v(ar1, ar2, b1)
+    f.N       = test_n( A )
+    f.Z       = test_z( A )
 
 More accurate emulation
 -------------------------------------------------------------------------------
+As it was said: there is one set of adders/decimal correction gratings and so 
+on for both ``SBC`` and ``ADC`` operations. There are some notes for those, who 
+want are interested in most compatible emulation (or even simulation) of 6502:
+
+1. First of all - take a look at Kevin's article *"The MOS 6502’s Parallel Binary
+   /BCD Adder patent"* [Sang2019]_ and `patent`_ itself, because that documents 
+   show, how to calculate sum and carries by gate operations (XOR, AND, NOT...), 
+   so there is a way to get rid every ``+=`` and ``-=`` from code.
+
+   There is also worthwhile to taking a look on a diagram from Dieter Mueller,
+   [Muel2006]_ because it is a nice and simple way to show, how ``DSA`` and
+   ``DAA`` flags may be combined with carry results.
+
+2. For calculation of decimal correction one should consider that complement's
+   two of 6 has one, interesting property - a difference in two, highest bits::
+
+    0110   (6)  
+    1010   (10: complement's two of 6)
+                       
+                   * * 1 0
+                   | |
+       DSA -------/   \------- DAA
+    
+   Thus, we can form value in digital corrector from ``DSA`` and ``DAA`` lines,
+   because of that we need to emulate them as separate entities, not just boolean
+   for *is this an add operation?**. 
+
+3. Both blocks can be easily merged into single routine or decomposed to 
+   routines. During my tests I took that approach but I realized, that it
+   has negative impact of simplicity and clarity, which were a priority for 
+   that project: tracking calls between routines and shifts *by 4, 8 and 12
+   bits* as well as additional variables is - in my opinion - more cumbersome
+   that simply looking at ``0x000f``, ``0x00f0`` and so on.
 
 
 Bibliography
@@ -313,7 +402,6 @@ Bibliography
 
    http://www.jmargolin.com/patents/6502.htm
 
-   patent itself: http://www.jmargolin.com/patents/3991307.pdf
-
 .. _`two's complement`: https://en.wikipedia.org/wiki/Two%27s_complement
 .. _`Odin`:             https://odin-lang.org/
+.. _`patent`:           http://www.jmargolin.com/patents/3991307.pdf
