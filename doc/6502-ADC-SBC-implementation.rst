@@ -20,9 +20,9 @@ and there is a room to improve their clarity.
 In this document I want to show a my attempt to achieve balance between
 mathematical abstract of BCD algorithm, like in [Clar2016]_ and strict
 simulation of individual logic gates. I want code, that will be 
-self-documenting and reflects logical steps and blocks of CPU but is also
-readable - and because of that I'm doing, for example, a simple math 
-('+') in place of series XOR's on particular bits.
+self-documenting and reflects logical steps and blocks of CPU, but is also
+readable. And because of that I'm choose, for example, a simple math 
+(like ``+`` or ``-``) in place of series of XOR's on particular bits.
 
 Some basics
 -------------------------------------------------------------------------------
