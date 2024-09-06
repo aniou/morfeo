@@ -125,9 +125,9 @@ means ``a = a + 1`` and operators like ``&``, ``|``, ``~`` correspond to
 bitwise ``and``, ``or`` and ``xor``. A construct ``u16(...)`` means *cast
 to 16-bit unsigned int*.
 
-Just for convenience we use a 32-bit variables for 16-bit (65c816) operations,
+Just for convenience I used a 32-bit variables for 16-bit (65c816) operations,
 because it is easy to test overflow (carry) by testing bit 9 (for 8-bit) or 17
-(for 16-bit operations), thus we need vars of size larger that size of
+(for 16-bit operations), thus it need vars of size larger that size of
 arguments. Because of that there are number of operations like ``b0 &= 0x000f``
 when we are clearing unused bits. They haven't equivalent in CPU, but they are
 necessary in general programming language, when we use a variables larger in
@@ -155,7 +155,7 @@ masks and arguments in particular steps: ``0x000f`` means *lowest 4bit nybble*,
 
 The same is with carry calculation or decimal correction, when ``0x0006`` is
 added (or subtracted) from lowest nybble, then ``0x0060`` on next and so on.
-I spares code from endless shifts right and shifts left.
+It spares code from endless right and left shifts.
 
 Carry bit for the operation is based on last Carry (``f.C``) state and ``V``
 flag is calculated from sign of arguments and sign of highest bit of ``binary``
@@ -170,7 +170,7 @@ First adder::
 
     // step 1: add values and carry
     b0        = ar1 & 0x000f
-    b0       += ar2 & 0x00f0
+    b0       += ar2 & 0x000f
     b0       +=       0x0001 if        f.C             else 0
 
     // step 2: check carry (digital and binary)
@@ -197,7 +197,7 @@ Second adder::
     f.C       = bc1  | dc1    if f.D                   else bc1
 
     // step 3: digital correction
-    d1        = b1  & 0x000f
+    d1        = b1  & 0x00f0
     d1       +=       0x0060  if f.D & f.C             else 0
     d1       &=       0x00f0
 
@@ -210,9 +210,9 @@ Finalize::
 
 SBC
 -------------------------------------------------------------------------------
-In case of subtraction operation there are some differences, that I describe
-above. The code for ADC and SBC may be (and should be if someone is interested
-in emulation of very accurate hardware layout) merged into single procedure,
+In case of subtraction operation there are some differences, described below:
+the code for ADC and SBC may be (and should be if someone is interested in
+emulation of very accurate hardware layout) merged into single procedure,
 although in that case one should consider providing additional, separate bools:
 ``DAA`` for signal *decimal add operation* and ``DSA`` for *decimal subtract*.
 
@@ -224,29 +224,29 @@ replacement subtraction by addition (see: `Some basics`_ section).
 It is a decision of CPU creators and specific trait of that processor: one must
 manually set ``C`` flag before subtraction, otherwise product will be less by 
 one than expected. In cost of single command it allows to chains ``ADC/SBC``
-commands to operate on larger numbers.
+commands to operate on larger numbers and spare a fistful of logic gates.
 
 In my code I deliberately choose conformation to hardware behaviour and step
-1 in both routines looks the same.
+1 in both routines looks the same: add arguments then add a Carry.
 
 Step 2 is different - in 6502 `patent`_ we can see that combining binary and
 decimal carry is inhibited when ``DAA`` line is low, thus - for subtracting only
 binary carry is used. I can replicate that in code in expense for extra conditions
 but I choose simpler approach.
 
-Step 3 is different from ``ADC`` and from rest of code. I deliberately choose
-subtraction operation ``-6`` in place of real ``+10`` for decimal correction,
-because even if former is more conferment with real hardware but introduces
-unnecessary complexity for reader. Step 1 and 2 are visible to programmer,
-because of requirements of setting ``C`` flag - internals of decimal correction
-are hidden.
+Step 3 is alsoe different from ``ADC`` and from rest of code. I deliberately
+choose subtraction operation ``-6`` in place of real ``+10`` for decimal
+correction, because even if former is conform with real hardware, it also
+introduces unnecessary complexity for reader. Step 1 and 2 are visible to
+programmer, because of requirements of setting ``C`` flag before operation:
+internals of decimal correction are hidden.
 
-In that step there is also additional code - calculation of decimal carry (``dc*``)
-from decimal correction and propagation by separate line to next adder (in 
-that case to second, but in 65C816 code from second to third and from third to 
-fourth). It is a behaviour described and observed on "real", i.e. hardware 65C02
-chips and doesn't exists in emulated mode of 65C816. Because of that extra
-variable (``real65c02``) was provided.
+In that step there is also additional code - calculation of decimal carry
+(``dc*``) after decimal correction and propagation to next adder (in that case
+to second, but in 65C816 code from second to third and from third to fourth).
+It is a behaviour described and observed on "real" 65C02 chips and doesn't
+exists in emulated mode of 65C816. Because of that an extra variable
+(``real65c02``) was provided.
 
 Finally - ``V`` flag is calculated from arguments and binary product, but in that
 case ``ar2`` has flipped bits (during argument preparation section).
@@ -290,7 +290,7 @@ Second adder::
     d1        = b1  & 0x00f0
     d1       -=       0x0060 if !f.C & f.D             else 0
     d1       -=       0x0010 if  dc0 & f.D & real65c02 else 0
-    dc1       = d1  > 0x00F0
+    dc1       = d1  > 0x00f0
     d1       &=       0x00f0
 
 Finalize::
@@ -334,7 +334,8 @@ want are interested in most compatible emulation (or even simulation) of 6502:
    has negative impact of simplicity and clarity, which were a priority for 
    that project: tracking calls between routines and shifts *by 4, 8 and 12
    bits* as well as additional variables is - in my opinion - more cumbersome
-   that simply looking at ``0x000f``, ``0x00f0`` and so on.
+   that simply looking at ``+ 0x0006`` as *add 6 to first nybble*, ``+ 0x0060`` 
+   as *add 6 to second nybble* and so on.
 
 
 Bibliography
