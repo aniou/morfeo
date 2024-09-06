@@ -147,7 +147,6 @@ emulation`_
 
 ADC
 -------------------------------------------------------------------------------
-
 In following code is visually divided on two (or four for 16-bit operations)
 adders, responsible for operation on 4-bit values. It is clearly visible from
 masks and arguments in particular steps: ``0x000f`` means *lowest 4bit nybble*,
@@ -207,6 +206,7 @@ Finalize::
     f.V       = test_v(ar1, ar2, b1)
     f.N       = test_n( A )
     f.Z       = test_z( A )
+
 
 SBC
 -------------------------------------------------------------------------------
@@ -300,6 +300,7 @@ Finalize::
     f.N       = test_n( A )
     f.Z       = test_z( A )
 
+
 More accurate emulation
 -------------------------------------------------------------------------------
 As it was said: there is one set of adders/decimal correction gratings and so 
@@ -334,8 +335,8 @@ want are interested in most compatible emulation (or even simulation) of 6502:
    has negative impact of simplicity and clarity, which were a priority for 
    that project: tracking calls between routines and shifts *by 4, 8 and 12
    bits* as well as additional variables is - in my opinion - more cumbersome
-   that simply looking at ``+ 0x0006`` as *add 6 to first nybble*, ``+ 0x0060`` 
-   as *add 6 to second nybble* and so on.
+   that simply looking at ``+ 0x0006`` and interpreting it with no time as 
+   *add 6 to first nybble*, ``+ 0x0060`` as *add 6 to second nybble* and so on.
 
 
 Bibliography
