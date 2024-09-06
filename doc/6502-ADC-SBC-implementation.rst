@@ -17,12 +17,12 @@ Fortunately, there are numerous valuable documents, available in Internet,
 see `Bibliography`_ part - but available algorithms are still complicated
 and there is a room to improve their clarity.
 
-In this document I want to show a my attempt to achieve balance between
+In this document I want to show an attempt to achieve balance between
 mathematical abstract of BCD algorithm, like in [Clar2016]_ and strict
-simulation of individual logic gates. I want code, that will be 
-self-documenting and reflects logical steps and blocks of CPU, but is also
-readable. And because of that I'm choose, for example, a simple math 
-(like ``+`` or ``-``) in place of series of XOR's on particular bits.
+simulation of individual logic gates. I wanted code, that will be 
+self-documenting and reflecting logical steps and blocks of CPU, but 
+is also readable. And because of that I chose, for example, a simple 
+math  (like ``+`` or ``-``) in place of series of XOR's on particular bits.
 
 Some basics
 -------------------------------------------------------------------------------
@@ -30,8 +30,8 @@ Although there are two commands: SBC that means 'SuBtract with Carry' and
 ADC, 'ADd with Carry', CPU itself uses only one kind of logical blocks for
 that operation: set of binary adders alongside with two decimal correction
 gratings. In 6502 we have a two 4-bit adders, probably 65C816 has four,
-because of support of 16-bit numbers, but there is no available schemas of
-65C02/65C816 because of intellectual property protection.
+because of support of 16-bit numbers, but there is no available schemes of
+65C02/65C816 due to intellectual property protection.
 
 .. Note:: Those, interested in details should take a look at article about MOS 
           Binary/BCD adder patent [Sang2019]_ and at patent itself: [6502adder]_.
@@ -40,9 +40,9 @@ The subtraction operation is possible due to specific property of binary system:
 the subtraction of two arguments: ``ar1`` - ``ar2`` may be replaced by addition 
 of ``ar1`` and `two's complement`_ of ``ar2``.
 
-Procedure of calculation two's complement is simple: we need to flip (invert) all
-bits in argument and then **add one to that argument**, ignoring any overflow, so
-operation like ``09 - 02`` we can implement in following way:
+Calculating two's complement is simple: we need to flip (invert) all bits in
+argument and then **add one to that argument**, ignoring any overflow, so
+operation like ``09 - 02`` can be implemented in following way:
 
 Preparing arguments::
 
@@ -60,13 +60,13 @@ Math::
 
 In that way CPU is able to handle both subtraction and addition with single set
 of logic gates: although I implemented two, separate - but similar - routines.
-It was intentional - there is a possibility to create single one, universal
+It was intentional - there is a possibility to create single, universal
 procedure, but I wanted to simplify things to bare minimum to give a simple way
-to understanding whole process - and more universal code, created with DRY 
-principle, would require extra booleans and conditions that would have negative
+to understand whole process - and more universal code, created with DRY 
+principle, would require extra booleans and conditions, that would have negative
 impact on clarity.
 
-Following routines passes all available tests ([SSTest]_, [6502func-ca65]_) for
+Following routines pass all available tests ([SSTest]_, [6502func-ca65]_) for
 65C02 and 65C816 in native and emulation mode. They were not tested on MOS6502
 behaviour, although there is a possibility to improve that situation in future.
 
@@ -77,7 +77,7 @@ b0-b3
 
 d0-d3
   Result of decimal correction (if required) or simply copy of ``b0-b3``.
-  It reassembles a block flow from patent: ``adder -> correction -> A``
+  It reassembles a block flow from `patent`_: ``adder -> correction -> A``
 
 bc0-bc3
   Binary Carry status
@@ -93,7 +93,7 @@ dc0
 
 real6502
   Emulator-specific variable that denotes "real" 65C02 and not 65C816 in
-  emulation mode, is has meaning for digital carry application, specific 
+  emulation mode, it has meaning for digital carry application, specific 
   for that particular model
 
 f.D, f.C, f.N, f.Z
@@ -106,7 +106,7 @@ Overflow flag (V)
 -------------------------------------------------------------------------------
 There are two, excellent articles about V flag: one by Bruce Clark [Clark2004]_
 and second, by Ken Shirriff [Shir2012]_. It is rather well-described topic, for
-my code I choose a way described by following code (for 8-bit operation)::
+my code I chose a way described by following code (for 8-bit operation)::
 
     arg_sign_eq     = ((ar1 ~ ar2 )  &   0x80) == 0
     prod_sign_neq   = ((ar2 ~ b1  )  &   0x80) != 0
@@ -117,22 +117,22 @@ from **binary** product, not decimal one, even if ``D`` flag is set.
 
 Coding convention
 -------------------------------------------------------------------------------
-Following code is written in `Odin`_ - but code itself is so simple that can 
+Following code is written in `Odin`_ - but code itself is so simple that it can 
 be translated in 1:1 to almost any language and reader may treat it as kind of 
 pseudocode.
 
-The routines uses a simple coding convention, when syntax like ``a += 1`` 
-means ``a = a + 1`` and operators like ``&``, ``|``, ``~`` correspond to
+The routines use a simple coding convention, when syntax like ``a += 1`` 
+means ``a = a + 1`` and operators like ``&``, ``|``, ``~`` corresponds to
 bitwise ``and``, ``or`` and ``xor``. A construct ``u16(...)`` means *cast
 to 16-bit unsigned int*.
 
 Just for convenience I used a 32-bit variables for 16-bit (65c816) operations,
 because it is easy to test overflow (carry) by testing bit 9 (for 8-bit) or 17
-(for 16-bit operations), thus it need vars of size larger that size of
-arguments. Because of that there are number of operations like ``b0 &= 0x000f``
-when we are clearing unused bits. They haven't equivalent in CPU, but they are
-necessary in general programming language, when we use a variables larger in
-size.
+(for 16-bit operations), thus it needs vars of size larger then size of
+arguments and product. Because of that there are number of operations like ``b0
+&= 0x000f`` where we are clearing unused bits. They don't have an equivalent in
+CPU, but they are necessary in general programming language, when we use
+a variables larger in size.
 
 A single conditional in form ``val1  if  condition  else  val2`` should be
 read as: *if condition is true use val1 - else use val2*. In some cases
@@ -141,7 +141,7 @@ familiar ``if something { b0 += 0x0006 }`` but former construct provides
 more - in my opinion - pleasant notation: more regular, more like a set 
 of assembly instructions.  It is only a matter of aesthetics, though.
 
-The code itself is a more redundant that is may be, but I wanted to show
+The code itself is a more redundant then it needs, but I wanted to show
 clear and very simple path of doing things. Those, interested in detailed
 emulation of real HW behaviour should take a look at notes in `More accurate
 emulation`_
