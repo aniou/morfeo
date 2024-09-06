@@ -1,13 +1,13 @@
 
 ===============================================================================
-Implementation of ADC and SBC operands on 65C02/65C816 family
+Implementation of ADC and SBC operands (BCD mode) on 65C02/65C816
 ===============================================================================
 
 :Author:  Piotr Meyer
 :Contact: [firstname.lastname]@gmail.com
 :Address: https://github.com/aniou/morfeo/
 :Date:    2023-09-07
-:Version: 1.1
+:Version: 1.2
 
 Introduction
 -------------------------------------------------------------------------------
@@ -37,15 +37,17 @@ because of support of 16-bit numbers, but there is no available schemes of
 
 Fortunately, there is a block diagram from U.S. Patent 3,991,307 (1976),
 that describes general adder, carry and decimal correction gratings. It
-is a good place to start:
+is a good place to start. Those, interested in details should take a look 
+at article about MOS Binary/BCD adder patent [Sang2019]_ and at patent 
+itself: [6502adder]_.
 
 .. figure:: 6502-mos-adder-block-patent.png
 
    U.S. Patent US-3991307-A (1976/11/09) Sheet 1 of 3
 
-.. Note:: Those, interested in details should take a look at article about MOS 
-          Binary/BCD adder patent [Sang2019]_ and at patent itself: [6502adder]_.
 
+Decimal addition and subtraction
+-------------------------------------------------------------------------------
 The subtraction operation is possible due to specific property of binary system:
 the subtraction of two arguments: ``ar1`` - ``ar2`` may be replaced by addition 
 of ``ar1`` and `two's complement`_ of ``ar2``.
@@ -75,10 +77,6 @@ procedure, but I wanted to simplify things to bare minimum to give a simple way
 to understand whole process - and more universal code, created with DRY 
 principle, would require extra booleans and conditions, that would have negative
 impact on clarity.
-
-Following routines pass all available tests ([SSTest]_, [6502func-ca65]_) for
-65C02 and 65C816 in native and emulation mode. They were not tested on MOS6502
-behaviour, although there is a possibility to improve that situation in future.
 
 Variables
 -------------------------------------------------------------------------------
@@ -155,6 +153,11 @@ The code itself is more redundant than it needs, but I wanted to show
 clear and very simple way of doing things. Those, interested in detailed
 emulation of real HW behaviour should take a look at notes in `More accurate
 emulation`_
+
+Following routines pass all available tests ([SSTest]_, [6502func-ca65]_) for
+65C02 and 65C816 in native and emulation mode. They were not tested on MOS6502
+behaviour, although there is a possibility to improve that situation in future.
+
 
 ADC
 -------------------------------------------------------------------------------
