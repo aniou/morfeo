@@ -82,13 +82,14 @@ d0-d3
 bc0-bc3
   Binary Carry status
 
-dc0-dc3
+dc0
   Decimal Carry status: it has effect only in two cases: 
 
   a) decimal add
   
   b) additional decimal carry in subtract on physical 65C02 (but not on
-     65C816 in emulation mode)
+     65C816 in emulation mode). Thus we need only one variable, to pass
+     information from first, 4-bit adder, to second.
 
 real6502
   Emulator-specific variable that denotes "real" 65C02 and not 65C816 in
@@ -242,8 +243,8 @@ programmer, because of requirements of setting ``C`` flag before operation:
 internals of decimal correction are hidden.
 
 In that step there is also additional code - calculation of decimal carry
-(``dc*``) after decimal correction and propagation to next adder (in that case
-to second, but in 65C816 code from second to third and from third to fourth).
+(``dc*``) after decimal correction and propagation to next adder.
+
 It is a behaviour described and observed on "real" 65C02 chips and doesn't
 exists in emulated mode of 65C816. Because of that an extra variable
 (``real65c02``) was provided.
@@ -290,7 +291,6 @@ Second adder::
     d1        = b1  & 0x00f0
     d1       -=       0x0060 if !f.C & f.D             else 0
     d1       -=       0x0010 if  dc0 & f.D & real65c02 else 0
-    dc1       = d1  > 0x00f0
     d1       &=       0x00f0
 
 Finalize::
