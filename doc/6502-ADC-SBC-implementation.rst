@@ -234,7 +234,7 @@ decimal carry is inhibited when ``DAA`` line is low, thus - for subtracting only
 binary carry is used. I can replicate that in code in expense for extra conditions
 but I choose simpler approach.
 
-Step 3 is alsoe different from ``ADC`` and from rest of code. I deliberately
+Step 3 is also different from ``ADC`` and from rest of code. I deliberately
 choose subtraction operation ``-6`` in place of real ``+10`` for decimal
 correction, because even if former is conform with real hardware, it also
 introduces unnecessary complexity for reader. Step 1 and 2 are visible to
@@ -328,7 +328,7 @@ want are interested in most compatible emulation (or even simulation) of 6502:
     
    Thus, we can form value in digital corrector from ``DSA`` and ``DAA`` lines,
    because of that we need to emulate them as separate entities, not just boolean
-   for *is this an add operation?**. 
+   for *is this an add operation?*. 
 
 3. Both blocks can be easily merged into single routine or decomposed to 
    routines. During my tests I took that approach but I realized, that it
