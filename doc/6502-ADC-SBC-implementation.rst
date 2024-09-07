@@ -131,7 +131,11 @@ behaviour, although there is a possibility to improve that situation in future.
 Variables used in code
 -------------------------------------------------------------------------------
 b0-b3
-  A products of 4-bit binary addition (subtraction)
+  A products of 4-bit binary addition (subtraction). In contrary to diagram
+  from MOS patent ``b0`` doesn't mean *"first bit of value"* but should be
+  read as *"binary product of adder 0"*.
+
+  Same convention should be applied to rest of variables.
 
 d0-d3
   Result of decimal correction (if required) or simply copy of ``b0-b3``.
