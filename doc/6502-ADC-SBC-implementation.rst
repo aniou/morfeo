@@ -6,7 +6,7 @@ Implementation of ADC and SBC operands (BCD mode) on 65C02/65C816
 :Author:  Piotr Meyer
 :Contact: [firstname.lastname]@gmail.com
 :Date:    2023-09-07
-:Version: 1.3
+:Version: 1.4
 
 .. contents:: Table of content
    :depth: 2
@@ -47,6 +47,9 @@ itself: [6502adder]_.
 
    U.S. Patent US-3991307-A (1976/11/09) Sheet 1 of 3
 
+**The diagram itself is a slightly misleading, though - sheet number 3 shows,
+that there is no carry line for first (upper) decimal correction grating 
+(module 30a) - it is connected to decimal carry circuit (module 26a) instead.**
 
 Decimal addition and subtraction
 -------------------------------------------------------------------------------
