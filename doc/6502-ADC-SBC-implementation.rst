@@ -5,9 +5,11 @@ Implementation of ADC and SBC operands (BCD mode) on 65C02/65C816
 
 :Author:  Piotr Meyer
 :Contact: [firstname.lastname]@gmail.com
-:Address: https://github.com/aniou/morfeo/
 :Date:    2023-09-07
-:Version: 1.2
+:Version: 1.3
+
+.. contents:: Table of content
+   :depth: 2
 
 Introduction
 -------------------------------------------------------------------------------
@@ -159,7 +161,7 @@ A
   Accumulator, i.e. A register
 
 
-ADC
+ADC routine
 -------------------------------------------------------------------------------
 Following code is visually divided on two adders (or four for 16-bit
 operations), responsible for operation on 4-bit values. It is clearly visible
@@ -223,7 +225,7 @@ Finalize::
     f.Z       = test_z( A )
 
 
-SBC
+SBC routine
 -------------------------------------------------------------------------------
 In case of subtraction operation there are some differences, described below:
 the code for ADC and SBC may be (and should be if someone is interested in
