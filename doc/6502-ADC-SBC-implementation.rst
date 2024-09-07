@@ -78,38 +78,6 @@ to understand whole process - and more universal code, created with DRY
 principle, would require extra booleans and conditions, that would have negative
 impact on clarity.
 
-Variables
--------------------------------------------------------------------------------
-b0-b3
-  A products of 4-bit binary addition (subtraction)
-
-d0-d3
-  Result of decimal correction (if required) or simply copy of ``b0-b3``.
-  It reassembles a block flow from `patent`_: ``adder -> correction -> A``
-
-bc0-bc3
-  Binary Carry status
-
-dc0
-  Decimal Carry status: it has effect only in two cases: 
-
-  a) decimal add
-  
-  b) additional decimal carry in subtract on physical 65C02 (but not on
-     65C816 in emulation mode). Thus we need only one variable, to pass
-     information from first, 4-bit adder, to second.
-
-real6502
-  Emulator-specific variable that denotes "real" 65C02 and not 65C816 in
-  emulation mode, it has meaning for digital carry application, specific 
-  for that particular model
-
-f.D, f.C, f.N, f.Z
-  CPU status flags
-
-A
-  Accumulator, i.e. A register
-
 Overflow flag (V)
 -------------------------------------------------------------------------------
 There are two, excellent articles about V flag: one by Bruce Clark [Clark2004]_
@@ -157,6 +125,38 @@ emulation`_
 Following routines pass all available tests ([SSTest]_, [6502func-ca65]_) for
 65C02 and 65C816 in native and emulation mode. They were not tested on MOS6502
 behaviour, although there is a possibility to improve that situation in future.
+
+Variables used in code
+-------------------------------------------------------------------------------
+b0-b3
+  A products of 4-bit binary addition (subtraction)
+
+d0-d3
+  Result of decimal correction (if required) or simply copy of ``b0-b3``.
+  It reassembles a block flow from `patent`_: ``adder -> correction -> A``
+
+bc0-bc3
+  Binary Carry status
+
+dc0
+  Decimal Carry status: it has effect only in two cases: 
+
+  a) decimal add
+  
+  b) additional decimal carry in subtract on physical 65C02 (but not on
+     65C816 in emulation mode). Thus we need only one variable, to pass
+     information from first, 4-bit adder, to second.
+
+real6502
+  Emulator-specific variable that denotes "real" 65C02 and not 65C816 in
+  emulation mode, it has meaning for digital carry application, specific 
+  for that particular model
+
+f.D, f.C, f.N, f.Z
+  CPU status flags
+
+A
+  Accumulator, i.e. A register
 
 
 ADC
