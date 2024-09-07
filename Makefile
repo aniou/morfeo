@@ -55,10 +55,10 @@ test_w65c02s:
 run: $(musashi_objects)
 	odin run cmd/a2560x $(build_flags) -- $(morfeo_args)
 
-r1: $(musashi_objects)
+r1:
 	odin run cmd/test_w65c02s $(build_flags)
 
-r2: $(musashi_objects)
+r2:
 	odin run cmd/test_65c816 $(build_flags)
 
 doc:

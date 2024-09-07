@@ -440,8 +440,10 @@ test_s :: #force_inline proc (dr: DataRegister_65xxx)    -> (result: bool) {
 // "the overflow flag is set when the sign of the addends
 //  is the same and differs from the sign of the sum"
 //
-// XXX - check if we really need to pass sum - yes, we need
-test_v_v1 :: #force_inline proc(size: bool, a, b, s: u32) -> (result: bool) {
+// XXX: in the fact: we need only highest bit from every
+//      variable and as sum we already pass a highest 4bit
+//      of result
+test_v :: #force_inline proc(size: bool, a, b, s: u32) -> (result: bool) {
     switch size {
     case byte:
         arg_sign_eq    := ((a ~ b )  &   0x80) == 0
@@ -454,36 +456,6 @@ test_v_v1 :: #force_inline proc(size: bool, a, b, s: u32) -> (result: bool) {
     }
     return result
 }
-
-// XXX: in case of u32 register and 8/16 bit operations we
-//      need simply check change on "upper" bits to detect
-//      overflow?
-//
-// XXX: probably BAD!
-test_v_v2 :: #force_inline proc(size: bool, sum: u32) -> (overflow: bool) {
-    switch size {
-    case byte:    overflow = (sum & 0xFFFF_FF00) != 0
-    case word:    overflow = (sum & 0xFFFF_0000) != 0
-    }
-    return 
-}
-
-test_v_v3 :: #force_inline proc(size: bool, a, b, s: u16) -> (result: bool) {
-    switch size {
-    case byte:
-        arg_sign_eq    := ((a ~ b )  &   0x80) == 0
-        prod_sign_neq  := ((a ~ s )  &   0x80) != 0
-        result          = arg_sign_eq && prod_sign_neq
-    case word:
-        arg_sign_eq    := ((a ~ b )  & 0x8000) == 0
-        prod_sign_neq  := ((a ~ s )  & 0x8000) != 0
-        result          = arg_sign_eq && prod_sign_neq
-    }
-    return result
-}
-
-test_v :: proc { test_v_v1, test_v_v2, test_v_v3 }
-
 
 // set or clear highest bit (15 or 7, according to register size) 
 // used in LSR and ROR
