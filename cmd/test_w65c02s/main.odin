@@ -427,7 +427,9 @@ main :: proc() {
 
     // init -------------------------------------------------------------
     //log.info("Running...")
-    p := platform.make_simple6502()
+    p       := platform.make_simple6502()
+    c       := &p.cpu.model.(cpu.CPU_65xxx)
+    c.debug  = false
     
     // running ----------------------------------------------------------
     all_tests(p)

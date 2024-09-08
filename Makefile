@@ -62,4 +62,5 @@ r2:
 	odin run cmd/test_65c816 $(build_flags)
 
 doc:
-	odin doc cmd/test_w65c02s/  $(odin_defs)
+#	odin doc cmd/test_w65c02s/  $(odin_defs)
+	odin doc emulator/cpu/ $(odin_defs)

@@ -11,6 +11,8 @@ CPU_65xxx_opcode :: enum {
     SMB0, SMB1, SMB2, SMB3, SMB4, SMB5, SMB6, SMB7,
     BBS0, BBS1, BBS2, BBS3, BBS4, BBS5, BBS6, BBS7,
     BBR0, BBR1, BBR2, BBR3, BBR4, BBR5, BBR6, BBR7,
+    BRL, COP, JSL, MVN, MVP, PEA, PEI, PER, PHB, PHD, PHK, PLB, PLD,    // 65c816
+    REP, RTL, SEP, TCD, TCS, TDC, TSC, TXY, TYX, WDM, XBA, XCE,         // 65c816
 }
 
 CPU_65xxx_mode   :: enum {

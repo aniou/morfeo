@@ -136,6 +136,11 @@ step_w65c02s :: proc(cpu: ^CPU_65xxx) {
 
           cpu.cycles      = cycles_w65c02s[cpu.ir]
           cpu.cycles     += inc_flag_d_w65c02s[cpu.ir] if cpu.f.D else 0
+    
+          if cpu.debug {
+            debug_w65c02s(cpu)
+          }
+
           execute_w65c02s(cpu)
           cpu.cycles     += inc_px_w65c02s[cpu.ir] if cpu.px else 0
     }
@@ -148,6 +153,42 @@ step_w65c02s :: proc(cpu: ^CPU_65xxx) {
         cpu.irq_pending = true
     }
     return
+}
+
+debug_w65c02s :: proc(c: ^CPU_65xxx) {
+    fmt.printf("IP      %04x|SP 01%02x|DP ----|DBR ----|",
+        c.pc.addr & 0xffff,
+        c.sp.addr & 0x00ff,
+    )
+
+    fmt.printf("%s%s%s%s%s%s%s%s -|",
+        "n" if c.f.N else ".",
+        "v" if c.f.V else ".",
+        "1",
+        "b" if c.f.X else ".",
+        "d" if c.f.D else ".",
+        "i" if c.f.I else ".",
+        "z" if c.f.X else ".",
+        "c" if c.f.C else ".",
+    )
+
+    fmt.printf("A     %02x|",
+            c.a.val & 0xFF
+    )
+
+	fmt.printf("X    %02x|Y    %02x|",
+		c.x.val & 0xFF,
+		c.y.val & 0xFF
+	)
+
+    // print opcode and address mode
+    opdata      := CPU_W65C06_opcodes[c.ir]
+
+    fmt.printf("%-4s %-12s ",
+        opdata.opcode,
+        parse_argument(c, opdata.mode)
+    )
+    fmt.printf("\n")
 }
 
 // eof

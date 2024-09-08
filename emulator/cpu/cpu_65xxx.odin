@@ -7,6 +7,7 @@
 // 3. check appropriateness of bit_fields for registers 
 // 4. consider shifting constructs like ( Reg ) to { Reg.val, size }
 //    to achieve more uniformity across routines
+// 5. implement "phantom reads" for 65C02S
 
 
 /*
@@ -125,15 +126,16 @@ CPU_65xxx :: struct {
     irq:         bit_set[CPU_65xxx_irq],
 
     // misc variables, used by emulator
-    ir:       u8,                 // instruction register
-    px:       bool,               // page was crossed?
-    abort:    bool,               // emulator should abort? XXX: unused
-    cycles:   u32,                // number of cycless for this command
-    stall:    u32,                // number of cycles to wait to execute current (ir) command
-    state:    CPU_65xxx_state,   // current CPU state
-    wdm:      bool,               // support for non-standard WDM (0x42) command?
+    ir:        u8,                 // instruction register
+    px:        bool,               // page was crossed?
+    abort:     bool,               // emulator should abort? XXX: unused
+    cycles:    u32,                // number of cycless for this command
+    stall:     u32,                // number of cycles to wait to execute current (ir) command
+    state:     CPU_65xxx_state,    // current CPU state
+    wdm:       bool,               // support for non-standard WDM (0x42) command?
+    debug:     bool,               // debugging enabled
     real65c02: bool,               // flag for cases when is a difference
-                                  // between E(mulated) mode nad real hw
+                                   // between E(mulated) mode nad real hw
 
     // only for MVN/MVP support
     in_mvn: bool,      // CPU is in middle in MVN - lower precedence than irq
@@ -147,7 +149,6 @@ CPU_65xxx :: struct {
     d0, d1, d2, d3:     u32,   // binary sum after decimal correction, as above
     bc0, bc1, bc2, bc3: bool,  // carry for adders (binary)
     dc0, dc1, dc2, dc3: bool,  // carry for adders (digital)
-    add:                bool,  // does system perform addition or subtraction?
 }
 
 // ----------------------------------------------------------------------------

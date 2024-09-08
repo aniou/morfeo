@@ -204,6 +204,10 @@ step_w65c816 :: proc(cpu: ^CPU_65xxx) {
           cpu.cycles     -= decCycles_flagX[cpu.ir]         if cpu.f.X             else 0
           cpu.cycles     += incCycles_regDL_not00[cpu.ir]   if cpu.d & 0x00FF != 0 else 0
 
+          if cpu.debug {
+            debug_w65c816(cpu)
+          }
+
           execute_w65c816(cpu)
           cpu.cycles     += incCycles_PageCross[cpu.ir]     if cpu.px && cpu.f.X   else 0
     }
@@ -279,3 +283,69 @@ step_v2_w65c816 :: proc(cpu: ^CPU_65xxx) {
 
 }
 
+
+debug_w65c816 :: proc(c: ^CPU_65xxx) {
+    fmt.printf("IP %02x:%04x|SP %04x|DP %04x|DBR %02x|",
+        c.pc.bank & 0x00ff,
+        c.pc.addr & 0xffff,
+        c.sp.addr & 0xffff,
+        c.d       & 0xffff,
+        c.dbr     % 0x00ff
+    )
+
+    fmt.printf("%s%s",
+        	"n" if c.f.N else ".",
+        	"v" if c.f.V else ".",
+    )
+	if c.f.E {
+    	fmt.printf("%s%s",
+			"1",
+			"b" if c.f.X else ".",
+		)
+	} else {
+    	fmt.printf("%s%s",
+        	"m" if c.f.M else ".",
+			"x" if c.f.X else ".",
+		)
+	}
+    fmt.printf("%s%s%s%s %s|",
+        "d" if c.f.D else ".",
+        "i" if c.f.I else ".",
+        "z" if c.f.X else ".",
+        "c" if c.f.C else ".",
+        "e" if c.f.E else "."
+    )
+
+	if c.f.M {
+    	fmt.printf("A %02x %02x|",
+			c.a.b   & 0xFF,
+			c.a.val & 0xFF
+		)
+	} else {
+    	fmt.printf("A  %04x|",
+			c.a.val & 0xFFFF
+		)
+	}
+
+	if c.f.X {
+    	fmt.printf("X   %02x|Y   %02x|",
+			c.x.val & 0xFF,
+			c.y.val & 0xFF
+		)
+	} else {
+    	fmt.printf("X %04x|Y %04x|",
+			c.x.val & 0xFFFF,
+			c.y.val & 0xFFFF
+		)
+	}
+
+	// print opcode and address mode
+    opdata      := CPU_w65c816_opcodes[c.ir]
+
+    fmt.printf("%-4s %-12s ", 
+        opdata.opcode,
+        parse_argument(c, opdata.mode)
+    )
+    fmt.printf("\n")
+}
+// eof
