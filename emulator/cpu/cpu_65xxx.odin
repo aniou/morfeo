@@ -469,62 +469,6 @@ set__h :: #force_inline proc (dr: DataRegister_65xxx, a: bool)    -> (result: u1
 }
 
 // ----------------------------------------------------------------------------
-// adder routine
-//
-// more universal 4 bit implementation of ADC
-//
-// following routine implements a 4bit adder with decimal correction, described
-// in [patent]. Modeling such a routine in such a way makes a whole mechanism
-// easier to understand when we are come into V bit calculation (there is very
-// clear point when we can see that V is calculated from binary sum, before
-// decimal correction - and carry bites are calculated and independly for bin
-// and dec mode and combined only if D flag is set...
-//
-// [patent]:   https://www.susa.net/wordpress/2019/05/the-mos-6502s-parallel-binary-bcd-adder-patent/
-// [overflow]: http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
-// [decimal]:  http://www.6502.org/tutorials/decimal_mode.html
-//
-// Because I don't want to be too smart and prefer code that reassembles real
-// hardware logic (to some degree) I created four separate routines responsible
-// of calculation for 4 x 4bits of word. Without extra  parameters, shifting 
-// and smart tricks - I want to create something that should be easy to read.
-//
-// There may be temptation for optimalizations like following, because of
-// DRY principle, but it creates another level if indirection in favour 
-// of few spare lines of code. I prefer to be as explicite as it possible,
-// thus we have four almost identical code blocks, one for specific 4 bits
-// in word (n0 to n3_).
-
-// sample, rejected code:
-// n3_add :: #force_inline proc(ar1, ar2: u16, cin, dec: bool) -> (res: u16, cout: bool) {
-//    res, cout   = n0_add(ar1 >> 12, ar2 >> 12, cin,  dec)
-//    res       <<= 12
-//    return
-// }
-
-// Because of that I also abandon idea of additional parameter that denote
-// position of 4bits in word and tempting desire to parametrizing things like
-// mask, carry adder and carry logic and shiting them left by 4, 8 or 12 bits
-
-// nx_add :: #force_inline proc(ar1, ar2: u16, cin, dec: bool, shift: int) -> (res: u16, cout: bool) {
-//     mask      = 0x000f << shift
-//     carryadd  = 0x0001 << shift
-//     declimit  = 0x0009 << shift
-//     binlimit  = 0x000f << shift
-//
-//     res       = ar1 & mask      // res with carry
-//     res      += ar2 & mask
-//     res      +=       carryadd  if cin  else 0
-// 
-//     decc     := res > declimit  // carry logic
-//     binc     := res > binlimit
-//     cout      = decc | binc      if dec  else binc
-// 
-//     return
-// }
-
-
-// ----------------------------------------------------------------------------
 // addressing modes
 
 //
@@ -990,15 +934,9 @@ mode_Illegal3               :: #force_inline proc (using c: ^CPU_65xxx) {
     pc.addr  += 3
 }
 
-// ADC and SBC works almost in the same manner - because on real HW
-// subtraction means "addition of complement's one plus carry", but
-// decimal correction works in a slightly different manner. Of course
-// on real HW also decimal grate is shared, but I didn't want to 
-// create common routine with additional signals like DSA/DAA and
-// just made a separate parts with +6 in ADC and -6 in SBC -
-// or +6 in ADC and +9 (6 complement's two) in SBC
+// For detailed description of ADC and SBC command and rationale behind
+// this specific implementation see: doc/6502-ADC-SBC-implementation.rst
 //
-
 oper_ADC                :: #force_inline proc (using c: ^CPU_65xxx) { 
     ar1      := u32(read_r( a, a.size ))
     ar2      := u32(read_m(ab, a.size ))
@@ -1831,13 +1769,13 @@ oper_RTS                    :: #force_inline proc (using c: ^CPU_65xxx) {
     sp.addr   = addu_r( sp, word )
 }
 
-// a version that reassembles real circuit, like http://6502.org/users/dieter/bcd/bcd_2.htm
-// in maximum, reasonable degree - thus we don't simulate AND, XOR, OR gates for calculation
-// BCD overflow in ADC, but rest remain in place
+// For detailed description of ADC and SBC command and rationale behind
+// this specific implementation see: doc/6502-ADC-SBC-implementation.rst
 //
-// WARNING: looks like 65c816 (normal and emulated) has a slightly different BCD behaviour,
-//          that can be described as "internal BCD carry" that leads to additional decrement
-//          of higher nibble after decimal carry, when result was < 0
+// WARNING: looks like "real" 65C02 has a slightly different BCD behaviour,
+// that can be described as "internal BCD carry" that leads to additional 
+// decrement of higher nibble after decimal carry, when result was < 0
+// It not appears for MOS 6502 nor 65C816, regardless of modes
 //
 oper_SBC              :: #force_inline proc (using c: ^CPU_65xxx) { 
     ar1      := u32(read_r( a, a.size ))
@@ -1923,6 +1861,8 @@ oper_SBC              :: #force_inline proc (using c: ^CPU_65xxx) {
 }
 
 /*
+    scrathpad for debug:
+
     log.debugf("SBC   : ar2     : %04x %4b %4b %4b %4b C : %t", ar2, (ar2 >> 12) & 0xf, (ar2 >> 8) & 0xf, (ar2 >> 4) & 0xf, ar2 & 0xf , bc0)
     log.debugf("SBC   : b0      : %04x %4b %4b %4b %4b C : %t", b0 , (b0  >> 12) & 0xf, (b0  >> 8) & 0xf, (b0  >> 4) & 0xf, b0  & 0xf , bc0)
     log.debugf("SBC   : ~ar2    : %04x %4b %4b %4b %4b C : %t", t0 , (t0  >> 12) & 0xf, (t0  >> 8) & 0xf, (t0  >> 4) & 0xf, t0  & 0xf , bc0)
