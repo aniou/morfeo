@@ -20,6 +20,7 @@ Mode :: enum {
     TEXT_FG_LUT,
     TEXT_BG_LUT,
     FONT_BANK0,
+    FONT_BANK1,
     LUT,
     VRAM0,
 }

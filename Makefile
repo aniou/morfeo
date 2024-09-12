@@ -46,10 +46,10 @@ a2560x: $(musashi_objects)
 	odin build cmd/a2560x       $(build_flags)
 
 test_65c816:
-	odin build cmd/test_65c816  $(build_flags)
+	odin build cmd/test_65c816 -debug $(build_flags)
 
 test_w65c02s:
-	odin build cmd/test_w65c02s $(build_flags)
+	odin build cmd/test_w65c02s -debug $(build_flags)
 
 # targets for debug purposes
 run: $(musashi_objects)

@@ -15,9 +15,9 @@ GPU :: struct {
     name:               string,     // textual name of instance
     id:                 int,        // id of instance
 
-    TFB:     ^[1024*768]u32,        // text    framebuffer
-    BM0FB:   ^[1024*768]u32,        // bitmap0 framebuffer
-    BM1FB:   ^[1024*768]u32,        // bitmap1 framebuffer
+    TFB:     ^[1024*768]u32,        // text    framebuffer (max resolution)
+    BM0FB:   ^[1024*768]u32,        // bitmap0 framebuffer (max resolution)
+    BM1FB:   ^[1024*768]u32,        // bitmap1 framebuffer (max resolution)
 
     gpu_enabled:       bool,
     text_enabled:      bool,
@@ -66,7 +66,7 @@ GPU :: struct {
                                            // 16 for 60Hz, 14 for 70Hz
     last_tick:         time.Tick,          // when last tick was made
 
-    model: union {GPU_Vicky2, GPU_Vicky3}
+    model: union {GPU_Vicky2, GPU_Vicky3, GPU_tVicky}
 }
 
 // not used - it is a separated approach, alternative to vtable
@@ -81,6 +81,7 @@ render :: #force_inline proc(gpu: ^GPU) {
     switch g in gpu.model {
     case GPU_Vicky3: vicky3_render_text(g)
     case GPU_Vicky2: 
+    case GPU_tVicky:
     }
 }
 

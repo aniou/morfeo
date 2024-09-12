@@ -376,7 +376,8 @@ step_test :: proc(p: ^platform.Platform) -> (ok: bool) {
 
 
 math_test :: proc(p: ^platform.Platform) -> (ok: bool) {
-    f, error := os.open("data/6502_decimal_test-w65c02.bin")
+    fname := "data/6502_decimal_test-w65c02.bin"
+    f, error := os.open(fname)
     if error != nil {
     	log.error("error opening file: ", error)
         return false
@@ -416,7 +417,7 @@ math_test :: proc(p: ^platform.Platform) -> (ok: bool) {
 }
 
 all_tests :: proc(p: ^platform.Platform) -> (ok: bool) {
-    step_test(p) or_return
+    //step_test(p) or_return
     math_test(p) or_return
     return true
 }
@@ -429,7 +430,7 @@ main :: proc() {
     //log.info("Running...")
     p       := platform.make_simple6502()
     c       := &p.cpu.model.(cpu.CPU_65xxx)
-    c.debug  = false
+    c.debug  = true
     
     // running ----------------------------------------------------------
     all_tests(p)

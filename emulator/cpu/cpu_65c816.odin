@@ -341,11 +341,10 @@ debug_w65c816 :: proc(c: ^CPU_65xxx) {
 
 	// print opcode and address mode
     opdata      := CPU_w65c816_opcodes[c.ir]
+    argument    := parse_argument(c, opdata.mode)
+    fmt.printf("%-4s %-12s ", opdata.opcode, argument)
+    delete(argument)
 
-    fmt.printf("%-4s %-12s ", 
-        opdata.opcode,
-        parse_argument(c, opdata.mode)
-    )
     fmt.printf("\n")
 }
 // eof

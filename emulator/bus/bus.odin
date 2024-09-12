@@ -11,7 +11,7 @@ import "emulator:memory"
 
 import "core:prof/spall"
 
-ebus:   ^Bus        // test global
+ebus:   ^Bus        // test global XXX: remove it?
 spall_ctx: spall.Context
 spall_buffer: spall.Buffer
 
@@ -30,4 +30,6 @@ Bus :: struct {
     ram0:    ^memory.RAM,	   // sram  (?)
     ram1:    ^memory.RAM,       // sdram (?)
     ram2:    ^memory.RAM,       // flash
+
+    model: union {Bus_F256}
 }
