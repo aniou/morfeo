@@ -7,6 +7,8 @@ import "core:time"
 
 import "lib:emu"
 
+import "emulator:ram"
+
 Register_tVicky :: enum u32 {
     MASTER_CTRL_REG_L       = 0x0000,       // base: 0xD000
     MASTER_CTRL_REG_H       = 0x0001,
@@ -99,12 +101,12 @@ GPU_tVicky :: struct {
 
 // --------------------------------------------------------------------
 
-tvicky_make :: proc(name: string, id: int) -> ^GPU {
-    log.infof("tvicky: gpu%d initialization start, name %s", id, name)
+make_tvicky :: proc(name: string, memory: ^ram.RAM) -> ^GPU {
+    log.infof("tvicky: gpu%d initialization start, name %s", 0, name)
 
     gpu       := new(GPU)
     gpu.name   = name
-    gpu.id     = id
+    gpu.id     = 0
     gpu.read   = read_tvicky
     gpu.write  = write_tvicky
     gpu.delete = delete_tvicky

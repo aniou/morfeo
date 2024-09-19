@@ -1,5 +1,5 @@
 
-package memory
+package ram
 
 import "lib:emu"
 
@@ -15,7 +15,7 @@ RAM :: struct {
     size:   int
 }
 
-ram_read :: #force_inline proc(ram: ^RAM, mode: emu.Request_Size, addr: u32) -> (val: u32) {
+read_ram :: #force_inline proc(ram: ^RAM, mode: emu.Request_Size, addr: u32) -> (val: u32) {
     switch mode {
     case .bits_8: 
         val = cast(u32) ram.data[addr]
@@ -29,7 +29,7 @@ ram_read :: #force_inline proc(ram: ^RAM, mode: emu.Request_Size, addr: u32) -> 
     return
 }
 
-ram_write :: #force_inline proc(ram: ^RAM, mode: emu.Request_Size, addr, val: u32) {
+write_ram :: #force_inline proc(ram: ^RAM, mode: emu.Request_Size, addr, val: u32) {
     switch mode {
     case .bits_8: 
         ram.data[addr] = cast(u8) val
@@ -41,24 +41,24 @@ ram_write :: #force_inline proc(ram: ^RAM, mode: emu.Request_Size, addr, val: u3
     return
 }
 
-read8 :: #force_inline proc(ram: ^RAM, addr: u32) -> u8 {
-    return ram.data[addr]
-}
+//read8 :: #force_inline proc(ram: ^RAM, addr: u32) -> u8 {
+//    return ram.data[addr]
+//}
 
-write8 :: #force_inline proc(ram: ^RAM, addr: u32, val: u8) {
-    ram.data[addr] = val
-    return
-}
+//write8 :: #force_inline proc(ram: ^RAM, addr: u32, val: u8) {
+//    ram.data[addr] = val
+//    return
+//}
 
 make_ram :: proc(name: string, size: int) -> ^RAM {
 
     ram       := new(RAM)
     ram.name   = name
-    ram.read8  = ram_read8
-    ram.write8 = ram_write8
-    ram.delete = ram_delete
-    ram.read   = ram_read
-    ram.write  = ram_write
+    ram.read8  = read8_ram
+    ram.write8 = write8_ram
+    ram.delete = delete_ram
+    ram.read   = read_ram
+    ram.write  = write_ram
     ram.data   = make([dynamic]u8,     size+3)
     ram.size   = size
 
@@ -66,17 +66,17 @@ make_ram :: proc(name: string, size: int) -> ^RAM {
     return ram
 }
 
-ram_delete :: proc(ram: ^RAM) {
+delete_ram :: proc(ram: ^RAM) {
     delete(ram.data)
     free(ram)
     return
 }
 
-ram_read8 :: proc(ram: ^RAM, addr: u32) -> u8 {
+read8_ram :: proc(ram: ^RAM, addr: u32) -> u8 {
     return ram.data[addr]
 }
 
-ram_write8 :: proc(ram: ^RAM, addr: u32, val: u8) {
+write8_ram :: proc(ram: ^RAM, addr: u32, val: u8) {
     ram.data[addr] = val
     return
 }

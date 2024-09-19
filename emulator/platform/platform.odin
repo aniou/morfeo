@@ -7,7 +7,7 @@ import "emulator:gpu"
 import "emulator:pic"
 import "emulator:ps2"
 import "emulator:rtc"
-import "emulator:memory"
+import "emulator:ram"
 
 import "core:fmt"
 import "core:log"

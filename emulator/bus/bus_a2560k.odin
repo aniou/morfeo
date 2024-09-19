@@ -6,7 +6,7 @@ import "core:fmt"
 import "emulator:gpu"
 import "emulator:pic"
 import "emulator:ps2"
-import "emulator:memory"
+import "emulator:ram"
 
 a2560k_read8 :: proc(bus: ^Bus, addr: u32) -> (val: u8) {
     //log.debugf("%s read       from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))

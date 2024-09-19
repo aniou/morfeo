@@ -6,7 +6,7 @@ import "core:fmt"
 import "emulator:gpu"
 import "emulator:pic"
 import "emulator:ps2"
-import "emulator:memory"
+import "emulator:ram"
 
 import "lib:emu"
 

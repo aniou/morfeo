@@ -7,7 +7,7 @@ import "emulator:gpu"
 import "emulator:pic"
 import "emulator:ps2"
 import "emulator:rtc"
-import "emulator:memory"
+import "emulator:ram"
 
 import "core:prof/spall"
 
@@ -27,9 +27,9 @@ Bus :: struct {
     gpu1:    ^gpu.GPU,
      rtc:    ^rtc.RTC,
     ata0:    ^ata.PATA,
-    ram0:    ^memory.RAM,	   // sram  (?)
-    ram1:    ^memory.RAM,       // sdram (?)
-    ram2:    ^memory.RAM,       // flash
+    ram0:    ^ram.RAM,	   // first slot (ram/sram/flash...)
+    ram1:    ^ram.RAM,     // second...
+    ram2:    ^ram.RAM,     // third...
 
     model: union {Bus_F256}
 }
