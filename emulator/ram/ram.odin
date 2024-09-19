@@ -4,8 +4,6 @@ package ram
 import "lib:emu"
 
 RAM :: struct {
-    read8:   proc(^RAM, u32)-> u8 ,
-    write8:  proc(^RAM, u32,   u8),
     delete:  proc(^RAM           ),
     read:    proc(^RAM, emu.Request_Size, u32)-> u32 ,
     write:   proc(^RAM, emu.Request_Size, u32,   u32),
@@ -41,21 +39,10 @@ write_ram :: #force_inline proc(ram: ^RAM, mode: emu.Request_Size, addr, val: u3
     return
 }
 
-//read8 :: #force_inline proc(ram: ^RAM, addr: u32) -> u8 {
-//    return ram.data[addr]
-//}
-
-//write8 :: #force_inline proc(ram: ^RAM, addr: u32, val: u8) {
-//    ram.data[addr] = val
-//    return
-//}
-
 make_ram :: proc(name: string, size: int) -> ^RAM {
 
     ram       := new(RAM)
     ram.name   = name
-    ram.read8  = read8_ram
-    ram.write8 = write8_ram
     ram.delete = delete_ram
     ram.read   = read_ram
     ram.write  = write_ram
@@ -72,11 +59,3 @@ delete_ram :: proc(ram: ^RAM) {
     return
 }
 
-read8_ram :: proc(ram: ^RAM, addr: u32) -> u8 {
-    return ram.data[addr]
-}
-
-write8_ram :: proc(ram: ^RAM, addr: u32, val: u8) {
-    ram.data[addr] = val
-    return
-}
