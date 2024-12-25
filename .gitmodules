@@ -6,7 +6,7 @@
 	url = https://github.com/kstenerud/Musashi
 [submodule "external/tests-65816"]
 	path = external/tests-65816
-	url = git@github.com:aniou/tests-65816.git
+	url = https://github.com/aniou/tests-65816
 [submodule "external/tests-6502"]
 	path = external/tests-6502
 	url = https://github.com/SingleStepTests/65x02
