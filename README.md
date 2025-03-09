@@ -58,14 +58,16 @@ are subjects to further improvement.
 
 # Building
 
-At this moment emulator was built and tested only on Ubuntu 22.04 LTS.
+At this moment emulator was built and tested on Ubuntu 22.04 LTS and
+openSUSE Leap 15.6.
 
 1. You need a working copy of [Odin](https://odin-lang.org/docs/install/)
    language - follow link and install Odin in preffered way.
 
    A ``Makefile`` assumes that ``odin`` binary is in Your ``PATH``!
 
-2. A sdl2 development files: ``apt install libsdl2-dev``
+2. A sdl2 development files: ``apt install libsdl2-dev`` or ``zypper
+install SDL2-devel``.
 
 3. Clone repo, update submodules and run binary:
 
