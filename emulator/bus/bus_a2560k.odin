@@ -38,7 +38,3 @@ a2560k_bus_error :: proc(b: ^Bus, op: string, addr: u32) -> u8 {
     return 0
 }
 
-a2560k_not_implemented :: proc(addr: u32, name: string) -> u8 {
-    log.warnf("%s error      at 0x %04X:%04X - a2560k not implemented", name, u16(addr >> 16), u16(addr & 0x0000_ffff))
-    return 0
-}

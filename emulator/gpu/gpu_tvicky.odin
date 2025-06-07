@@ -235,7 +235,7 @@ read_tvicky :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr: u32, mod
         }
 
     case: 
-        emu.not_implemented(#procedure, d.name, size, addr_orig)
+        emu.read_not_implemented(#procedure, d.name, size, addr_orig)
     }
     return
 }
@@ -285,7 +285,7 @@ write_tvicky :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u3
         }
         
     case        : 
-        emu.not_implemented(#procedure, d.name, size, addr_orig)
+        emu.write_not_implemented(#procedure, d.name, size, addr_orig, val)
     }
     return
 }
@@ -326,12 +326,12 @@ tvicky_read_register :: proc(d: ^GPU_tVicky, size: emu.Request_Size, addr_orig, 
 
 @private
 tvicky_b_write_register :: proc(d: ^GPU_tVicky, size: emu.Request_Size, addr_orig, addr, val: u32) {
-    emu.not_implemented(#procedure, d.name, size, addr_orig)
+    emu.write_not_implemented(#procedure, d.name, size, addr_orig, val)
 }
 
 @private
 tvicky_b_read_register :: proc(d: ^GPU_tVicky, size: emu.Request_Size, addr_orig, addr: u32) -> (val: u32) {
-    emu.not_implemented(#procedure, d.name, size, addr_orig)
+    emu.read_not_implemented(#procedure, d.name, size, addr_orig)
     return
 }
 

@@ -81,7 +81,7 @@ read_f256 :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
         // Text display font memory and graphics color MLUTs
         case 0x02: val = bus.gpu0->read(size, addr, addr - 0xC000, .TEXT)
         case 0x03: val = bus.gpu0->read(size, addr, addr - 0xC000, .TEXT_COLOR)
-        case     : emu.not_implemented(#procedure, "IO", size, addr)
+        case     : emu.read_not_implemented(#procedure, "IO", size, addr)
         }
         return
     }
@@ -90,9 +90,9 @@ read_f256 :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
     ea    |= b.mlut[b.mlut_active][bank]    // A20..A13
     switch ea {
     case  0x00_0002 ..= 0x07_FFFF: val = bus.ram0->read(size, addr)                            // RAM   512
-    case  0x08_0000 ..= 0x0F_FFFF: emu.not_implemented(#procedure, "ram2", size, addr)         // FLASH 512
-    case  0x10_0000 ..= 0x13_FFFF: emu.not_implemented(#procedure, "ram3", size, addr)         // RAM   256   (expansion)
-    case                         : emu.not_implemented(#procedure, "bus0", size, addr)
+    case  0x08_0000 ..= 0x0F_FFFF: emu.read_not_implemented(#procedure, "ram2", size, addr)         // FLASH 512
+    case  0x10_0000 ..= 0x13_FFFF: emu.read_not_implemented(#procedure, "ram3", size, addr)         // RAM   256   (expansion)
+    case                         : emu.read_not_implemented(#procedure, "bus0", size, addr)
     }
     return
 }
@@ -133,7 +133,7 @@ write_f256   :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
             }
         case 0x02: bus.gpu0->write(size, addr, addr - 0xC000, val, .TEXT)
         case 0x03: bus.gpu0->write(size, addr, addr - 0xC000, val, .TEXT_COLOR)
-        case     : emu.not_implemented(#procedure, "IO", size, addr)
+        case     : emu.write_not_implemented(#procedure, "IO", size, addr, val)
         }
         return
     }
@@ -142,9 +142,9 @@ write_f256   :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
     ea    |= b.mlut[b.mlut_active][bank]    // A20..A13
     switch ea {
     case  0x00_0002 ..= 0x07_FFFF:  bus.ram0->write(size, addr, val)                      // RAM   512
-    case  0x08_0000 ..= 0x0F_FFFF:  emu.not_implemented(#procedure, "ram2", size, addr)   // FLASH 512
-    case  0x10_0000 ..= 0x13_FFFF:  emu.not_implemented(#procedure, "ram3", size, addr)   // RAM   256   (expansion)
-    case                         :  emu.not_implemented(#procedure, "bus0", size, addr)
+    case  0x08_0000 ..= 0x0F_FFFF:  emu.write_not_implemented(#procedure, "ram2", size, addr, val)   // FLASH 512
+    case  0x10_0000 ..= 0x13_FFFF:  emu.write_not_implemented(#procedure, "ram3", size, addr, val)   // RAM   256   (expansion)
+    case                         :  emu.write_not_implemented(#procedure, "bus0", size, addr, val)
     }
     return
 }

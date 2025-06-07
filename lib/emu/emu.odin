@@ -1,13 +1,20 @@
 
 package emu
 
+import "core:fmt"
 import "core:log"
 
 // used by bus read to denote 8/16/32 bits operations
+// XXX: todo - expand to little and big endian ones
 Request_Size :: enum {
     bits_8   = 8,
     bits_16  = 16,
     bits_32  = 32
+}
+
+Access_Type :: enum {
+    READ,
+    WRITE
 }
 
 // used by devices to denote function
@@ -66,11 +73,28 @@ unsupported_write_size :: proc(procedure, dev_name: string, dev_id: int, mode: R
 }
 
 // used by devices
-not_implemented :: proc(procedure, dev_name: string, mode: Request_Size, addr: u32) {
-    log.errorf("%-12s %s access%2d   addr %04X:%04X not implemented at all", 
+write_not_implemented :: proc(procedure, dev_name: string, bits: Request_Size, addr, val: u32) {
+    display_val : string 
+    switch bits {
+        case .bits_8:  display_val = fmt.aprintf("%02X",        u8(val & 0x0000_00ff))
+        case .bits_16: display_val = fmt.aprintf("%04X",       u16(val & 0x0000_ffff))
+        case .bits_32: display_val = fmt.aprintf("%04X:%04X",  u16(addr >> 16), u16(val & 0x0000_ffff))
+    }
+
+    log.errorf("%-12s %s write bits%2d   addr %04X:%04X val %9s not implemented at all", 
                 procedure, 
                 dev_name, 
-                mode, 
+                bits, 
+                u16(addr >> 16), u16(addr & 0x0000_ffff),
+                display_val
+    )
+}
+
+read_not_implemented :: proc(procedure, dev_name: string, bits: Request_Size, addr: u32) {
+    log.errorf("%-12s %s read  bits%2d   addr %04X:%04X               not implemented at all", 
+                procedure, 
+                dev_name, 
+                bits, 
                 u16(addr >> 16), u16(addr & 0x0000_ffff)
     )
 }
