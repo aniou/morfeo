@@ -56,8 +56,9 @@ c256_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
     //log.debugf("%s read       from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
 
     switch addr {
-    case 0x00_00_0000 ..= 0x00_00_00FF:  val = bus.ram0->read(size, addr                             )
-    case 0x00_00_0100 ..= 0x00_00_01FF:  emu.read_not_implemented(#procedure, "xxxxxx", size, addr              )
+    //case 0x00_00_0000 ..= 0x00_00_00FF:  val = bus.ram0->read(size, addr                             )
+    //case 0x00_00_0100 ..= 0x00_00_01FF:  emu.read_not_implemented(#procedure, "xxxxxx", size, addr              )
+    case 0x00_00_0000 ..= 0x00_00_01FF:  val = bus.ram0->read(size, addr                             )
     case 0x00_00_0200 ..= 0x00_1F_FFFF:  val = bus.ram0->read(size, addr                             )
     case 0x00_20_0000 ..= 0x00_4F_FFFF:  val = bus.ram0->read(size, addr             )
     case 0x00_AF_0000 ..= 0x00_AF_07FF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_0000, .MAIN_A     )
@@ -85,8 +86,9 @@ c256_write :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
 
     //log.debugf("%s write%d %08x   to 0x %04X:%04X", bus.name, size, val, u16(addr >> 16), u16(addr & 0x0000_ffff))
     switch addr {
-    case 0x00_00_0000 ..= 0x00_00_00FF:  bus.ram0->write(size, addr, val                        )
-    case 0x00_00_0100 ..= 0x00_00_01FF:  emu.write_not_implemented(#procedure, "xxxxxx", size, addr, val               )
+    //case 0x00_00_0000 ..= 0x00_00_00FF:  bus.ram0->write(size, addr, val                        )
+    //case 0x00_00_0100 ..= 0x00_00_01FF:  emu.write_not_implemented(#procedure, "xxxxxx", size, addr, val               )
+    case 0x00_00_0000 ..= 0x00_00_01FF:  bus.ram0->write(size, addr, val                        )
     case 0x00_00_0200 ..= 0x00_1F_FFFF:  bus.ram0->write(size, addr, val                        )
     case 0x00_20_0000 ..= 0x00_4F_FFFF:  bus.ram0->write(size, addr,  val         )          // only valid for 4MB models
     case 0x00_AF_0000 ..= 0x00_AF_07FF:  bus.gpu0->write(size, addr, addr - 0x00_AF_0000, val, .MAIN_A     )
