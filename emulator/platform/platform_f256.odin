@@ -12,6 +12,7 @@ import "emulator:ram"
 import "core:fmt"
 import "core:log"
 
+/*
 make_f256 :: proc() -> ^Platform {
     p          := new(Platform)
     pic        := pic.pic_make    ("pic0")          // XXX: dummy, so far
@@ -39,5 +40,5 @@ delete_f256 :: proc(p: ^Platform) {
     free(p);
     return
 }
-
+*/
 
