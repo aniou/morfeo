@@ -26,12 +26,14 @@ GPU :: struct {
     border_enabled:    bool,
     sprite_enabled:    bool,
     tile_enabled:      bool,
+    gamma_enabled:     bool,
 
-    border_color_b:    u8,
-    border_color_g:    u8,
-    border_color_r:    u8,
-    border_x_size:     i32,
-    border_y_size:     i32,
+    border_color_b:       u8,
+    border_color_g:       u8,
+    border_color_r:       u8,
+    border_x_size:        i32,
+    border_y_size:        i32,
+    border_scroll_offset: i32,
 
     bg_color_b:        u8,
     bg_color_g:        u8,
@@ -60,6 +62,7 @@ GPU :: struct {
     bm1_pointer:           u32,
     bm1_lut:               u32,
 
+    dip:               u8,                  // copy of status of DIP switch
     background:        [3]u8,    // r, g, b
     frames:            u32,      // number of generated frames, for TIMER*
     delay:             time.Duration,      // number of milliseconds to wait between frames

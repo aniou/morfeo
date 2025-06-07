@@ -41,7 +41,7 @@ VKY3_BITMAP            :: 0x_00_00_00_01
 VKY3_BITMAP_LUT_MASK   :: 0x_00_00_00_07
 VKY3_BITMAP_COLLISION  :: 0x_00_00_00_40
 
-Register :: enum u32 {
+Register_vicky3 :: enum u32 {
     VKY3_MCR        = 0x_00_00,     // A B - master control register
     VKY3_BCR        = 0x_00_04,     // A B - border control register
     VKY3_BRD_COLOR  = 0x_00_08,     // A B - border color register
@@ -57,7 +57,7 @@ Register :: enum u32 {
 }
 
 
-CURSOR_BLINK_RATE           :: [4]i32{1000, 500, 250, 200}
+VKY3_CURSOR_BLINK_RATE           :: [4]i32{1000, 500, 250, 200}
 
 
 GPU_Vicky3 :: struct {
@@ -96,8 +96,9 @@ GPU_Vicky3 :: struct {
 }
 
 // --------------------------------------------------------------------
+// XXX - warning, DIP switches not used yet!
 
-vicky3_make :: proc(name: string, id: int) -> ^GPU {
+vicky3_make :: proc(name: string, id: int, dip: u8) -> ^GPU {
     log.infof("vicky3: gpu%d initialization start, name %s", id, name)
 
     gpu       := new(GPU)
@@ -348,7 +349,7 @@ vicky3_write_register :: proc(d: ^GPU_Vicky3, size: emu.Request_Size, addr_orig,
         return
     }
 
-    reg := Register(addr)
+    reg := Register_vicky3(addr)
     switch reg {
     case .VKY3_MCR:                             // so far only difference between channel A and B
 
@@ -485,7 +486,7 @@ vicky3_read_register :: proc(d: ^GPU_Vicky3, size: emu.Request_Size, addr_orig, 
         return
     }
 
-    reg := Register(addr)
+    reg := Register_vicky3(addr)
     switch reg {
     case .VKY3_MCR:
         if mode == .MAIN_A {

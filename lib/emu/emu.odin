@@ -25,6 +25,23 @@ Mode :: enum {
     VRAM0,
 }
 
+// used to determine minor differences between platforms, XXX: add m68k
+Type :: enum {
+    C256B, 		// 2 SRAM                  65816                    - 2xOPL2
+    C256FMX, 	// 4 SRAM  4 VRAM          65816       @ 14Mhz (FMX) - OPL3, OPN2, OPM and SN76489
+    C256U,		// 1 SRAM  2 VRAM          65816       @ 14Mhz
+    C256Uplus,  // 2 SRAM  2 VRAM          65816       @ 14Mhz
+    F256Jr,		// 1 SRAM                  W65C02      @ 6Mhz  - 3 CPU!
+    F256Jr2,    //                                             - 2 CPU
+    F256K,		// 1 SRAM                  6502                - 3 CPU
+    F256K2,     //                                             - 2 CPU
+    A2560u,     // 4 SRAM    SDRAM 2 VRAM  MC68SEC000  @ 20Mhz
+    A2560x,     // 4 SRAM    SDRAM 8 VRAM        32bit 
+    A2560k,     // 4 SRAM 16 SDRAM 8 VRAM  MC68040V    @ 25Mhz
+    A2560m,     // 8 SRAM 1024 DDR 4 FLASH
+    GenX,		// 8 SRAM 16 SDRAM 8 VRAM  65816+32bit @ 14Mhz
+}
+
 // used by devices
 unsupported_read_size :: proc(procedure, dev_name: string, dev_id: int, mode: Request_Size, addr: u32) {
     log.errorf("%-12s %s%d read%-2d          from %04X:%04X not supported", 

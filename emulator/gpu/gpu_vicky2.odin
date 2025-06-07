@@ -1,11 +1,680 @@
 package gpu
 
 import "core:fmt"
+import "core:log"
+import "core:os"
+import "core:time"
+
+import "lib:emu"
+
+// physical DIP switch 
+DIP_HIRES              :: 0x_00_00_00_20  //     - real DIP postion
+DIP_GAMMA              :: 0x_00_00_00_40  //     - real DIP position
+
+// Master Control LOW
+VKY2_MCR_TEXT          :: 0x_00_00_00_01  // A   - enable text mode
+VKY2_MCR_TEXT_OVERLAY  :: 0x_00_00_00_02  // A   - enable text overlay
+VKY2_MCR_GRAPHIC       :: 0x_00_00_00_04  // A   - enable graphic engine
+VKY2_MCR_BITMAP        :: 0x_00_00_00_08  // A   - enable bitmap engine
+VKY2_MCR_TILE          :: 0x_00_00_00_10  // A   - enable tile engine
+VKY2_MCR_SPRITE        :: 0x_00_00_00_20  // A   - enable sprite engine
+VKY2_MCR_GAMMA_ENABLE  :: 0x_00_00_00_40  // A   - enable gamma correction
+VKY2_MCR_VIDEO_DISABLE :: 0x_00_00_00_80  // A   - disable video engine
+
+// Master Control HIGH
+VKY2_MODE_MASK         :: 0x_00_00_00_01  // A   - video mode: 0 - 640x480 (Clock @ 25.175Mhz), 1 - 800x600 (Clock @ 40Mhz)
+VKY2_MODE_640_480      :: 0x_00_00_00_00
+VKY2_MODE_800_600      :: 0x_00_00_00_01
+VKY2_DOUBLE_PIXEL      :: 0x_00_00_00_02  // A   - double pixel (0 - no, 2 - yes)
+
+VKY2_BCR_ENABLE        :: 0x_00_00_00_01  // A   -  border visible 0 - disable, 1 - enable
+VKY2_BCR_X_SCROLL      :: 0x_00_00_00_70  // A   -  border scroll, at bit 4..6 (val: 0-7)
+
+VKY2_CCR_ENABLE        :: 0x_00_00_00_01  // A   -  cursor enable
+VKY2_CCR_RATE_MASK     :: 0x_00_00_00_06  // A   -  flash rate: 00 - 1/Sec, 01 - 2/Sec, 10 - 4/Sec, 11 - 5/Sec
+VKY2_CCR_FONT_PAGE0    :: 0x_00_00_00_08  // A   -  font page 0 or 1
+VKY2_CCR_FONT_PAGE1    :: 0x_00_00_00_10  // A   -  font page 0 or 1
+
+Register_vicky2 :: enum u32 {
+    VKY2_MCR_L        = 0x_00_00,     // A   - master control register
+    VKY2_MCR_H        = 0x_00_01,     // A   - master control register
+    VKY2_GAMMA_CR     = 0x_00_02,     //     - gamma control register
+                                      //     - reserved
+    VKY2_BCR          = 0x_00_04,     // A   - border control register
+    VKY2_BRD_COL_B    = 0x_00_05,     // A   - border color Blue
+    VKY2_BRD_COL_G    = 0x_00_06,     // A   - border color Green
+    VKY2_BRD_COL_R    = 0x_00_07,     // A   - border color Red
+    VKY2_BRD_XSIZE    = 0x_00_08,     // A   - border X size, 0-32 (32)
+    VKY2_BRD_YSIZE    = 0x_00_09,     // A   - border X size, 0-32 (32)
+                                      //     - unknown
+                                      //     - unknown
+                                      //     - unknown
+    VKY2_BGR_COL_B    = 0x_00_0D,     // A   - background color Blue
+    VKY2_BGR_COL_G    = 0x_00_0E,     // A   - background color Green
+    VKY2_BGR_COL_R    = 0x_00_0F,     // A   - background color Red
+    VKY2_CCR          = 0x_00_10,     // A   - cursor control register
+    VKY2_TXT_SAPTR    = 0x_00_11,     // A   - offset to change the Starting address of the Text Mode Buffer (in x)
+    VKY2_TXT_CUR_CHAR = 0x_00_12,     // A   - text cursor character
+    VKY2_TXT_CUR_CLR  = 0x_00_13,     // A   - text cursor color
+    VKY2_TXT_CUR_XL   = 0x_00_14,     // A   - text cursor X position (low)
+    VKY2_TXT_CUR_XH   = 0x_00_15,     // A   - text cursor X position (high)
+    VKY2_TXT_CUR_YL   = 0x_00_16,     // A   - text cursor Y position (low)
+    VKY2_TXT_CUR_YH   = 0x_00_17,     // A   - text cursor Y position (high)
+
+}
+
+VKY2_CURSOR_BLINK_RATE           :: [4]i32{1000, 500, 250, 200}
+
 
 GPU_Vicky2 :: struct {
     using gpu: ^GPU,
+
+    vram0:   [dynamic]u8,    // VRAM
+    //vram1:   [dynamic]u8,    // VRAM  -- not implemented yet?
+    text:    [dynamic]u32,   // text memory
+    tc:      [dynamic]u32,   // text color memory
+    pointer: [dynamic]u8,    // pointer memory (16 x 16 x 4 bytes)
+    lut:     [dynamic]u8,    // LUT memory block (lut0 to lut7 ARGB)
+
+    blut:    [dynamic]u32,   // bitmap LUT cache : 256 colors * 8 banks (lut0 to lut7)
+    fg:      [dynamic]u32,   // text foreground LUT cache
+    bg:      [dynamic]u32,   // text background LUT cache
+    font:    [dynamic]u8,    // font cache       : 256 chars  * 8 lines * 8 columns
+    cram:    [dynamic]u8,    // XXX - temporary ram for FG clut/BG clut and others
+
+    fg_clut: [16]u32,         // 16 pre-calculated RGBA colors for text fore-
+    bg_clut: [16]u32,         // ...and background
+
+    starting_fb_row_pos: u32,
+    text_cols:           u32,
+    text_rows:           u32,
+    bm0_blut_pos:        u32,
+    bm1_blut_pos:        u32,
+    bm0_start_addr:      u32,
+    bm1_start_addr:      u32,
+    pixel_size:          u32,       // 1 for normal, 2 for double - XXX: not used yet
+    resolution:          u32,       // for tracking resolution changes
+    cursor_enabled:      bool,
+    overlay_enabled:     bool,
+
+    pointer_enabled:     bool,
+    pointer_selected:    bool,
+
+    gamma_dip_override:  bool,      // 0: obey dip switch,   1: software control
+    gamma_applied:       bool,      // 0: gamma not applied  1: gamma applied
 }
 
-vicky2_print_v :: proc(g: ^GPU_Vicky2) {
-    fmt.printf("vicky2 %v'n", g.text_enabled)
+// --------------------------------------------------------------------
+
+vicky2_make :: proc(name: string, id: int, dip: u8) -> ^GPU {
+    log.infof("vicky2: gpu%d initialization start, name %s", id, name)
+
+    gpu       := new(GPU)
+    gpu.name   = name
+    gpu.id     = id
+    gpu.dip    = dip
+    gpu.read   = vicky2_read
+    gpu.write  = vicky2_write
+    gpu.delete = vicky2_delete
+    gpu.render = vicky2_render
+    g         := GPU_Vicky2{gpu = gpu}
+
+    g.vram0   = make([dynamic]u8,  0x40_0000) // 4MB
+    g.text    = make([dynamic]u32,    0x2000) // text memory                  0x4000 in GenX
+    g.tc      = make([dynamic]u32,    0x2000) // text color memory            0x4000 in GenX
+    g.fg      = make([dynamic]u32,    0x2000) // text foreground LUT cache    0x4000 in GenX
+    g.bg      = make([dynamic]u32,    0x2000) // text backround  LUT cache    0x4000 in GenX
+    g.lut     = make([dynamic]u8,     0x2000) // 8 * 256 * 4 colors 
+    g.blut    = make([dynamic]u32,     0x800) // bitmap LUT cache : 256 colors * 8 banks (lut0 to lut7)
+    g.cram    = make([dynamic]u8,      0x100) // XXX - is supported?
+    g.font    = make([dynamic]u8,  0x100*8*8) // font cache 256 chars * 8 lines * 8 columns
+    g.pointer = make([dynamic]u8,      0x400) // pointer     16 x 16 x 4 bytes color
+
+    g.TFB     = new([1024*768]u32)            // text framebuffer     - for max size
+    g.BM0FB   = new([1024*768]u32)            // bitmap0 framebuffer  - for max size
+    g.BM1FB   = new([1024*768]u32)            // bitmap1 framebuffer  - for max size
+
+    g.screen_x_size  = 800                if dip & DIP_HIRES == DIP_HIRES else 640
+    g.screen_y_size  = 600                if dip & DIP_HIRES == DIP_HIRES else 480
+    g.resolution     = VKY2_MODE_800_600  if dip & DIP_HIRES == DIP_HIRES else VKY2_MODE_640_480
+    g.screen_resized = false
+
+    g.pixel_size           = 1
+    g.cursor_enabled       = true
+    g.cursor_visible       = true
+    g.bitmap_enabled       = true // XXX: there is no way to change it in vicky2?
+    g.text_enabled         = true 
+    g.gamma_dip_override   = false
+    g.gamma_applied        = false
+
+    g.border_color_b       = 0x20
+    g.border_color_g       = 0x00
+    g.border_color_r       = 0x20
+    g.border_x_size        = 0x20
+    g.border_y_size        = 0x20
+    g.border_scroll_offset = 0x00 // XXX: not used yet
+    g.starting_fb_row_pos  = 0x00
+    g.text_cols            = 0x00
+    g.text_rows            = 0x00
+    g.bm0_blut_pos         = 0x00
+    g.bm1_blut_pos         = 0x00
+    g.bm0_start_addr       = 0x00 // relative from beginning of vram
+    g.bm1_start_addr       = 0x00 // relative from beginning of vram
+
+    g.delay                = 16 * time.Millisecond  // 16 milliseconds for ~60Hz XXX - to be checked
+
+    // fake init
+    //v.mem[MASTER_CTRL_REG_L] = 0x01
+    for _, i in g.text {
+        g.text[i] = 35   // u32('#')
+        g.fg[i]   = 2    // green in FoenixMCP
+        g.bg[i]   = 0    // black in FoenixMCP
+    }
+
+    for _, i in g.fg_clut {
+        g.fg_clut[i] = u32(0xff00_00ff)
+        g.bg_clut[i] = u32(0xffcc_dd00)
+    }
+
+
+    gpu.model  = g
+    vicky2_recalculate_screen(g)
+    return gpu
+}
+
+vicky2_delete :: proc(gpu: ^GPU) {
+    g         := &gpu.model.(GPU_Vicky2)
+
+    delete(g.text)
+    delete(g.vram0)
+    delete(g.tc)
+    delete(g.fg)
+    delete(g.bg)
+    delete(g.lut)
+    delete(g.blut)
+    delete(g.cram)
+    delete(g.font)
+    delete(g.pointer)
+
+    free(g.TFB)
+    free(g.BM0FB)
+    free(g.BM1FB)
+
+    free(gpu)
+    return
+}
+
+
+vicky2_read :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr: u32, mode: emu.Mode = .MAIN) -> (val: u32) {
+    d := &gpu.model.(GPU_Vicky2)
+    #partial switch mode {
+    case .MAIN_A: 
+        val = vicky2_read_register(d, size, addr_orig, addr, mode)
+    case .MAIN_B: 
+        val = vicky2_read_register(d, size, addr_orig, addr, mode)
+    case .TEXT:
+        if size != .bits_8 {
+            emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
+        } else {
+            val = d.text[addr]
+        }
+    case .TEXT_COLOR:
+        if size != .bits_8 {
+            emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
+        } else {
+            val = d.tc[addr]
+        }
+    case .TEXT_FG_LUT:
+        if size != .bits_32 {
+            emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
+        } else {
+		    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+		    val = d.fg_clut[color]
+        }
+
+    case .TEXT_BG_LUT:
+        if size != .bits_32 {
+            emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
+        } else {
+		    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+		    val = d.bg_clut[color]
+        }
+
+    case .LUT:
+		switch size {
+        case .bits_8:
+        	val = cast(u32) d.lut[addr]
+    	case .bits_16:
+        	ptr := transmute(^u16be) &d.lut[addr]
+        	val  = cast(u32) ptr^
+    	case .bits_32:
+        	ptr := transmute(^u32be) &d.lut[addr]
+        	val  = cast(u32) ptr^
+    	}
+
+    case .VRAM0:
+		switch size {
+        case .bits_8:
+        	val = cast(u32) d.vram0[addr]
+    	case .bits_16:
+        	ptr := transmute(^u16be) &d.vram0[addr]
+        	val  = cast(u32) ptr^
+    	case .bits_32:
+        	ptr := transmute(^u32be) &d.vram0[addr]
+        	val  = cast(u32) ptr^
+    	}
+
+    case: 
+        emu.not_implemented(#procedure, d.name, size, addr_orig)
+    }
+    return
+}
+
+
+vicky2_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u32, mode: emu.Mode = .MAIN) {
+    d := &gpu.model.(GPU_Vicky2)
+    #partial switch mode {
+    case .MAIN_A: 
+        vicky2_write_register(&d.model.(GPU_Vicky2), size, addr_orig, addr, val, mode)
+
+    case .MAIN_B: 
+        vicky2_write_register(&d.model.(GPU_Vicky2), size, addr_orig, addr, val, mode)
+
+    case .TEXT:
+        if size != .bits_8 {
+            emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
+        } else {
+            d.text[addr] = val & 0x00_00_00_ff
+        }
+
+    case .TEXT_COLOR:
+        if size != .bits_8 {
+            emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
+        } else {
+            d.fg[addr] = (val & 0xf0) >> 4
+            d.bg[addr] =  val & 0x0f
+            d.tc[addr] =  val & 0x00_00_00_ff
+        }
+        
+    case .TEXT_FG_LUT:
+        if size != .bits_32 {
+            emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
+        } else {
+		    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+		    d.fg_clut[color] = val
+        }
+
+    case .TEXT_BG_LUT:
+        if size != .bits_32 {
+            emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
+        } else {
+		    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+		    d.bg_clut[color] = val
+        }
+
+    case .FONT_BANK0:
+        if size != .bits_8 {
+            emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
+        } else {
+            vicky2_update_font_cache(d, addr, u8(val))  // every bit in font cache is mapped to byte
+        }
+
+    case .LUT:
+        switch size {
+        case .bits_8:
+            d.lut[addr] = cast(u8) val
+        case .bits_16:
+            (transmute(^u16be) &d.lut[addr])^ = cast(u16be) val
+        case .bits_32:
+            (transmute(^u32be) &d.lut[addr])^ = cast(u32be) val
+        }
+        
+    case .VRAM0:
+        switch size {
+        case .bits_8:
+            d.vram0[addr] = cast(u8) val
+        case .bits_16:
+            (transmute(^u16be) &d.vram0[addr])^ = cast(u16be) val
+        case .bits_32:
+            (transmute(^u32be) &d.vram0[addr])^ = cast(u32be) val
+        }
+
+    case        : 
+        emu.not_implemented(#procedure, d.name, size, addr_orig)
+    }
+    return
+}
+
+
+@private
+vicky2_write_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig, addr, val: u32, mode: emu.Mode) {
+    if size != .bits_8 {
+        emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
+        return
+    }
+
+    reg := Register_vicky2(addr)
+    switch reg {
+    case .VKY2_MCR_L:
+
+        if mode == .MAIN_A {
+            d.text_enabled    = (val & VKY2_MCR_TEXT )         != 0
+            d.overlay_enabled = (val & VKY2_MCR_TEXT_OVERLAY ) != 0
+            d.graphic_enabled = (val & VKY2_MCR_GRAPHIC )      != 0
+            d.bitmap_enabled  = (val & VKY2_MCR_BITMAP )       != 0
+            d.tile_enabled    = (val & VKY2_MCR_TILE )         != 0
+            d.sprite_enabled  = (val & VKY2_MCR_SPRITE )       != 0
+			d.gamma_enabled   = (val & VKY2_MCR_GAMMA_ENABLE)  != 0
+            d.gpu_enabled     = (val & VKY2_MCR_VIDEO_DISABLE) == 0
+		} else {
+            emu.not_implemented(#procedure, ".VKY2_MCR_L/.MAIN_B", size, addr_orig)
+		}
+
+    case .VKY2_MCR_H:
+        if mode == .MAIN_A {
+			if d.resolution != (val & VKY2_MODE_MASK) {
+
+                d.resolution     = val & VKY2_MODE_MASK
+                d.screen_resized = true
+
+                switch d.resolution {
+                case VKY2_MODE_640_480:		// 0
+                    d.screen_x_size = 640
+                    d.screen_y_size = 480
+                    //d.delay         = 16  * time.Millisecond   // 16 for 60Hz, 14 for 70Hz
+                case VKY2_MODE_800_600:     // 1
+                    d.screen_x_size = 800
+                    d.screen_y_size = 600
+                    //d.delay         = 16  * time.Millisecond   // for 60Hz
+                }
+        		vicky2_recalculate_screen(d)
+    		}
+    	} else {
+   			emu.not_implemented(#procedure, ".VKY2_MCR_H/.MAIN_B", size, addr_orig)
+    	}
+
+    case .VKY2_GAMMA_CR: 
+        emu.not_implemented(#procedure, fmt.tprintf("%v", reg), size, addr_orig)
+
+    case .VKY2_BCR:
+        d.border_enabled = (val & VKY2_BCR_ENABLE )       != 0
+
+        if (val & VKY2_BCR_X_SCROLL) != 0 {
+            emu.not_implemented(#procedure, "VKY2_A_BCR_X_SCROLL", size, addr_orig)
+        }
+
+    case .VKY2_BRD_COL_B: d.border_color_b =  u8(val); if d.border_enabled do vicky2_recalculate_screen(d)
+    case .VKY2_BRD_COL_G: d.border_color_g =  u8(val); if d.border_enabled do vicky2_recalculate_screen(d)
+    case .VKY2_BRD_COL_R: d.border_color_r =  u8(val); if d.border_enabled do vicky2_recalculate_screen(d)
+    case .VKY2_BRD_XSIZE: d.border_x_size  = i32(val); if d.border_enabled do vicky2_recalculate_screen(d)
+    case .VKY2_BRD_YSIZE: d.border_y_size  = i32(val); if d.border_enabled do vicky2_recalculate_screen(d)
+    case .VKY2_BGR_COL_B: d.bg_color_b     =  u8(val)
+    case .VKY2_BGR_COL_G: d.bg_color_g     =  u8(val)
+    case .VKY2_BGR_COL_R: d.bg_color_r     =  u8(val)
+
+    case .VKY2_CCR:
+        d.cursor_enabled   =     (val & VKY2_CCR_ENABLE    ) != 0
+        d.cursor_rate      = i32((val & VKY2_CCR_RATE_MASK ) >> 1)   // XXX - why i32?
+
+        if (val & VKY2_CCR_FONT_PAGE0) != 0 {
+            emu.not_implemented(#procedure, "VKY2_CCR_FONT_PAGE0", size, addr_orig)
+        }
+        if (val & VKY2_CCR_FONT_PAGE1) != 0 {
+            emu.not_implemented(#procedure, "VKY2_CCR_FONT_PAGE1", size, addr_orig)
+        }
+
+    case .VKY2_TXT_SAPTR:    emu.not_implemented(#procedure, "VKY2_TXT_SAPTR", size, addr_orig)
+    case .VKY2_TXT_CUR_CHAR: d.cursor_character = val
+
+    case .VKY2_TXT_CUR_CLR:     
+        d.cursor_bg        =  val & 0x0f
+        d.cursor_fg        = (val & 0xf0) >> 4
+
+    case .VKY2_TXT_CUR_XL: d.cursor_x  = val
+    case .VKY2_TXT_CUR_XH: emu.not_implemented(#procedure, "VKY2_TXT_CUR_XH", size, addr_orig)
+    case .VKY2_TXT_CUR_YL: d.cursor_y  = val
+    case .VKY2_TXT_CUR_YH: emu.not_implemented(#procedure, "VKY2_TXT_CUR_YH", size, addr_orig)
+    case                 : emu.not_implemented(#procedure, "UNKNOWN",         size, addr_orig)
+    }
+}
+
+@private
+vicky2_read_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig, addr: u32, mode: emu.Mode) -> (val: u32) {
+    if size != .bits_8 {
+        emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
+        return
+    }
+
+    reg := Register_vicky2(addr)
+    switch reg {
+    case .VKY2_MCR_L:
+        if mode == .MAIN_A {
+            val |= VKY2_MCR_TEXT          if d.text_enabled    else 0           // Bit[0]
+            val |= VKY2_MCR_TEXT_OVERLAY  if d.overlay_enabled else 0           // Bit[1]
+            val |= VKY2_MCR_GRAPHIC       if d.graphic_enabled else 0           // Bit[2]
+            val |= VKY2_MCR_BITMAP        if d.bitmap_enabled  else 0           // Bit[3]
+            val |= VKY2_MCR_TILE          if d.tile_enabled    else 0           // Bit[4]
+            val |= VKY2_MCR_SPRITE        if d.sprite_enabled  else 0           // Bit[5]
+            val |= VKY2_MCR_GAMMA_ENABLE  if d.gamma_enabled   else 0           // Bit[6]
+            val |= VKY2_MCR_VIDEO_DISABLE if ! d.gpu_enabled   else 0           // Bit[7]
+        } else {
+            emu.not_implemented(#procedure, ".VKY2_MCR_L / !.MAIN_A", size, addr_orig)
+        }
+    case .VKY2_MCR_H:
+            val |= VKY2_MODE_800_600  if  d.resolution == VKY2_MODE_800_600  else 0
+            val |= VKY2_DOUBLE_PIXEL  if  d.pixel_size == 2                  else 0
+    case .VKY2_GAMMA_CR:
+        // GAMMA_Ctrl_Input        = $01 ; 0 = DipSwitch Chooses GAMMA on/off , 1- Software Control
+        // GAMMA_Ctrl_Soft         = $02 ; 0 = GAMMA Table is not Applied, 1 = GAMMA Table is Applied
+        // GAMMA_DP_SW_VAL         = $08 ; READ ONLY - Actual DIP Switch Value
+        // HIRES_DP_SW_VAL         = $10 ; READ ONLY - 0 = Hi-Res on BOOT ON, 1 = Hi-Res on BOOT OFF
+        val |= 0x01 if d.gamma_dip_override           else 0
+        val |= 0x02 if d.gamma_applied                else 0
+        val |= 0x08 if d.dip & DIP_GAMMA == DIP_GAMMA else 0
+        val |= 0x10 if d.dip & DIP_HIRES == DIP_HIRES else 0
+
+    case .VKY2_BCR:
+        val |= VKY2_BCR_ENABLE if d.border_enabled else 0
+        val |= (u32(d.border_scroll_offset) <<  4)
+        
+    case .VKY2_BRD_COL_B: val  =  u32(d.border_color_b)
+    case .VKY2_BRD_COL_G: val  =  u32(d.border_color_g)
+    case .VKY2_BRD_COL_R: val  =  u32(d.border_color_r)
+    case .VKY2_BRD_XSIZE: val  =  u32(d.border_x_size)
+    case .VKY2_BRD_YSIZE: val  =  u32(d.border_y_size)
+    case. VKY2_BGR_COL_B: val  =  u32(d.background[2])
+    case. VKY2_BGR_COL_G: val  =  u32(d.background[1])
+    case. VKY2_BGR_COL_R: val  =  u32(d.background[0])
+
+    case .VKY2_CCR:
+        val |= VKY2_CCR_ENABLE if d.cursor_enabled else 0
+        val |= u32(d.cursor_rate >> 1)
+        // XXX: cursor font page 0 and 1 not implemented!
+
+    case .VKY2_TXT_SAPTR:
+        emu.not_implemented(#procedure, fmt.tprintf("%v", reg), size, addr_orig)
+
+    case .VKY2_TXT_CUR_CHAR: 
+        val = d.cursor_character
+
+    case .VKY2_TXT_CUR_CLR:
+        val  = d.cursor_bg
+        val |= d.cursor_fg << 4
+
+    case .VKY2_TXT_CUR_XL: val = d.cursor_x
+    case .VKY2_TXT_CUR_XH: val = 0
+    case .VKY2_TXT_CUR_YL: val = d.cursor_y
+    case .VKY2_TXT_CUR_YH: val = 0
+    case                 : emu.not_implemented(#procedure, "UNKNOWN", size, addr_orig)
+    }
+    return
+}
+
+@private
+vicky2_b_write_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig, addr, val: u32) {
+    emu.not_implemented(#procedure, d.name, size, addr_orig)
+}
+
+@private
+vicky2_b_read_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig, addr: u32) -> (val: u32) {
+    emu.not_implemented(#procedure, d.name, size, addr_orig)
+    return
+}
+
+
+// GUI-specific
+// updates font cache by converting bits to bytes
+// position - position of indyvidual byte in font bank
+// val      - particular value
+@private
+vicky2_update_font_cache :: proc(g: ^GPU_Vicky2, position: u32, value: u8) {
+    //log.debugf("vicky2: %s update font cache position %d value %d", g.name, position, value)
+       pos := position * 8
+       val := value
+        for j := u32(8); j > 0; j = j - 1 {          // counting down spares from shifting val left
+                if (val & 1) == 1 {
+                        g.font[pos + j - 1] = 1
+                } else {
+                        g.font[pos + j - 1] = 0
+                }
+                val = val >> 1
+        }
+}
+
+
+vicky2_recalculate_screen :: proc(gpu: ^GPU) {
+    g         := &gpu.model.(GPU_Vicky2)
+    if g.border_enabled {
+            g.starting_fb_row_pos = u32(g.screen_x_size) * u32(g.border_y_size) + u32(g.border_x_size)
+            g.text_rows = u32((g.screen_y_size - g.border_y_size*2) / 8)
+    } else {
+            g.starting_fb_row_pos = 0
+            g.text_rows = u32(g.screen_y_size / 8)
+    }
+
+    g.text_cols = u32(g.screen_x_size / 8)
+    //g.text_rows = u32(g.screen_y_size / 8)
+
+    log.debugf("vicky2: %s text_rows: %d", g.name, g.text_rows)
+    log.debugf("vicky2: %s text_cols: %d", g.name, g.text_cols)
+    log.debugf("vicky2: %s border: %v %d %d", g.name, g.border_enabled, g.border_x_size, g.border_y_size)
+    log.debugf("vicky2: %s resolution %08x", g.name, g.resolution)
+    return
+}
+
+vicky2_render :: proc(gpu: ^GPU) {
+    if gpu.text_enabled do vicky2_render_text(gpu)
+    if gpu.bm0_enabled  do vicky2_render_bm0(gpu)
+    if gpu.bm1_enabled  do vicky2_render_bm1(gpu)
+    return
+}
+
+vicky2_render_bm0 :: proc(gpu: ^GPU) {
+    g         := &gpu.model.(GPU_Vicky2)
+   
+    max := u32(g.screen_x_size * g.screen_y_size)
+    for i := u32(0); i < max; i += 1 {
+        lut_index    := u32(g.vram0[g.bm0_pointer + i])
+        lut_position := (g.bm0_lut * 256) + 4 * lut_index
+        g.BM0FB[i] = (transmute(^u32) &g.lut[lut_position])^
+    }
+
+}
+
+vicky2_render_bm1 :: proc(gpu: ^GPU) {
+    g         := &gpu.model.(GPU_Vicky2)
+   
+    max := u32(g.screen_x_size * g.screen_y_size)
+    for i := u32(0); i < max; i += 1 {
+        lut_index    := u32(g.vram0[g.bm1_pointer + i])
+        lut_position := (g.bm1_lut * 256) + 4 * lut_index
+        g.BM0FB[i] = (transmute(^u32) &g.lut[lut_position])^
+    }
+
+}
+
+vicky2_render_text :: proc(gpu: ^GPU) {
+        g         := &gpu.model.(GPU_Vicky2)
+
+        cursor_x, cursor_y: u32 // row and column of cursor
+        text_row_pos:       u32 // beginning of current text row in text memory
+        fb_row_pos:         u32 // beginning of current FB   row in memory
+        font_pos:           u32 // position in font array (char * 64 + char_line * 8)
+        fb_pos:             u32 // position in destination framebuffer
+        font_row_pos:       u32 // position of line in current font (=font_line*8 because every line has 8 bytes)
+
+        // that particular counters are used in loops and are mentione here for reference
+        //i:                  u32 // counter
+        //text_x, text_y:     u32 // row and column of text
+        //font_line:          u32 // line in current font
+
+        // placeholders recalculated per row of text, holds values for text_cols loop
+        // current max size is 128 columns for 1024x768
+        fnttmp: [128]u32    // position in font array, from char value
+        fgctmp: [128]u32    // foreground color cache (rgba) for one line
+        bgctmp: [128]u32    // background color cache (rgba) for one line
+        dsttmp: [128]u32    // position in destination memory array
+
+        // XXX: it should be rather updated on register write?
+        // cursor_x       = u32(g.mem[ CURSOR_X_H ]) << 16 | u32(g.mem[ CURSOR_X_L ])
+        // cursor_y       = u32(g.mem[ CURSOR_Y_H ]) << 16 | u32(g.mem[ CURSOR_Y_L ])
+        // XXX: fix it to g.cursor_x/y in code
+        cursor_x = g.cursor_x
+        cursor_y = g.cursor_y
+
+        // render text - start
+        // I prefer to keep it because it allow to simply re-drawing single line in future,
+        // by manupipulating starting point (now 0) and end clause (now <g.text_rows)
+        // xxx - bad workaround
+            if g.border_enabled {
+            g.starting_fb_row_pos = u32(g.screen_x_size) * u32(g.border_y_size) + u32(g.border_x_size)
+    } else {
+            g.starting_fb_row_pos = 0
+    }
+        fb_row_pos = g.starting_fb_row_pos
+        //fb_row_pos = 0
+        //fmt.printf("border %v text_rows %d text_cols %d\n", g.border_enabled, g.text_rows, g.text_cols)
+        for text_y in u32(0) ..< g.text_rows { // over lines of text
+                text_row_pos = text_y * g.text_cols
+                for text_x in u32(0) ..< g.text_cols { // pre-calculate data for x-axis
+                        fnttmp[text_x] = g.text[text_row_pos+text_x] * 64 // position in font array
+                        dsttmp[text_x] = text_x * 8                     // position of char in dest FB
+
+                        f := g.fg[text_row_pos+text_x] // fg and bg colors
+                        b := g.bg[text_row_pos+text_x]
+
+                        if g.cursor_visible && g.cursor_enabled && (cursor_y == text_y) && (cursor_x == text_x) {
+                                f = g.cursor_fg
+                                b = g.cursor_bg
+                                fnttmp[text_x] = g.cursor_character * 64 // XXX precalculate?
+                        }
+
+                        fgctmp[text_x] = g.fg_clut[f]
+                        if g.overlay_enabled == false {
+                                bgctmp[text_x] = g.bg_clut[b]
+                        } else {
+                                bgctmp[text_x] = 0x000000FF                    // full alph
+                        }
+                }
+                for font_line in u32(0)..<8 { // for every line of text - over 8 lines of font
+                        font_row_pos = font_line * 8
+                        for text_x in u32(0)..<g.text_cols { // for each line iterate over columns of text
+                                font_pos = fnttmp[text_x] + font_row_pos
+                                fb_pos   = dsttmp[text_x] + fb_row_pos
+                                for i in u32(0)..<8 { // for every font iterate over 8 pixels of font
+                                        if g.font[font_pos+i] == 0 {
+                                                /*
+                                                if g.text_cols == 128 {
+//                                                    fmt.printf("fb_row_pos %d pos %d text_x %d i %d\n", fb_row_pos, fb_pos+i, text_x, i)
+                                                }*/
+                                                g.TFB[fb_pos+i] = bgctmp[text_x]
+                                        } else {
+                                                g.TFB[fb_pos+i] = fgctmp[text_x]
+                                        }
+                                }
+                        }
+                        fb_row_pos += u32(g.screen_x_size)
+                }
+        }
+        // render text - end
 }

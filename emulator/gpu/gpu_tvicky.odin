@@ -298,134 +298,13 @@ tvicky_write_register :: proc(d: ^GPU_tVicky, size: emu.Request_Size, addr_orig,
         return
     }
 
-    reg := Register(addr)
+    reg := Register_tVicky(addr)
+    /*
     switch reg {
-    case .VKY3_MCR:                             // so far only difference between channel A and B
-
-        if mode == .MAIN_A {
-
-            d.text_enabled = (val & VKY3_MCR_TEXT )         != 0
-            d.gpu_enabled  = (val & VKY3_MCR_VIDEO_DISABLE) == 0
-
-            if d.resolution != (val & VKY3_MCR_1024_768) {
-                d.resolution     = val & VKY3_MCR_1024_768
-                d.screen_resized = true
-
-                switch d.resolution {
-                case 0x00:
-                    d.screen_x_size = 800
-                    d.screen_y_size = 600
-                case VKY3_MCR_1024_768:
-                    d.screen_x_size = 1024
-                    d.screen_y_size = 768
-                }
-
-                tvicky_recalculate_screen(d)
-            }
-            // XXX: Bit[16] gamma selector not implemented
-            // XXX: Bit[17] gamma state    not implemented
-            // XXX: Bit[18] sync off       not implemented
-
-    } else {
-
-            d.text_enabled    = (val & VKY3_MCR_TEXT )         != 0
-            d.overlay_enabled = (val & VKY3_MCR_TEXT_OVERLAY ) != 0
-            d.graphic_enabled = (val & VKY3_MCR_GRAPHIC )      != 0
-            d.bitmap_enabled  = (val & VKY3_MCR_BITMAP )       != 0
-            d.tile_enabled    = (val & VKY3_MCR_TILE )         != 0
-            d.sprite_enabled  = (val & VKY3_MCR_SPRITE )       != 0
-            d.gpu_enabled     = (val & VKY3_MCR_VIDEO_DISABLE) == 0
-
-            // XXX - double pixel not supported
-
-            log.debugf("gpu%d %s: screen size %d", d.id, d.name, ((val & VKY3_MCR_MODE_MASK) >> 8))
-            if d.resolution != (val & VKY3_MCR_MODE_MASK) {
-                d.resolution     = val & VKY3_MCR_MODE_MASK
-                d.screen_resized = true
-
-                switch ( d.resolution >> 8 ) {
-                case 0x00:
-                    d.screen_x_size = 640
-                    d.screen_y_size = 480
-                    d.delay         = 16  * time.Millisecond   // for 60Hz
-                case 0x01:
-                    // something is wrong here
-                case 0x02:
-                    d.screen_x_size = 800
-                    d.screen_y_size = 600
-                    d.delay         = 16  * time.Millisecond   // for 60Hz
-                case 0x03:
-                    d.screen_x_size = 640
-                    d.screen_y_size = 400
-                    d.delay         = 14  * time.Millisecond  // for 70Hz
-                }
-
-                tvicky_recalculate_screen(d)
-            }
-            // XXX: Bit[16] gamma selector not implemented
-            // XXX: Bit[17] gamma state    not implemented
-            // XXX: Bit[18] sync off       not implemented
-
-    }
-
-    case .VKY3_BCR:
-        d.border_enabled = (val & VKY3_BCR_ENABLE )       != 0
-
-        if (val & VKY3_BCR_X_SCROLL) != 0 {
-            emu.not_implemented(#procedure, "VKY3_A_BCR_X_SCROLL", .bits_32, addr_orig)
-        }
-
-        d.border_x_size = i32((val & VKY3_BCR_X_SIZE) >>  8)
-        d.border_y_size = i32((val & VKY3_BCR_Y_SIZE) >> 16)
-        tvicky_recalculate_screen(d)
-        
-    case .VKY3_BRD_COLOR:
-        // XXX - convert this to BGRA or something?
-        d.border_color_b = u8( val & 0x_00_00_00_ff)
-        d.border_color_g = u8((val & 0x_00_00_ff_00) >>  8)
-        d.border_color_r = u8((val & 0x_00_ff_00_00) >> 16)
-
-    case .VKY3_BGR_COLOR:
-        d.bg_color_b = u8( val & 0x_00_00_00_ff)
-        d.bg_color_g = u8((val & 0x_00_00_ff_00) >>  8)
-        d.bg_color_r = u8((val & 0x_00_ff_00_00) >> 16)
-
-    case .VKY3_CCR:
-        d.cursor_enabled   =     (val & VKY3_CCR_ENABLE    ) != 0
-        d.cursor_rate      = i32((val & VKY3_CCR_RATE      ) >>  1)   // XXX - why i32?
-        d.cursor_character = u32((val & VKY3_CCR_CHARACTER ) >> 16)
-        d.cursor_bg        = u32((val & VKY3_CCR_BG        ) >> 24)
-        d.cursor_fg        = u32((val & VKY3_CCR_BG        ) >> 28)
-
-        if (val & VKY3_CCR_OFFSET) != 0 {
-            emu.not_implemented(#procedure, "VKY3_A_CCR_OFFSET", .bits_32, addr_orig)
-        }
-
-    case .VKY3_CPR:
-        d.cursor_x = (val & 0x_00_00_ff_ff)
-        d.cursor_y = (val & 0x_ff_ff_00_00) >> 16
-
-    case .VKY3_IRQ0:
-        emu.not_implemented(#procedure, "VKY3_IRQ0", size, addr_orig)
-    case .VKY3_IRQ1:
-        emu.not_implemented(#procedure, "VKY3_IRQ1", size, addr_orig)
-    case .VKY3_FONT_MGR0:
-        emu.not_implemented(#procedure, "VKY3_FONT_MGR0", size, addr_orig)
-    case .VKY3_FONT_MGR1:
-        emu.not_implemented(#procedure, "VKY3_FONT_MGR1", size, addr_orig)
-
-    case .VKY3_BM_L0CR:
-        d.bm0_enabled           = (val & VKY3_BITMAP           ) != 0 
-        d.bm0_lut               = (val & VKY3_BITMAP_LUT_MASK  ) >> 1
-        d.bm0_collision_enabled = (val & VKY3_BITMAP_COLLISION ) != 0 
-        log.debugf("gpu%d %s: bitmap_bm0 %v", d.id, d.name, d.bm0_enabled)
-
-    case .VKY3_BM_L0PTR:
-        d.bm0_pointer = val
-        // XXX - recalculate bitmap0
     case                 :
         emu.not_implemented(#procedure, "UNKNOWN", size, addr_orig)
     }
+    */
 }
 
 @private
@@ -435,82 +314,13 @@ tvicky_read_register :: proc(d: ^GPU_tVicky, size: emu.Request_Size, addr_orig, 
         return
     }
 
-    reg := Register(addr)
+    reg := Register_tVicky(addr)
+    /*
     switch reg {
-    case .VKY3_MCR:
-        if mode == .MAIN_A {
-
-            val |= VKY3_MCR_TEXT if d.text_enabled else 0                      // Bit[0]
-            val |= 0             if d.gpu_enabled  else VKY3_MCR_VIDEO_DISABLE // Bit[7]
-            val |= d.resolution                                                // Bit[11]
-            val |= 0x_40_00_00_00                                              // Bit[30]  XXX val for 800x600 (lower)
-
-            // XXX: Bit[16] gamma selector not implemented
-            // XXX: Bit[17] gamma state    not implemented
-            // XXX: Bit[18] sync off       not implemented
-
-        } else {
-
-            val |= VKY3_MCR_TEXT         if d.text_enabled    else 0                       // Bit[0]
-            val |= VKY3_MCR_TEXT_OVERLAY if d.overlay_enabled else 0                       // Bit[1]
-            val |= VKY3_MCR_GRAPHIC      if d.graphic_enabled else 0                       // Bit[2]
-            val |= VKY3_MCR_BITMAP       if d.bitmap_enabled  else 0                       // Bit[3]
-            val |= VKY3_MCR_TILE         if d.tile_enabled    else 0                       // Bit[4]
-            val |= VKY3_MCR_SPRITE       if d.sprite_enabled  else 0                       // Bit[5]
-            // Bit[6] reserved
-            val |= 0                     if d.gpu_enabled     else VKY3_MCR_VIDEO_DISABLE  // Bit[7]
-            val |= d.resolution                                                            // Bit[8:9]
-            // XXX: Bit[10] double pixel not supported
-            // Bit[10] reserved (hires on A)
-            val |= 0x_00_00_00_00                                              // Bit[14]  XXX val for 800x600 (high)
-
-            // XXX: Bit[16] gamma selector not implemented
-            // XXX: Bit[17] gamma state    not implemented
-            // XXX: Bit[18] sync off       not implemented
-
-    }
-    case .VKY3_BCR:
-        val |= VKY3_BCR_ENABLE if d.border_enabled else 0
-        val |= (u32(d.border_x_size) <<  8)
-        val |= (u32(d.border_y_size) << 16)
-        
-    case .VKY3_BRD_COLOR:
-        val  =  u32(d.border_color_b)
-        val |= (u32(d.border_color_g) <<  8)
-        val |= (u32(d.border_color_r) << 16)
-
-    case .VKY3_BGR_COLOR:
-        val  =  u32(d.bg_color_b)
-        val |= (u32(d.bg_color_g) <<  8)
-        val |= (u32(d.bg_color_r) << 16)
-
-    case .VKY3_CCR:
-        emu.not_implemented(#procedure, "VKY3_CCR", size, addr_orig)
-
-    case .VKY3_CPR:
-        val |= d.cursor_x
-        val |= d.cursor_y << 16
-
-    case .VKY3_IRQ0:
-        emu.not_implemented(#procedure, "VKY3_IRQ0", size, addr_orig)
-    case .VKY3_IRQ1:
-        emu.not_implemented(#procedure, "VKY3_IRQ1", size, addr_orig)
-    case .VKY3_FONT_MGR0:
-        emu.not_implemented(#procedure, "VKY3_FONT_MGR0", size, addr_orig)
-    case .VKY3_FONT_MGR1:
-        emu.not_implemented(#procedure, "VKY3_FONT_MGR1", size, addr_orig)
-
-    case .VKY3_BM_L0CR:
-        val |= VKY3_BITMAP           if d.border_enabled        else 0
-        val |= VKY3_BITMAP_COLLISION if d.bm0_collision_enabled else 0
-        val |= d.bm0_lut << 1
-
-    case .VKY3_BM_L0PTR:
-        val = d.bm0_pointer
-
     case                 :
         emu.not_implemented(#procedure, "UNKNOWN", size, addr_orig)
     }
+    */
     return
 }
 

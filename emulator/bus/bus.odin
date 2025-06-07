@@ -18,6 +18,7 @@ spall_buffer: spall.Buffer
 Bus :: struct {
     name:    string,
       id:    int,
+    type:    emu.Type,
     read:    proc(^Bus, emu.Request_Size, u32) -> u32,
    write:    proc(^Bus, emu.Request_Size, u32,     u32),
   delete:    proc(^Bus),
