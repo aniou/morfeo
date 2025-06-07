@@ -16,6 +16,7 @@ tags
 #external/*
 
 # built binaries
+c256u
 a2560x
 test_65c816
 test_w65c02s
