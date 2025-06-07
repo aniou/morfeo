@@ -67,7 +67,7 @@ unsupported_write_size :: proc(procedure, dev_name: string, dev_id: int, mode: R
 
 // used by devices
 not_implemented :: proc(procedure, dev_name: string, mode: Request_Size, addr: u32) {
-    log.errorf("%-12s %s access%-2d   addr %04X:%04X not implemented at all", 
+    log.errorf("%-12s %s access%2d   addr %04X:%04X not implemented at all", 
                 procedure, 
                 dev_name, 
                 mode, 
