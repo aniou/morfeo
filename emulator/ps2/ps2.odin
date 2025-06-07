@@ -1,6 +1,8 @@
 
 package ps2
 
+TARGET :: #config(TARGET, false)
+
 import "core:log"
 import "emulator:pic"
 import "lib:emu"
@@ -16,9 +18,22 @@ PS2_STAT_TTO    :: u8(0x20)
 PS2_STAT_RTO    :: u8(0x40)
 PS2_STAT_PE     :: u8(0x80)
 
-KBD_DATA        :: 0x00 // 0x60 for reading and writing
-KBD_COMMAND     :: 0x04 // 0x64 for writing
-KBD_STATUS      :: 0x04 // 0x64 for reading
+when TARGET == "a2560x" {
+	KBD_DATA        :: 0x00 // 0x60 for reading and writing
+	KBD_COMMAND     :: 0x04 // 0x64 for writing
+	KBD_STATUS      :: 0x04 // 0x64 for reading
+} else when TARGET == "c256u" {
+	KBD_DATA        :: 0x03 // $AF1803 for reading and writing
+	KBD_COMMAND     :: 0x07 // $AF1807 for writing
+	KBD_STATUS      :: 0x07 // $AF1807 for reading
+} else when TARGET == "c256fmx" {
+	KBD_DATA        :: 0x00 // $AF1060 for reading and writing
+	KBD_COMMAND     :: 0x04 // $AF1064 for writing
+	KBD_STATUS      :: 0x04 // $AF1064 for reading
+} else {
+	#panic("ps2: Unsupported architecture")
+}
+
 
 
 PS2 :: struct {

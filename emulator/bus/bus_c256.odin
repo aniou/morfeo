@@ -62,6 +62,7 @@ c256_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
     case 0x00_00_0200 ..= 0x00_1F_FFFF:  val = bus.ram0->read(size, addr                             )
     case 0x00_20_0000 ..= 0x00_4F_FFFF:  val = bus.ram0->read(size, addr             )
     case 0x00_AF_0000 ..= 0x00_AF_07FF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_0000, .MAIN_A     )
+    case 0x00_AF_1803 ..= 0x00_AF_1807:  val = bus.ps2->read (size, addr, addr - 0x00_AF_1800)
 
     case 0x00_AF_1F40 ..= 0x00_AF_1F7F:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_1F40, .TEXT_FG_LUT)
     case 0x00_AF_1F80 ..= 0x00_AF_1FFF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_1F80, .TEXT_BG_LUT)
@@ -92,7 +93,7 @@ c256_write :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
     case 0x00_00_0200 ..= 0x00_1F_FFFF:  bus.ram0->write(size, addr, val                        )
     case 0x00_20_0000 ..= 0x00_4F_FFFF:  bus.ram0->write(size, addr,  val         )          // only valid for 4MB models
     case 0x00_AF_0000 ..= 0x00_AF_07FF:  bus.gpu0->write(size, addr, addr - 0x00_AF_0000, val, .MAIN_A     )
-
+    case 0x00_AF_1803 ..= 0x00_AF_1807:  bus.ps2->write (size, addr, addr - 0x00_AF_1800, val)
     case 0x00_AF_1F40 ..= 0x00_AF_1F7F:  bus.gpu0->write(size, addr, addr - 0x00_AF_1F40, val, .TEXT_FG_LUT)
     case 0x00_AF_1F80 ..= 0x00_AF_1FFF:  bus.gpu0->write(size, addr, addr - 0x00_AF_1F80, val, .TEXT_BG_LUT)
     case 0x00_AF_8000 ..= 0x00_AF_87FF:  bus.gpu0->write(size, addr, addr - 0x00_AF_8000, val, .FONT_BANK0 )
