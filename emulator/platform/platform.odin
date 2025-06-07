@@ -14,6 +14,7 @@ import "core:log"
 
 Platform   :: struct { 
     delete: proc(^Platform),
+    init:   proc(^Platform),
 
     cpu:     ^cpu.CPU,
     bus:     ^bus.Bus,

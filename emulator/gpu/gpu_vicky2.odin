@@ -534,7 +534,7 @@ vicky2_b_read_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig
 // val      - particular value
 @private
 vicky2_update_font_cache :: proc(g: ^GPU_Vicky2, position: u32, value: u8) {
-    //log.debugf("vicky2: %s update font cache position %d value %d", g.name, position, value)
+       log.debugf("vicky2: %s update font cache position %d value %d", g.name, position, value)
        pos := position * 8
        val := value
         for j := u32(8); j > 0; j = j - 1 {          // counting down spares from shifting val left

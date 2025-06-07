@@ -26,9 +26,7 @@ c256_make :: proc(type: emu.Type) -> ^Platform {
     p.bus.rtc   = rtc.bq4802_make ("rtc0", pic)
     p.cpu       = cpu.make_w65c816("cpu0", p.bus)
     p.delete    = c256_delete
-
-    p.bus.ram0->write(.bits_8, 0xFFFC, 0x00)         // initial vector for this platform
-    p.bus.ram0->write(.bits_8, 0xFFFD, 0x10)
+    p.init      = c256_init
 
     return p
 }
@@ -46,4 +44,21 @@ c256_delete :: proc(p: ^Platform) {
     return
 }
 
+c256_init :: proc(p: ^Platform) {
+
+    // probably redundant
+    p.bus->write(.bits_8, 0xFFFC, 0x00)
+    p.bus->write(.bits_8, 0xFFFD, 0x10)
+
+    // On boot, Gavin copies the first 64KB of the content of System Flash                                                          
+    // (or User Flash, if present) to Bank $00.  The entire 512KB are copied 
+    // to address range $18:0000 to $1F:FFFF (or 38:000 to 3F:FFFF)
+
+    // act ersatz - copy jump table
+    for j in u32(0x1000) ..< u32(0x1800) {
+    	val := p.bus->read(.bits_8, 0x38_0000 + j)
+    	p.bus->write(.bits_8, j, val)
+    }
+ 
+}
 
