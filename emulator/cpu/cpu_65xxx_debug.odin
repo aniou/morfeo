@@ -53,7 +53,7 @@ parse_argument :: proc(c: ^CPU_65xxx, mode: CPU_65xxx_mode) -> (result: string) 
 
     case .DP:                                 // dir
         arg    := read_m( pc, byte )
-        result  = fmt.aprintf("$%02x,Y", arg & 0xff) 
+        result  = fmt.aprintf("$%02x", arg & 0xff) 
 
     case .DP_X:                               // dir,X
         arg    := read_m( pc, byte )
@@ -61,7 +61,7 @@ parse_argument :: proc(c: ^CPU_65xxx, mode: CPU_65xxx_mode) -> (result: string) 
 
     case .DP_Y:                               // dir,Y
         arg    := read_m( pc, byte )
-        result  = fmt.aprintf("($%02x,X)", arg & 0xff) 
+        result  = fmt.aprintf("($%02x,Y)", arg & 0xff) 
 
     case .DP_X_Indirect:                      // (dir,X)
         arg    := read_m( pc, byte )
