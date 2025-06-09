@@ -884,7 +884,7 @@ mode_Immediate_flag_X       :: #force_inline proc (using c: ^CPU_65xxx) {
 mode_BlockMove              :: #force_inline proc (using c: ^CPU_65xxx) {
     ab        = pc
     ab.addr  += 1
-    pc.addr  += 2
+    pc.addr  += 3
 }
 
 //
