@@ -216,6 +216,12 @@ step_w65c816 :: proc(cpu: ^CPU_65xxx) {
     // interrupts are triggered at end of current command with exception in ABORT
     // that is triggered early and causes command to be no-op with the same cycles
     // as original - but ABORT is not implemented propelry in that variant of exec
+    if cpu.bus.pic.irq_active && !cpu.f.I {
+    //    //log.debugf("cpu0: irq active")
+        cpu.bus.pic.irq_active = false
+        cpu.irq += {.IRQB}
+    }
+
     if cpu.irq != nil {
         cpu.irq_pending = true
     }
