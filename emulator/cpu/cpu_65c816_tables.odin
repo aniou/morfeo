@@ -127,7 +127,7 @@ CPU_w65c816_opcodes : [256]CPU_w65c816_debug = {
     {  .ASL, .DP                     }, // 06
     {  .ORA, .DP_Indirect_Long       }, // 07
     {  .PHP, .Implied                }, // 08
-    {  .ORA, .Immediate              }, // 09
+    {  .ORA, .Immediate_flag_M      }, // 09
     {  .ASL, .Accumulator            }, // 0a
     {  .PHD, .Implied                }, // 0b
     {  .TSB, .Absolute               }, // 0c
@@ -159,7 +159,7 @@ CPU_w65c816_opcodes : [256]CPU_w65c816_debug = {
     {  .ROL, .DP                     }, // 26
     {  .AND, .DP_Indirect_Long       }, // 27
     {  .PLP, .Implied                }, // 28
-    {  .AND, .Immediate              }, // 29
+    {  .AND, .Immediate_flag_M       }, // 29
     {  .ROL, .Accumulator            }, // 2a
     {  .PLD, .Implied                }, // 2b
     {  .BIT, .Absolute               }, // 2c
@@ -191,7 +191,7 @@ CPU_w65c816_opcodes : [256]CPU_w65c816_debug = {
     {  .LSR, .DP                     }, // 46
     {  .EOR, .DP_Indirect_Long       }, // 47
     {  .PHA, .Implied                }, // 48
-    {  .EOR, .Immediate              }, // 49
+    {  .EOR, .Immediate_flag_M       }, // 49
     {  .LSR, .Accumulator            }, // 4a
     {  .PHK, .Implied                }, // 4b
     {  .JMP, .Absolute               }, // 4c
@@ -223,7 +223,7 @@ CPU_w65c816_opcodes : [256]CPU_w65c816_debug = {
     {  .ROR, .DP                     }, // 66
     {  .ADC, .DP_Indirect_Long       }, // 67
     {  .PLA, .Implied                }, // 68
-    {  .ADC, .Immediate              }, // 69
+    {  .ADC, .Immediate_flag_M       }, // 69
     {  .ROR, .Accumulator            }, // 6a
     {  .RTL, .Implied                }, // 6b
     {  .JMP, .Absolute_Indirect      }, // 6c
@@ -255,7 +255,7 @@ CPU_w65c816_opcodes : [256]CPU_w65c816_debug = {
     {  .STX, .DP                     }, // 86
     {  .STA, .DP_Indirect_Long       }, // 87
     {  .DEY, .Implied                }, // 88
-    {  .BIT, .Immediate              }, // 89
+    {  .BIT, .Immediate_flag_M       }, // 89
     {  .TXA, .Implied                }, // 8a
     {  .PHB, .Implied                }, // 8b
     {  .STY, .Absolute               }, // 8c
@@ -278,16 +278,16 @@ CPU_w65c816_opcodes : [256]CPU_w65c816_debug = {
     {  .STA, .Absolute_X             }, // 9d
     {  .STZ, .Absolute_X             }, // 9e
     {  .STA, .Absolute_Long_X        }, // 9f
-    {  .LDY, .Immediate              }, // a0
+    {  .LDY, .Immediate_flag_X       }, // a0
     {  .LDA, .DP_X_Indirect          }, // a1
-    {  .LDX, .Immediate              }, // a2
+    {  .LDX, .Immediate_flag_X       }, // a2
     {  .LDA, .S_Relative             }, // a3
     {  .LDY, .DP                     }, // a4
     {  .LDA, .DP                     }, // a5
     {  .LDX, .DP                     }, // a6
     {  .LDA, .DP_Indirect_Long       }, // a7
     {  .TAY, .Implied                }, // a8
-    {  .LDA, .Immediate              }, // a9
+    {  .LDA, .Immediate_flag_M       }, // a9
     {  .TAX, .Implied                }, // aa
     {  .PLB, .Implied                }, // ab
     {  .LDY, .Absolute               }, // ac
@@ -310,7 +310,7 @@ CPU_w65c816_opcodes : [256]CPU_w65c816_debug = {
     {  .LDA, .Absolute_X             }, // bd
     {  .LDX, .Absolute_Y             }, // be
     {  .LDA, .Absolute_Long_X        }, // bf
-    {  .CPY, .Immediate              }, // c0
+    {  .CPY, .Immediate_flag_X       }, // c0
     {  .CMP, .DP_X_Indirect          }, // c1
     {  .REP, .Immediate              }, // c2
     {  .CMP, .S_Relative             }, // c3
@@ -319,7 +319,7 @@ CPU_w65c816_opcodes : [256]CPU_w65c816_debug = {
     {  .DEC, .DP                     }, // c6
     {  .CMP, .DP_Indirect_Long       }, // c7
     {  .INY, .Implied                }, // c8
-    {  .CMP, .Immediate              }, // c9
+    {  .CMP, .Immediate_flag_M       }, // c9
     {  .DEX, .Implied                }, // ca
     {  .WAI, .Implied                }, // cb
     {  .CPY, .Absolute               }, // cc
@@ -342,7 +342,7 @@ CPU_w65c816_opcodes : [256]CPU_w65c816_debug = {
     {  .CMP, .Absolute_X             }, // dd
     {  .DEC, .Absolute_X             }, // de
     {  .CMP, .Absolute_Long_X        }, // df
-    {  .CPX, .Immediate              }, // e0
+    {  .CPX, .Immediate_flag_X       }, // e0
     {  .SBC, .DP_X_Indirect          }, // e1
     {  .SEP, .Immediate              }, // e2
     {  .SBC, .S_Relative             }, // e3
@@ -351,7 +351,7 @@ CPU_w65c816_opcodes : [256]CPU_w65c816_debug = {
     {  .INC, .DP                     }, // e6
     {  .SBC, .DP_Indirect_Long       }, // e7
     {  .INX, .Implied                }, // e8
-    {  .SBC, .Immediate              }, // e9
+    {  .SBC, .Immediate_flag_M       }, // e9
     {  .NOP, .Implied                }, // ea
     {  .XBA, .Implied                }, // eb
     {  .CPX, .Absolute               }, // ec
@@ -362,7 +362,7 @@ CPU_w65c816_opcodes : [256]CPU_w65c816_debug = {
     {  .SBC, .DP_Indirect_Y          }, // f1
     {  .SBC, .DP_Indirect            }, // f2
     {  .SBC, .S_Relative_Indirect_Y  }, // f3
-    {  .PEA, .Immediate              }, // f4
+    {  .PEA, .Immediate16            }, // f4
     {  .SBC, .DP_X                   }, // f5
     {  .INC, .DP_X                   }, // f6
     {  .SBC, .DP_Indirect_Long_Y     }, // f7

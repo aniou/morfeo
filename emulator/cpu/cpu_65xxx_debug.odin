@@ -22,8 +22,25 @@ parse_argument :: proc(c: ^CPU_65xxx, mode: CPU_65xxx_mode) -> (result: string) 
     case .Accumulator:                        // acc
         result  = ""
 
-    case .Immediate:                          // imm
+    case .Immediate:                          // imm 
+        arg    := read_m( pc, byte)
+        result  = fmt.aprintf("#$%02x", arg & 0xff) 
+
+    case .Immediate16:                          // imm16 
+        arg    := read_m( pc, word )
+        result  = fmt.aprintf("#$%04x", arg) 
+
+    case .Immediate_flag_M:                   // imm [M]
         if c.f.M {
+            arg    := read_m( pc, byte)
+            result  = fmt.aprintf("#$%02x", arg & 0xff) 
+        } else {
+            arg    := read_m( pc, word )
+            result  = fmt.aprintf("#$%04x", arg) 
+        }
+
+    case .Immediate_flag_X:                   // imm [X]
+        if c.f.X {
             arg    := read_m( pc, byte)
             result  = fmt.aprintf("#$%02x", arg & 0xff) 
         } else {

@@ -26,7 +26,8 @@ CPU_65xxx_mode   :: enum {
     Absolute_Y,             Illegal,                ZP_X,
     Accumulator,            Immediate,              ZP_X_Indirect,
     BlockMove,              Implied,                ZP_Y,
-    DP,                     PC_Relative,
+    DP,                     PC_Relative,            Immediate16,
+    Immediate_flag_M,       Immediate_flag_X
 }
 
 CPU_65xxx_mode_name : [CPU_65xxx_mode]string = {
@@ -35,6 +36,9 @@ CPU_65xxx_mode_name : [CPU_65xxx_mode]string = {
     .Absolute_Y =             "abs,Y",
     .Accumulator =            "acc",
     .Immediate =              "imm",
+    .Immediate16 =            "imm16",
+    .Immediate_flag_M =       "imm/m",
+    .Immediate_flag_X =       "imm/x",
     .Implied =                "imp",
     .DP =                     "dir",
     .DP_X =                   "dir,X",
