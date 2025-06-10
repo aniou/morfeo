@@ -669,6 +669,7 @@ mode_S_Relative_Indirect_Y  :: #force_inline proc (using c: ^CPU_65xxx) {
 mode_DP_Indirect_Long       :: #force_inline proc (using c: ^CPU_65xxx) {
     pc.addr  += 1 
     ta.addr   = read_m( pc, byte )  // 0 | D + LL
+    ta.index  = 0
     pc.addr  += 1
     ta.addr  += d
     ta.bank   = 0
@@ -683,6 +684,7 @@ mode_DP_Indirect_Long       :: #force_inline proc (using c: ^CPU_65xxx) {
 mode_DP_Indirect_Long_Y    :: #force_inline proc (using c: ^CPU_65xxx) {
     pc.addr  += 1 
     ta.addr   = read_m( pc, byte )  // 0 | D + LL
+    ta.index  = 0
     pc.addr  += 1
     ta.addr  += d
     ta.bank   = 0
@@ -841,6 +843,7 @@ mode_Absolute_Indirect_MOS  :: #force_inline proc (using c: ^CPU_65xxx) {
 mode_Absolute_Indirect_Long  :: #force_inline proc (using c: ^CPU_65xxx) {
     pc.addr  += 1 
     ta.addr   = read_m( pc, word )
+    ta.index  = 0
     pc.addr  += 1                   // innefective, just for completness
     ta.bank   = 0
     ta.bwrap  = true
