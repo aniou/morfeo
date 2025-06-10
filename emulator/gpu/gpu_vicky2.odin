@@ -129,6 +129,8 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, dip: u8) -> ^GPU {
     	g.vram0   = make([dynamic]u32,  0x20_0000) // 2MB
 	} else when TARGET == "c256fmx" {
     	g.vram0   = make([dynamic]u32,  0x40_0000) // 4MB
+	} else when TARGET == "a2560x" {
+    	g.vram0   = make([dynamic]u32,  0x40_0000) // 4MB - why not?
 	} else {
     	#panic("gpu_vicky2: Unsupported architecture")
 	}

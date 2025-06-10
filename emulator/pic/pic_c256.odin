@@ -143,6 +143,7 @@ pic_c256_read :: proc(pic: ^PIC, size: emu.Request_Size, addr_orig, addr: u32) -
         val |= 0x20 if d.pending[.FNX1_INT05_MPU401      ] else 0
         val |= 0x40 if d.pending[.FNX1_INT06_LPT         ] else 0
         val |= 0x80 if d.pending[.FNX1_INT07_SDCARD      ] else 0
+        //log.debugf("pic0: %6s read   .INT_PENDING_REG1: val %02x", d.name, val)
     case .INT_PENDING_REG2:
         val |= 0x01 if d.pending[.FNX2_INT00_OPL3        ] else 0
         val |= 0x02 if d.pending[.FNX2_INT01_GABE_INT0   ] else 0
@@ -430,14 +431,47 @@ pic_c256_write :: proc(pic: ^PIC, size: emu.Request_Size, addr_orig, addr, val: 
     return
 }
 
+/*
+GABE Interrupt Control Registers ($00:0140 – $00:014B)
+
+There are four types of interrupt control register that GABE provides: pending,
+polarity, edge detection, and mask. Each interrupt that is supported has a bit
+position in each of the 24 or 32 bits provided by the register types.
+
+Pending
+    The pending registers indicate if an interrupt of a particular type has
+    been triggered and needs processing. An interrupt handler should also write
+    to this register to clear the pending flag, once the interrupt has been
+    processed.
+
+Polarity
+    This register indicates if the interrupt is triggered by a high or low
+    signal on the input to GABE.
+
+Edge
+    This register indicates if the interrupt is triggered by an transition
+    (edge) or by a high or low value.
+
+Mask
+    This register indicates if the associated interrupt will trigger an IRQ to
+    the processor. Interrupt signals with a mask bit of 0 will be ignored,
+    while those with a mask bit of 1 will trigger an interrupt to the CPU.
+*/
+
 pic_c256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_C256)  {
     d         := &pic.model.(PIC_C256)
 
-    if !d.mask[irq] {
-        d.irq_active   = true
-    }
-
     d.pending[irq] = true
+
+    // there is a problem with handling SOF with rate 60Hz - maybe
+    // emulator is too slow?
+    if d.mask[irq] && irq != .FNX0_INT00_SOF {
+        d.irq_active   = true
+    } 
+    //else {
+    //    log.debugf("pic0: %6s IRQ %v masked", d.name, irq)
+    //}
+    
     return
 }
 

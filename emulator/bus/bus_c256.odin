@@ -29,6 +29,9 @@ c256_make :: proc(name: string, pic: ^pic.PIC, type: emu.Type) -> ^Bus {
     } else when TARGET == "c256fmx" {
         d.read    = c256fmx_read
         d.write   = c256fmx_write
+    } else when TARGET == "a2560x" {
+        d.read    = c256dummy_read 
+        d.write   = c256dummy_write 
     } else {
         #panic("bus_c256: Unsupported architecture")
     }
@@ -66,7 +69,7 @@ c256_delete :: proc(bus: ^Bus) {
 
 c256fmx_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
     //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
-    //log.debugf("%s read       from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
+    //log.debugf("%s read     from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
 
     switch addr {
     //case 0x00_00_0000 ..= 0x00_00_00FF:  val = bus.ram0->read(size, addr                             )
@@ -213,3 +216,15 @@ c256_bus_error :: proc(d: ^Bus, op: string, size: emu.Request_Size, addr: u32) {
                 u16(addr & 0x0000_ffff))
     return
 }
+
+// workaround for compile-time problems
+c256dummy_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
+    emu.read_not_implemented(#procedure, "ANY", size, addr)
+    return
+}
+
+c256dummy_write :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
+    emu.write_not_implemented(#procedure, "ANY", size, addr, val)
+    return
+}
+
