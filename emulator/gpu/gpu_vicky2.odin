@@ -681,7 +681,7 @@ vicky2_render_text :: proc(gpu: ^GPU) {
                         fgctmp[text_x] = (transmute(^u32) &g.fg_clut[f])^
                         if g.overlay_enabled == false {
                                 //bgctmp[text_x] = g.bg_clut[b]
-                                bgctmp[text_x] = (transmute(^u32) &g.bg_clut[f])^
+                                bgctmp[text_x] = (transmute(^u32) &g.bg_clut[b])^
                         } else {
                                 bgctmp[text_x] = 0x000000FF                    // full alph
                         }
