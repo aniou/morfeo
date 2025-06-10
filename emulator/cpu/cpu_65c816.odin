@@ -205,7 +205,9 @@ step_w65c816 :: proc(cpu: ^CPU_65xxx) {
           cpu.cycles     += incCycles_regDL_not00[cpu.ir]   if cpu.d & 0x00FF != 0 else 0
 
           if cpu.debug {
+            cpu.bus.debug = false
             debug_w65c816(cpu)
+            cpu.bus.debug = true
           }
 
           execute_w65c816(cpu)
