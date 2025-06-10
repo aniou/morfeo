@@ -327,7 +327,7 @@ vicky2_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u3
 
     case .TEXT:
         d.text[addr] = val & 0x00_00_00_ff
-        log.debugf("vicky2: %s text memory  addr %d value %d", d.name, addr_orig, val)
+        //log.debugf("vicky2: %s text memory  addr %d value %d", d.name, addr_orig, val)
 
     case .TEXT_COLOR:
         d.fg[addr] = (val & 0xf0) >> 4
