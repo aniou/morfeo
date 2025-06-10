@@ -47,7 +47,7 @@ a2560x: $(musashi_objects)
 	odin build cmd/a2560x -define:TARGET=a2560x      $(build_flags)
 
 c256u:
-	odin build cmd/c256u -define:TARGET=c256u -debug $(build_flags)
+	odin build cmd/c256u -define:TARGET=c256fmx -debug $(build_flags)
 
 test_65c816:
 	odin build cmd/test_65c816 -debug $(build_flags)

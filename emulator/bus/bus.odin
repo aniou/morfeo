@@ -4,6 +4,7 @@ import "lib:emu"
 
 import "emulator:ata"
 import "emulator:gpu"
+import "emulator:intu"
 import "emulator:pic"
 import "emulator:ps2"
 import "emulator:rtc"
@@ -31,6 +32,9 @@ Bus :: struct {
     ram0:    ^ram.RAM,	   // first slot (ram/sram/flash...)
     ram1:    ^ram.RAM,     // second...
     ram2:    ^ram.RAM,     // third...
+    intu:    ^intu.INTU,
+
+    debug:   bool,          // enable/disable debug
 
     model: union {Bus_F256}
 }

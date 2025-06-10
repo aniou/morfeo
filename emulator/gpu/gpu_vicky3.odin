@@ -7,6 +7,8 @@ import "core:time"
 
 import "lib:emu"
 
+import "emulator:pic"
+
 // new definitions
 
 VKY3_MCR_TEXT          :: 0x_00_00_00_01  // A B - enable text mode
@@ -98,7 +100,7 @@ GPU_Vicky3 :: struct {
 // --------------------------------------------------------------------
 // XXX - warning, DIP switches not used yet!
 
-vicky3_make :: proc(name: string, id: int, dip: u8) -> ^GPU {
+vicky3_make :: proc(name: string, pic: ^pic.PIC, id: int, dip: u8) -> ^GPU {
     log.infof("vicky3: gpu%d initialization start, name %s", id, name)
 
     gpu       := new(GPU)

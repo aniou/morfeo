@@ -1,11 +1,15 @@
 package gpu
 
+TARGET :: #config(TARGET, false)
+
 import "core:fmt"
 import "core:log"
 import "core:os"
 import "core:time"
 
 import "lib:emu"
+
+import "emulator:pic"
 
 // physical DIP switch 
 DIP_HIRES              :: 0x_00_00_00_20  //     - real DIP postion
@@ -69,7 +73,7 @@ VKY2_CURSOR_BLINK_RATE           :: [4]i32{1000, 500, 250, 200}
 GPU_Vicky2 :: struct {
     using gpu: ^GPU,
 
-    vram0:   [dynamic]u8,    // VRAM
+    vram0:   [dynamic]u32,    // VRAM
     //vram1:   [dynamic]u8,    // VRAM  -- not implemented yet?
     text:    [dynamic]u32,   // text memory
     tc:      [dynamic]u32,   // text color memory
@@ -80,10 +84,11 @@ GPU_Vicky2 :: struct {
     fg:      [dynamic]u32,   // text foreground LUT cache
     bg:      [dynamic]u32,   // text background LUT cache
     font:    [dynamic]u8,    // font cache       : 256 chars  * 8 lines * 8 columns
+    fontmem: [dynamic]u32,   // font memory
     cram:    [dynamic]u8,    // XXX - temporary ram for FG clut/BG clut and others
 
-    fg_clut: [16]u32,         // 16 pre-calculated RGBA colors for text fore-
-    bg_clut: [16]u32,         // ...and background
+    fg_clut: [16][4]u8,         // 16 pre-calculated RGBA colors for text fore-
+    bg_clut: [16][4]u8,         // ...and background
 
     starting_fb_row_pos: u32,
     text_cols:           u32,
@@ -106,20 +111,28 @@ GPU_Vicky2 :: struct {
 
 // --------------------------------------------------------------------
 
-vicky2_make :: proc(name: string, id: int, dip: u8) -> ^GPU {
+vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, dip: u8) -> ^GPU {
     log.infof("vicky2: gpu%d initialization start, name %s", id, name)
 
     gpu       := new(GPU)
     gpu.name   = name
     gpu.id     = id
     gpu.dip    = dip
+    gpu.pic    = pic
     gpu.read   = vicky2_read
     gpu.write  = vicky2_write
     gpu.delete = vicky2_delete
     gpu.render = vicky2_render
     g         := GPU_Vicky2{gpu = gpu}
 
-    g.vram0   = make([dynamic]u8,  0x40_0000) // 4MB
+	when TARGET == "c256u" {
+    	g.vram0   = make([dynamic]u32,  0x20_0000) // 2MB
+	} else when TARGET == "c256fmx" {
+    	g.vram0   = make([dynamic]u32,  0x40_0000) // 4MB
+	} else {
+    	#panic("gpu_vicky2: Unsupported architecture")
+	}
+
     g.text    = make([dynamic]u32,    0x2000) // text memory                  0x4000 in GenX
     g.tc      = make([dynamic]u32,    0x2000) // text color memory            0x4000 in GenX
     g.fg      = make([dynamic]u32,    0x2000) // text foreground LUT cache    0x4000 in GenX
@@ -128,6 +141,7 @@ vicky2_make :: proc(name: string, id: int, dip: u8) -> ^GPU {
     g.blut    = make([dynamic]u32,     0x800) // bitmap LUT cache : 256 colors * 8 banks (lut0 to lut7)
     g.cram    = make([dynamic]u8,      0x100) // XXX - is supported?
     g.font    = make([dynamic]u8,  0x100*8*8) // font cache 256 chars * 8 lines * 8 columns
+    g.fontmem = make([dynamic]u32,     0x800) // font bank0 memory
     g.pointer = make([dynamic]u8,      0x400) // pointer     16 x 16 x 4 bytes color
 
     g.TFB     = new([1024*768]u32)            // text framebuffer     - for max size
@@ -171,10 +185,50 @@ vicky2_make :: proc(name: string, id: int, dip: u8) -> ^GPU {
         g.bg[i]   = 0    // black in FoenixMCP
     }
 
+    /*
     for _, i in g.fg_clut {
         g.fg_clut[i] = u32(0xff00_00ff)
         g.bg_clut[i] = u32(0xffcc_dd00)
     }
+    */
+
+    g.fg_clut = [16][4]u8 {
+                {0x00, 0x00, 0x00, 0xFF},
+                {0x00, 0x00, 0x80, 0xFF},
+                {0x00, 0x80, 0x00, 0xFF},
+                {0x80, 0x00, 0x00, 0xFF},
+                {0x00, 0x80, 0x80, 0xFF},
+                {0x80, 0x80, 0x00, 0xFF},
+                {0x80, 0x00, 0x80, 0xFF},
+                {0x80, 0x80, 0x80, 0xFF},
+                {0x00, 0x45, 0xFF, 0xFF},
+                {0x13, 0x45, 0x8B, 0xFF},
+                {0x00, 0x00, 0x20, 0xFF},
+                {0x00, 0x20, 0x00, 0xFF},
+                {0x20, 0x00, 0x00, 0xFF},
+                {0x20, 0x20, 0x20, 0xFF},
+                {0x60, 0x60, 0x60, 0xFF},
+                {0xFF, 0xFF, 0xFF, 0xFF},
+        }
+
+    g.bg_clut = [16][4]u8 {
+                {0x00, 0x00, 0x00, 0xFF},
+                {0x00, 0x00, 0x80, 0xFF},
+                {0x00, 0x80, 0x00, 0xFF},
+                {0x80, 0x00, 0x00, 0xFF},
+                {0x00, 0x20, 0x20, 0xFF},
+                {0x20, 0x20, 0x00, 0xFF},
+                {0x20, 0x00, 0x20, 0xFF},
+                {0x20, 0x20, 0x20, 0xFF},
+                {0x1E, 0x69, 0xD2, 0xFF},
+                {0x13, 0x45, 0x8B, 0xFF},
+                {0x00, 0x00, 0x20, 0xFF},
+                {0x00, 0x20, 0x00, 0xFF},
+                {0x40, 0x00, 0x00, 0xFF},
+                {0x30, 0x30, 0x30, 0xFF},
+                {0x40, 0x40, 0x40, 0xFF},
+                {0xFF, 0xFF, 0xFF, 0xFF},
+        }
 
 
     gpu.model  = g
@@ -194,6 +248,7 @@ vicky2_delete :: proc(gpu: ^GPU) {
     delete(g.blut)
     delete(g.cram)
     delete(g.font)
+    delete(g.fontmem)
     delete(g.pointer)
 
     free(g.TFB)
@@ -207,40 +262,28 @@ vicky2_delete :: proc(gpu: ^GPU) {
 
 vicky2_read :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr: u32, mode: emu.Mode = .MAIN) -> (val: u32) {
     d := &gpu.model.(GPU_Vicky2)
+
+    if size != .bits_8 {
+        emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
+    }
+
     #partial switch mode {
     case .MAIN_A: 
         val = vicky2_read_register(d, size, addr_orig, addr, mode)
     case .MAIN_B: 
         val = vicky2_read_register(d, size, addr_orig, addr, mode)
     case .TEXT:
-        if size != .bits_8 {
-            emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
-        } else {
-            val = d.text[addr]
-        }
+        val = d.text[addr]
     case .TEXT_COLOR:
-        if size != .bits_8 {
-            emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
-        } else {
-            val = d.tc[addr]
-        }
+        val = d.tc[addr]
     case .TEXT_FG_LUT:
-        if size != .bits_8 {
-            emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
-        } else {
-		    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
-            pos   := addr  & 3 // position in 32-bit variable
-            val = cast(u32) (transmute(^[4]u8) &d.fg_clut[color])^[pos]
-        }
-
+		color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+        pos   := addr  & 3 // position in 32-bit variable
+        val = u32(d.fg_clut[color][pos])
     case .TEXT_BG_LUT:
-        if size != .bits_8 {
-            emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
-        } else {
-		    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
-            pos   := addr  & 3 // position in 32-bit variable
-            val = cast(u32) (transmute(^[4]u8) &d.bg_clut[color])^[pos]
-        }
+		color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+        pos   := addr  & 3 // position in 32-bit variable
+        val = u32(d.bg_clut[color][pos])
 
     // XXX - does not work yet
     case .LUT:
@@ -256,16 +299,10 @@ vicky2_read :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr: u32, mod
     	}
 
     case .VRAM0:
-		switch size {
-        case .bits_8:
-        	val = cast(u32) d.vram0[addr]
-    	case .bits_16:
-        	ptr := transmute(^u16be) &d.vram0[addr]
-        	val  = cast(u32) ptr^
-    	case .bits_32:
-        	ptr := transmute(^u32be) &d.vram0[addr]
-        	val  = cast(u32) ptr^
-    	}
+        val = d.vram0[addr]
+
+    case .FONT_BANK0:
+        val = d.fontmem[addr]
 
     case: 
         emu.read_not_implemented(#procedure, d.name, size, addr_orig)
@@ -276,6 +313,9 @@ vicky2_read :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr: u32, mod
 
 vicky2_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u32, mode: emu.Mode = .MAIN) {
     d := &gpu.model.(GPU_Vicky2)
+    if size != .bits_8 {
+        emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
+    } 
     #partial switch mode {
     case .MAIN_A: 
         vicky2_write_register(&d.model.(GPU_Vicky2), size, addr_orig, addr, val, mode)
@@ -284,45 +324,27 @@ vicky2_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u3
         vicky2_write_register(&d.model.(GPU_Vicky2), size, addr_orig, addr, val, mode)
 
     case .TEXT:
-        if size != .bits_8 {
-            emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
-        } else {
-            d.text[addr] = val & 0x00_00_00_ff
-        }
+        d.text[addr] = val & 0x00_00_00_ff
+        log.debugf("vicky2: %s text memory  addr %d value %d", d.name, addr_orig, val)
 
     case .TEXT_COLOR:
-        if size != .bits_8 {
-            emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
-        } else {
-            d.fg[addr] = (val & 0xf0) >> 4
-            d.bg[addr] =  val & 0x0f
-            d.tc[addr] =  val & 0x00_00_00_ff
-        }
+        d.fg[addr] = (val & 0xf0) >> 4
+        d.bg[addr] =  val & 0x0f
+        d.tc[addr] =  val & 0x00_00_00_ff
         
     case .TEXT_FG_LUT:
-        if size != .bits_8 {
-            emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
-        } else {
-		    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
-            pos   := addr  & 3 // position in 32-bit variable
-            (transmute(^[4]u8) &d.fg_clut[color])^[pos] = u8(val)
-        }
+	    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+        pos   := addr  & 3 // position in 32-bit variable
+        d.fg_clut[color][pos] = u8(val)
 
     case .TEXT_BG_LUT:
-        if size != .bits_8 {
-            emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
-        } else {
-		    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
-            pos   := addr  & 3 // position in 32-bit variable
-            (transmute(^[4]u8) &d.bg_clut[color])^[pos] = u8(val)
-        }
+		color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+        pos   := addr  & 3 // position in 32-bit variable
+        d.bg_clut[color][pos] = u8(val)
 
     case .FONT_BANK0:
-        if size != .bits_8 {
-            emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
-        } else {
-            vicky2_update_font_cache(d, addr, u8(val))  // every bit in font cache is mapped to byte
-        }
+        d.fontmem[addr] = val
+        vicky2_update_font_cache(d, addr, u8(val))  // every bit in font cache is mapped to byte
 
     // XXX: doesn't work yet
     case .LUT:
@@ -336,14 +358,7 @@ vicky2_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u3
         }
         
     case .VRAM0:
-        switch size {
-        case .bits_8:
-            d.vram0[addr] = cast(u8) val
-        case .bits_16:
-            (transmute(^u16be) &d.vram0[addr])^ = cast(u16be) val
-        case .bits_32:
-            (transmute(^u32be) &d.vram0[addr])^ = cast(u32be) val
-        }
+        d.vram0[addr] = val
 
     case        : 
         emu.write_not_implemented(#procedure, d.name, size, addr_orig, val)
@@ -387,11 +402,11 @@ vicky2_write_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig,
                 case VKY2_MODE_640_480:		// 0
                     d.screen_x_size = 640
                     d.screen_y_size = 480
-                    //d.delay         = 16  * time.Millisecond   // 16 for 60Hz, 14 for 70Hz
+                    d.delay         = 16  * time.Millisecond   // 16 for 60Hz, 14 for 70Hz
                 case VKY2_MODE_800_600:     // 1
                     d.screen_x_size = 800
                     d.screen_y_size = 600
-                    //d.delay         = 16  * time.Millisecond   // for 60Hz
+                    d.delay         = 16  * time.Millisecond   // for 60Hz
                 }
         		vicky2_recalculate_screen(d)
     		}
@@ -437,9 +452,9 @@ vicky2_write_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig,
         d.cursor_fg        = (val & 0xf0) >> 4
 
     case .VKY2_TXT_CUR_XL: d.cursor_x  = val
-    case .VKY2_TXT_CUR_XH: emu.write_not_implemented(#procedure, "VKY2_TXT_CUR_XH", size, addr_orig, val)
+    case .VKY2_TXT_CUR_XH: { }
     case .VKY2_TXT_CUR_YL: d.cursor_y  = val
-    case .VKY2_TXT_CUR_YH: emu.write_not_implemented(#procedure, "VKY2_TXT_CUR_YH", size, addr_orig, val)
+    case .VKY2_TXT_CUR_YH: { }
     case                 : emu.write_not_implemented(#procedure, "UNKNOWN",         size, addr_orig, val)
     }
 }
@@ -534,7 +549,7 @@ vicky2_b_read_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig
 // val      - particular value
 @private
 vicky2_update_font_cache :: proc(g: ^GPU_Vicky2, position: u32, value: u8) {
-       log.debugf("vicky2: %s update font cache position %d value %d", g.name, position, value)
+       //log.debugf("vicky2: %s update font cache position %d value %d", g.name, position, value)
        pos := position * 8
        val := value
         for j := u32(8); j > 0; j = j - 1 {          // counting down spares from shifting val left
@@ -569,6 +584,11 @@ vicky2_recalculate_screen :: proc(gpu: ^GPU) {
 }
 
 vicky2_render :: proc(gpu: ^GPU) {
+    if gpu.id == 0 {
+        gpu.pic->trigger(.VICKY_A_SOF)
+    } else {
+        gpu.pic->trigger(.VICKY_B_SOF)
+    }
     if gpu.text_enabled do vicky2_render_text(gpu)
     if gpu.bm0_enabled  do vicky2_render_bm0(gpu)
     if gpu.bm1_enabled  do vicky2_render_bm1(gpu)
@@ -580,7 +600,7 @@ vicky2_render_bm0 :: proc(gpu: ^GPU) {
    
     max := u32(g.screen_x_size * g.screen_y_size)
     for i := u32(0); i < max; i += 1 {
-        lut_index    := u32(g.vram0[g.bm0_pointer + i])
+        lut_index    := g.vram0[g.bm0_pointer + i]
         lut_position := (g.bm0_lut * 256) + 4 * lut_index
         g.BM0FB[i] = (transmute(^u32) &g.lut[lut_position])^
     }
@@ -592,7 +612,7 @@ vicky2_render_bm1 :: proc(gpu: ^GPU) {
    
     max := u32(g.screen_x_size * g.screen_y_size)
     for i := u32(0); i < max; i += 1 {
-        lut_index    := u32(g.vram0[g.bm1_pointer + i])
+        lut_index    := g.vram0[g.bm1_pointer + i]
         lut_position := (g.bm1_lut * 256) + 4 * lut_index
         g.BM0FB[i] = (transmute(^u32) &g.lut[lut_position])^
     }
@@ -655,9 +675,11 @@ vicky2_render_text :: proc(gpu: ^GPU) {
                                 fnttmp[text_x] = g.cursor_character * 64 // XXX precalculate?
                         }
 
-                        fgctmp[text_x] = g.fg_clut[f]
+                        //fgctmp[text_x] = g.fg_clut[f]
+                        fgctmp[text_x] = (transmute(^u32) &g.fg_clut[f])^
                         if g.overlay_enabled == false {
-                                bgctmp[text_x] = g.bg_clut[b]
+                                //bgctmp[text_x] = g.bg_clut[b]
+                                bgctmp[text_x] = (transmute(^u32) &g.bg_clut[f])^
                         } else {
                                 bgctmp[text_x] = 0x000000FF                    // full alph
                         }

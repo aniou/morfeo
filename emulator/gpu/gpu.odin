@@ -4,6 +4,8 @@ import "core:time"
 
 import "lib:emu"
 
+import "emulator:pic"
+
 GPU :: struct {
     read:    proc(^GPU, emu.Request_Size, u32, u32, emu.Mode) -> u32,
     write:   proc(^GPU, emu.Request_Size, u32, u32, u32,    emu.Mode),
@@ -14,6 +16,7 @@ GPU :: struct {
 
     name:               string,     // textual name of instance
     id:                 int,        // id of instance
+    pic:                ^pic.PIC,
 
     TFB:     ^[1024*768]u32,        // text    framebuffer (max resolution)
     BM0FB:   ^[1024*768]u32,        // bitmap0 framebuffer (max resolution)

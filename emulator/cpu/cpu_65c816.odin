@@ -169,49 +169,53 @@ step_w65c816 :: proc(cpu: ^CPU_65xxx) {
 
     switch {
     case cpu.irq_pending:
-          cpu.irq_pending = false
-          switch {
-          case .RESB   in cpu.irq:
+        cpu.irq_pending = false
+        switch {
+        case .RESB   in cpu.irq:
             cpu.irq -= {.RESB}
             oper_RST(cpu)
-          case .ABORTB in cpu.irq:
+        case .ABORTB in cpu.irq:
             cpu.irq -= {.ABORTB}
             oper_ABT(cpu)
-          case .NMIB   in cpu.irq:
+        case .NMIB   in cpu.irq:
             cpu.irq -= {.NMIB}
             oper_NMI(cpu)
-          case .IRQB   in cpu.irq:
+        case .IRQB   in cpu.irq:
             cpu.irq -= {.IRQB}
             if cpu.f.I { return }       // that makes "empty" call to _execute, but code is simpler
             oper_IRQ(cpu)
-          }
+        }
     case cpu.in_mvn:
-          oper_MVN(cpu)
-          cpu.cycles      = cycles_65c816[cpu.ir] if cpu.in_mvn else 0
+        oper_MVN(cpu)
+        cpu.cycles      = cycles_65c816[cpu.ir] if cpu.in_mvn else 0
 
     case cpu.in_mvp:
-          oper_MVP(cpu)
-          cpu.cycles      = cycles_65c816[cpu.ir] if cpu.in_mvn else 0
+        oper_MVP(cpu)
+        cpu.cycles      = cycles_65c816[cpu.ir] if cpu.in_mvn else 0
 
     case:
-          cpu.px          = false
-          cpu.ir          = u8(read_m(cpu.pc, byte)) // XXX: u16?
-          cpu.ab.index    = 0                        // XXX: move to addressing modes?
-          cpu.ab.pwrap    = false                    // XXX: move to addressing modes?
+        cpu.px          = false
+        cpu.ir          = u8(read_m(cpu.pc, byte)) // XXX: u16?
+        cpu.ab.index    = 0                        // XXX: move to addressing modes?
+        cpu.ab.pwrap    = false                    // XXX: move to addressing modes?
 
-          cpu.cycles      = cycles_65c816[cpu.ir]
-          cpu.cycles     -= decCycles_flagM[cpu.ir]         if cpu.f.M             else 0
-          cpu.cycles     -= decCycles_flagX[cpu.ir]         if cpu.f.X             else 0
-          cpu.cycles     += incCycles_regDL_not00[cpu.ir]   if cpu.d & 0x00FF != 0 else 0
+        cpu.cycles      = cycles_65c816[cpu.ir]
+        cpu.cycles     -= decCycles_flagM[cpu.ir]         if cpu.f.M             else 0
+        cpu.cycles     -= decCycles_flagX[cpu.ir]         if cpu.f.X             else 0
+        cpu.cycles     += incCycles_regDL_not00[cpu.ir]   if cpu.d & 0x00FF != 0 else 0
 
-          if cpu.debug {
-            cpu.bus.debug = false
-            debug_w65c816(cpu)
-            cpu.bus.debug = true
-          }
+        if cpu.debug {
+            if cpu.bus.debug {
+                cpu.bus.debug = false
+                debug_w65c816(cpu)
+                cpu.bus.debug = true
+            } else {
+                debug_w65c816(cpu)
+            }
+        }
 
-          execute_w65c816(cpu)
-          cpu.cycles     += incCycles_PageCross[cpu.ir]     if cpu.px && cpu.f.X   else 0
+        execute_w65c816(cpu)
+        cpu.cycles     += incCycles_PageCross[cpu.ir]     if cpu.px && cpu.f.X   else 0
     }
     cpu.all_cycles += cpu.cycles
 

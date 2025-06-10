@@ -99,6 +99,13 @@ read_not_implemented :: proc(procedure, dev_name: string, bits: Request_Size, ad
     )
 }
 
+call_not_implemented :: proc(procedure, call: string) {
+    log.errorf("%-12s    call %64s  not implemented at all", 
+                procedure, 
+                call
+    )
+}
+
 // used by main program
 show_cpu_speed :: proc(cycles: u32) -> (u32, string) {
         switch {
