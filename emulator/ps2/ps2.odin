@@ -1,7 +1,4 @@
-
 package ps2
-
-TARGET :: #config(TARGET, false)
 
 import "core:log"
 import "emulator:pic"
@@ -18,23 +15,9 @@ PS2_STAT_TTO    :: u8(0x20)
 PS2_STAT_RTO    :: u8(0x40)
 PS2_STAT_PE     :: u8(0x80)
 
-when TARGET == "a2560x" {
-	KBD_DATA        :: 0x00 // 0x60 for reading and writing
-	KBD_COMMAND     :: 0x04 // 0x64 for writing
-	KBD_STATUS      :: 0x04 // 0x64 for reading
-} else when TARGET == "c256u" {
-	KBD_DATA        :: 0x03 // $AF1803 for reading and writing
-	KBD_COMMAND     :: 0x07 // $AF1807 for writing
-	KBD_STATUS      :: 0x07 // $AF1807 for reading
-} else when TARGET == "c256fmx" {
-	KBD_DATA        :: 0x00 // $AF1060 for reading and writing
-	KBD_COMMAND     :: 0x04 // $AF1064 for writing
-	KBD_STATUS      :: 0x04 // $AF1064 for reading
-} else {
-	#panic("ps2: Unsupported architecture")
-}
-
-
+KBD_DATA        :: 0x03 // $AF1803 (FMX: $AF1060) for reading and writing
+KBD_COMMAND     :: 0x07 // $AF1807 (FMX: $AF1064) for writing
+KBD_STATUS      :: 0x07 // $AF1807 (FMX: $AF1064) for reading
 
 PS2 :: struct {
     read:     proc(^PS2, emu.Request_Size, u32, u32) -> u32,
@@ -53,6 +36,7 @@ PS2 :: struct {
     status:         u8,     // controller status
     CCB:            u8,     // controller configuration byte
     ccb_write_mode: bool,   // denotes that next write should go to CCB
+    fmx:            bool,   // if it is FMX one, then change addressess
 
     first_enabled:  bool,
     second_enabled: bool,
@@ -60,7 +44,7 @@ PS2 :: struct {
     debug:          bool,   // temporary
 }
 
-ps2_make :: proc(name: string, pic: ^pic.PIC) -> ^PS2 {
+ps2_make :: proc(name: string, pic: ^pic.PIC, type: emu.Type) -> ^PS2 {
     s         := new(PS2)
     s.pic      = pic
     s.read     = ps2_read
@@ -73,6 +57,7 @@ ps2_make :: proc(name: string, pic: ^pic.PIC) -> ^PS2 {
     s.debug    = true
     s.CCB      = 0
     s.name     = name
+    s.fmx      = type == .C256FMX  // only FMX has different port
     
     return s
 }
@@ -86,21 +71,49 @@ ps2_send_key :: proc(s: ^PS2, val: u8) {
         return
 }
 
+/*
+
+default:
+
+	KBD_DATA        :: 0x03 // $AF1803 for reading and writing
+	KBD_COMMAND     :: 0x07 // $AF1807 for writing
+	KBD_STATUS      :: 0x07 // $AF1807 for reading
+
+FMX:
+	KBD_DATA        :: 0x00 // $AF1060 for reading and writing
+	KBD_COMMAND     :: 0x04 // $AF1064 for writing
+	KBD_STATUS      :: 0x04 // $AF1064 for reading
+*/
+
 ps2_read :: proc(s: ^PS2, mode: emu.Request_Size, addr_orig, addr: u32) -> (val: u32) {
-    switch mode {
-        case .bits_8:  val = cast(u32) ps2_read8(s, addr)
-        case .bits_16:       emu.unsupported_read_size(#procedure, s.name, s.id, mode, addr_orig)
-        case .bits_32:       emu.unsupported_read_size(#procedure, s.name, s.id, mode, addr_orig)
+
+    if mode != .bits_8 {
+        emu.unsupported_read_size(#procedure, s.name, s.id, mode, addr_orig)
+        return
     }
+
+    if s.fmx {
+        val = cast(u32) ps2_read8(s, addr+3)
+    } else {
+        val = cast(u32) ps2_read8(s, addr)
+    }
+
     return
 }
 
 ps2_write :: proc(s: ^PS2, mode: emu.Request_Size, addr_orig, addr, val: u32) {
-    switch mode {
-        case .bits_8:   ps2_write8(s, addr, u8(val))
-        case .bits_16:  emu.unsupported_write_size(#procedure, s.name, s.id, mode, addr_orig, val)
-        case .bits_32:  emu.unsupported_write_size(#procedure, s.name, s.id, mode, addr_orig, val)
+
+    if mode != .bits_8 {
+        emu.unsupported_write_size(#procedure, s.name, s.id, mode, addr_orig, val)
+        return
     }
+
+    if s.fmx { 
+        ps2_write8(s, addr+3, u8(val))
+    } else {
+        ps2_write8(s, addr,   u8(val))
+    }
+
     return
 }
 

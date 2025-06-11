@@ -16,24 +16,32 @@ import "core:log"
 import "lib:emu"
 
 
-c256_make :: proc(config: emu.Config) -> (p: ^Platform, ok: bool = true)  {
-    ramsize : int
+c256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
+    ramsize  : int
+    vramsize : int
 
-    switch type {
-        case .C256FMX  : 
-        case .C256UPLUS: ramsize = 4
-        case .C256U    : ramsize = 4
-        case           : log.errorf("Unknown platform type: %v", type)
-                         ok = false
-                         return
+    switch config.model {
+        case .C256FMX: 
+            ramsize  = 4 * 1024*1024
+            vramsize = 4 * 1024*1024
+        case .C256UPLUS: 
+            ramsize  = 4 * 1024*1024
+            vramsize = 2 * 1024*1024
+        case .C256U: 
+            ramsize  = 2 * 1024*1024
+            vramsize = 2 * 1024*1024
+        case:
+            log.errorf("Unknown platform type: %v", config.model)
+            ok = false
+            return
     }
 
     p           = new(Platform)
     pic        := pic.pic_c256_make ("pic0")
     p.bus       = bus.c256_make     ("bus0", pic, config.model)
     p.bus.ram0  = ram.make_ram      ("ram0", ramsize)
-    p.bus.gpu0  = gpu.vicky2_make   ("gpu0", pic, 0, config.dip)
-    p.bus.ps2   = ps2.ps2_make      ("ps2",  pic)
+    p.bus.gpu0  = gpu.vicky2_make   ("gpu0", pic, 0, vramsize, config.dip)
+    p.bus.ps2   = ps2.ps2_make      ("ps2",  pic, config.model)
     p.bus.rtc   = rtc.bq4802_make   ("rtc0", pic)
     p.bus.intu  = intu.intu_c256_make("math0")
     p.cpu       = cpu.make_w65c816  ("cpu0", p.bus)

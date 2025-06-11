@@ -190,6 +190,7 @@ main :: proc() {
 
     // ...program files to load 
     for f in config.files {
+        log.info(f)
         ok = platform.read_intel_hex(p.bus, p.cpu, f)
         if !ok {
             log.errorf("Cannot load hex file %s", f)

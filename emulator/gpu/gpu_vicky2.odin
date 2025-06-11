@@ -1,7 +1,5 @@
 package gpu
 
-TARGET :: #config(TARGET, false)
-
 import "core:fmt"
 import "core:log"
 import "core:os"
@@ -111,7 +109,7 @@ GPU_Vicky2 :: struct {
 
 // --------------------------------------------------------------------
 
-vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, dip: u8) -> ^GPU {
+vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) -> ^GPU {
     log.infof("vicky2: gpu%d initialization start, name %s", id, name)
 
     gpu       := new(GPU)
@@ -125,16 +123,7 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, dip: u8) -> ^GPU {
     gpu.render = vicky2_render
     g         := GPU_Vicky2{gpu = gpu}
 
-	when TARGET == "c256u" {
-    	g.vram0   = make([dynamic]u32,  0x20_0000) // 2MB
-	} else when TARGET == "c256fmx" {
-    	g.vram0   = make([dynamic]u32,  0x40_0000) // 4MB
-	} else when TARGET == "a2560x" {
-    	g.vram0   = make([dynamic]u32,  0x40_0000) // 4MB - why not?
-	} else {
-    	#panic("gpu_vicky2: Unsupported architecture")
-	}
-
+   	g.vram0   = make([dynamic]u32,      vram) // video ram (depends from model)
     g.text    = make([dynamic]u32,    0x2000) // text memory                  0x4000 in GenX
     g.tc      = make([dynamic]u32,    0x2000) // text color memory            0x4000 in GenX
     g.fg      = make([dynamic]u32,    0x2000) // text foreground LUT cache    0x4000 in GenX

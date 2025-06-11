@@ -1,7 +1,4 @@
-
 package bus
-
-TARGET :: #config(TARGET, false)
 
 import "core:log"
 import "core:fmt"
@@ -23,19 +20,17 @@ c256_make :: proc(name: string, pic: ^pic.PIC, type: emu.Type) -> ^Bus {
     d.delete  = c256_delete
     d.debug   = false
 
-    when TARGET == "c256u" {
+    switch type {
+    case .C256U:
         d.read    = c256_read
         d.write   = c256_write
-    } else when TARGET == "c256fmx" {
+    case .C256UPLUS:
+        d.read    = c256_read
+        d.write   = c256_write
+    case .C256FMX:
         d.read    = c256fmx_read
         d.write   = c256fmx_write
-    } else when TARGET == "a2560x" {
-        d.read    = c256dummy_read 
-        d.write   = c256dummy_write 
-    } else {
-        #panic("bus_c256: Unsupported architecture")
     }
-
 
     ebus = d
     return d
