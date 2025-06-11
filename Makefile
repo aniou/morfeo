@@ -12,7 +12,7 @@ odin_defs        += -collection:emulator=emulator
 odin_defs        += -collection:lib=lib
 build_flags      += $(odin_defs) -o:speed
 
-.PHONY: doc a2560x test_w65c02s test_65c816 c256u
+.PHONY: doc a2560x test_w65c02s test_65c816 c256
 
 all: a2560x test_w65c02s test_65c816
 
@@ -20,7 +20,7 @@ help:
 	@echo "make release      - build a2560x-like optimized, faster version"
 	@echo "make              - build and run a2560x-like version"
 	@echo "make morfeo       - build a a2560x emulator"
-	@echo "make c256u        - build a c256u(+) emulator"
+	@echo "make c256         - build a c256 (FMX/U/U+) emulator"
 	@echo "make test_w65c02s - build a test suite for W65C02S"
 	@echo "make test_65c816  - build a test suite for 65C816"
 	@echo ""
@@ -46,8 +46,8 @@ release: $(musashi_objects)
 a2560x: $(musashi_objects)
 	odin build cmd/a2560x -define:TARGET=a2560x      $(build_flags)
 
-c256u:
-	odin build cmd/c256u -define:TARGET=c256fmx -debug $(build_flags)
+c256:
+	odin build cmd/c256 -debug $(build_flags)
 
 test_65c816:
 	odin build cmd/test_65c816 -debug $(build_flags)

@@ -52,7 +52,7 @@ get_extended_linear_address :: proc(data: []u8) -> (addr: u32, ok: bool) {
 }
 
 
-read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string) {
+read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string) -> (ok: bool) {
     record_address : u32 // address (offset) of particular record (line)
     record_len     : u32 // bytes in single record (line)
     byte_count     : u32 // bytes in particular block (sum of records)
@@ -64,7 +64,6 @@ read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string) {
     content        : []byte       // hex file content (raw bytes)
     finished       : bool = false // set by record 01
     in_segment     : bool = false // there is a segment procesing?
-    ok             : bool         // general success indicator
 
 	defer delete(content, context.allocator)
 
@@ -89,12 +88,14 @@ read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string) {
 
         if len(data) < 5 {
             log.errorf("decoded data len less than 5 for line '%s'", line)
+            ok = false
             break loop
         }
         
         last := len(data) - 1
         if data[last] != checksum(data[:last]) {
             log.errorf("checksum mismatch for '%s'", line)
+            ok = false
             break loop
         }
 
@@ -147,13 +148,15 @@ read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string) {
 
             case:
                 log.errorf("hex read aborted, unknown line: %s", line)
+                ok = false
                 break loop
         }
 	}
     if ! finished {
         log.error("File was not fully parsed!")
+        ok = false
     }
-    
+    return   
 }
 
 
