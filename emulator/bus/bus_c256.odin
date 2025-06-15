@@ -12,6 +12,15 @@ import "lib:emu"
 
 import "core:prof/spall"
 
+
+BUS_C256 :: struct {
+    using bus:	^Bus,
+	vdma:		DMA,
+	sdma:		DMA,
+}
+
+
+
 c256_make :: proc(name: string, pic: ^pic.PIC, type: emu.Type) -> ^Bus {
     d        := new(Bus)
     d.name    = name
@@ -32,7 +41,9 @@ c256_make :: proc(name: string, pic: ^pic.PIC, type: emu.Type) -> ^Bus {
         d.write   = c256fmx_write
     }
 
-    ebus = d
+	b            := BUS_C256{sdma = DMA{}, vdma = DMA{}}
+    d.model       = b
+    ebus          = d
     return d
 }
 

@@ -12,7 +12,7 @@ import "lib:emu"
 
 import "core:prof/spall"
 
-Bus_F256 :: struct {
+BUS_F256 :: struct {
     using bus: ^Bus,
 
     mlut:       [4][8]u32,
@@ -33,7 +33,7 @@ make_f256    :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
     d.delete  = delete_f256
 
     // power-on init, XXX: add flash version, page 17 of manual
-    b          := Bus_F256{mlut_active = 0}
+    b          := BUS_F256{mlut_active = 0}
     b.mlut[0]   = {0 << 20, 1 << 20, 2 << 20, 3 << 20, 4 << 20, 5 << 20, 6 << 20, 7 << 20}
     b.mlut[1]   = {0 << 20, 1 << 20, 2 << 20, 3 << 20, 4 << 20, 5 << 20, 6 << 20, 7 << 20}
     b.mlut[2]   = {0 << 20, 1 << 20, 2 << 20, 3 << 20, 4 << 20, 5 << 20, 6 << 20, 7 << 20}
@@ -52,7 +52,7 @@ delete_f256 :: proc(bus: ^Bus) {
 // and that result is shifted to positon A20-A13
 //
 read_f256 :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
-    b     := &bus.model.(Bus_F256)
+    b     := &bus.model.(BUS_F256)
     bank  := addr & 0xE000              // A15..A13 from addr
     bank >>= 13
 
@@ -100,7 +100,7 @@ read_f256 :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
 
 
 write_f256   :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
-    b     := &bus.model.(Bus_F256)
+    b     := &bus.model.(BUS_F256)
     bank  := addr & 0xE000                      // A15..A13 from addr
     bank >>= 13
 

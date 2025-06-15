@@ -36,5 +36,5 @@ Bus :: struct {
 
     debug:   bool,          // enable/disable debug
 
-    model: union {Bus_F256}
+    model: union {BUS_C256, BUS_F256}
 }
