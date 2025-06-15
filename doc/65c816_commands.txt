@@ -19,11 +19,11 @@
     m = flag is affected by the (16-8*m)-bit result
     x = flag is affected by the (16-8*x)-bit result
 
-OP LEN CYCLES      MODE      nvmxdizc e SYNTAX
-== === =========== ========= =======================
-61 2   7-m+w       (dir,X)   mm....mm . ADC ($10,X)
-63 2   5-m         stk,S     mm....mm . ADC $32,S
-65 2   4-m+w       dir       mm....mm . ADC $10
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        ADC
+61 2   7-m+w       (dir,X)   mm....mm . ADC ($10,X)   Add memory to accumulator with 
+63 2   5-m         stk,S     mm....mm . ADC $32,S     carry
+65 2   4-m+w       dir       mm....mm . ADC $10       A + M + C -> A, C
 67 2   7-m+w       [dir]     mm....mm . ADC [$10]
 69 3-m 3-m         imm       mm....mm . ADC #$54
 6D 3   5-m         abs       mm....mm . ADC $9876
@@ -36,10 +36,11 @@ OP LEN CYCLES      MODE      nvmxdizc e SYNTAX
 79 3   6-m-x+x*p   abs,Y     mm....mm . ADC $9876,Y
 7D 3   6-m-x+x*p   abs,X     mm....mm . ADC $9876,X
 7F 4   6-m         long,X    mm....mm . ADC $FEDCBA,X
-
-E1 2   7-m+w       (dir,X)   mm....mm . SBC ($10,X)
-E3 2   5-m         stk,S     mm....mm . SBC $32,S
-E5 2   4-m+w       dir       mm....mm . SBC $10
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        SBC
+E1 2   7-m+w       (dir,X)   mm....mm . SBC ($10,X)   Subtract memory from accumulator
+E3 2   5-m         stk,S     mm....mm . SBC $32,S     with borrow
+E5 2   4-m+w       dir       mm....mm . SBC $10       A - M - (~C) -> A
 E7 2   7-m+w       [dir]     mm....mm . SBC [$10]
 E9 3-m 3-m         imm       mm....mm . SBC #$54
 ED 3   5-m         abs       mm....mm . SBC $9876
@@ -52,7 +53,8 @@ F7 2   7-m+w       [dir],Y   mm....mm . SBC [$10],Y
 F9 3   6-m-x+x*p   abs,Y     mm....mm . SBC $9876,Y
 FD 3   6-m-x+x*p   abs,X     mm....mm . SBC $9876,X
 FF 4   6-m         long,X    mm....mm . SBC $FEDCBA,X
-
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        CMP
 C1 2   7-m+w       (dir,X)   m.....mm . CMP ($10,X)
 C3 2   5-m         stk,S     m.....mm . CMP $32,S
 C5 2   4-m+w       dir       m.....mm . CMP $10
@@ -68,33 +70,48 @@ D7 2   7-m+w       [dir],Y   m.....mm . CMP [$10],Y
 D9 3   6-m-x+x*p   abs,Y     m.....mm . CMP $9876,Y
 DD 3   6-m-x+x*p   abs,X     m.....mm . CMP $9876,X
 DF 4   6-m         long,X    m.....mm . CMP $FEDCBA,X
-
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        CPX
 E0 3-x 3-x         imm       x.....xx . CPX #$54
 E4 2   4-x+w       dir       x.....xx . CPX $10
 EC 3   5-x         abs       x.....xx . CPX $9876
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        CPY
 C0 3-x 3-x         imm       x.....xx . CPY #$54
 C4 2   4-x+w       dir       x.....xx . CPY $10
 CC 3   5-x         abs       x.....xx . CPY $9876
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        DEC
 3A 1   2           acc       m.....m. . DEC
 C6 2   7-2*m+w     dir       m.....m. . DEC $10
 CE 3   8-2*m       abs       m.....m. . DEC $9876
 D6 2   8-2*m+w     dir,X     m.....m. . DEC $10,X
 DE 3   9-2*m       abs,X     m.....m. . DEC $9876,X
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        DEX
 CA 1   2           imp       x.....x. . DEX
 88 1   2           imp       x.....x. . DEY
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        INC
 1A 1   2           acc       m.....m. . INC
 E6 2   7-2*m+w     dir       m.....m. . INC $10
 EE 3   8-2*m       abs       m.....m. . INC $9876
 F6 2   8-2*m+w     dir,X     m.....m. . INC $10,X
 FE 3   9-2*m       abs,X     m.....m. . INC $9876,X
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        INX
 E8 1   2           imp       x.....x. . INX
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        INY
 C8 1   2           imp       x.....x. . INY
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        AND
 21 2   7-m+w       (dir,X)   m.....m. . AND ($10,X)
 23 2   5-m         stk,S     m.....m. . AND $32,S
 25 2   4-m+w       dir       m.....m. . AND $10
@@ -111,6 +128,8 @@ C8 1   2           imp       x.....x. . INY
 3D 3   6-m-x+x*p   abs,X     m.....m. . AND $9876,X
 3F 4   6-m         long,X    m.....m. . AND $FEDCBA,X
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        EOR
 41 2   7-m+w       (dir,X)   m.....m. . EOR ($10,X)
 43 2   5-m         stk,S     m.....m. . EOR $32,S
 45 2   4-m+w       dir       m.....m. . EOR $10
@@ -127,6 +146,8 @@ C8 1   2           imp       x.....x. . INY
 5D 3   6-m-x+x*p   abs,X     m.....m. . EOR $9876,X
 5F 4   6-m         long,X    m.....m. . EOR $FEDCBA,X
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        ORA
 01 2   7-m+w       (dir,X)   m.....m. . ORA ($10,X)
 03 2   5-m         stk,S     m.....m. . ORA $32,S
 05 2   4-m+w       dir       m.....m. . ORA $10
@@ -143,35 +164,49 @@ C8 1   2           imp       x.....x. . INY
 1D 3   6-m-x+x*p   abs,X     m.....m. . ORA $9876,X
 1F 4   6-m         long,X    m.....m. . ORA $FEDCBA,X
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        TRB
 14 2   7-2*m+w     dir       ......m. . TRB $10
 1C 3   8-2*m       abs       ......m. . TRB $9876
-04 2   7-2*m+w     dir       ......m. . TSB $10
+
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        TSB
+04 2   7-2*m+w     dir       ......m. . TSB $10       
 0C 3   8-2*m       abs       ......m. . TSB $9876
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        ASL
 06 2   7-2*m+w     dir       m.....mm . ASL $10
 0A 1   2           acc       m.....mm . ASL
 0E 3   8-2*m       abs       m.....mm . ASL $9876
 16 2   8-2*m+w     dir,X     m.....mm . ASL $10,X
 1E 3   9-2*m       abs,X     m.....mm . ASL $9876,X
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        LSR
 46 2   7-2*m+w     dir       0.....m* . LSR $10
 4A 1   2           acc       0.....m* . LSR
 4E 3   8-2*m       abs       0.....m* . LSR $9876
 56 2   8-2*m+w     dir,X     0.....m* . LSR $10,X
 5E 3   9-2*m       abs,X     0.....m* . LSR $9876,X
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        ROL
 26 2   7-2*m+w     dir       m.....mm . ROL $10
 2A 1   2           acc       m.....mm . ROL
 2E 3   8-2*m       abs       m.....mm . ROL $9876
 36 2   8-2*m+w     dir,X     m.....mm . ROL $10,X
 3E 3   9-2*m       abs,X     m.....mm . ROL $9876,X
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        ROR
 66 2   7-2*m+w     dir       m.....m* . ROR $10
 6A 1   2           acc       m.....m* . ROR
 6E 3   8-2*m       abs       m.....m* . ROR $9876
 76 2   8-2*m+w     dir,X     m.....m* . ROR $10,X
 7E 3   9-2*m       abs,X     m.....m* . ROR $9876,X
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        ADC
 90 2   2+t+t*e*p   rel8      ........ . BCC LABEL
 B0 2   2+t+t*e*p   rel8      ........ . BCS LABEL
 F0 2   2+t+t*e*p   rel8      ........ . BEQ LABEL
@@ -183,13 +218,19 @@ D0 2   2+t+t*e*p   rel8      ........ . BNE LABEL
 70 2   2+t+t*e*p   rel8      ........ . BVS LABEL
 82 3   4           rel16     ........ . BRL LABEL
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        ADC
 4C 3   3           abs       ........ . JMP $1234
 5C 4   4           long      ........ . JMP $FEDCBA
 6C 3   5           (abs)     ........ . JMP ($1234)
 7C 3   6           (abs,X)   ........ . JMP ($1234,X)
 DC 3   6           [abs]     ........ . JMP [$1234]
 
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        ADC
 22 4   8           long      ........ . JSL $123456
+== === =========== ========= ======================== ==================================
+OP LEN CYCLES      MODE      nvmxdizc e SYNTAX        ADC
 20 3   6           abs       ........ . JSR $1234
 FC 3   8           (abs,X)   ........ . JSR ($1234,X)
 

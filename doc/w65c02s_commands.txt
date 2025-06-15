@@ -112,13 +112,12 @@ C0 2   2           imm       m.....mm   CPY #$12      Y - M (compare)
 C4 2   3           zp        m.....mm   CPY $12       Y - M (compare)
 CC 3   4           abs       m.....mm   CPY $1234     Y - M (compare)
 == === =========== ========= ======================== ==================================
-OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        DESC
-3A 1   2           acc       m.....m.   DEC A         M - 1 -> M
+OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        DEC, DEX, DEY
+3A 1   2           acc       m.....m.   DEC A         A - 1 -> A
 C6 2   5           zp        m.....m.   DEC $12       M - 1 -> M
 D6 2   6           zp,X      m.....m.   DEC $12,X     M - 1 -> M
 CE 3   6           abs       m.....m.   DEC $1234     M - 1 -> M
 DE 3   7           abs,X     m.....m.   DEC $1234,X   M - 1 -> M
-
 CA 1   2           imp       m.....m.   DEX           X - 1 -> X
 88 1   2           imp       m.....m.   DEY           Y - 1 -> Y
 == === =========== ========= ======================== ==================================
@@ -134,7 +133,7 @@ OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        EOR
 52 2   5           (zp)      m.....m.   EOR ($12)                                        
 == === =========== ========= ======================== ==================================
 OP LEN CYCLES      MODE      nv*bdizc   SYNTAX        DESC
-1A 1   2           acc       m.....m.   INC A         M + 1 -> M
+1A 1   2           acc       m.....m.   INC A         A + 1 -> A
 E6 2   5           zp        m.....m.   INC $12       M + 1 -> M
 EE 3   6           abs       m.....m.   INC $1234     M + 1 -> M
 F6 2   6           zp,X      m.....m.   INC $12,X     M + 1 -> M
