@@ -34,11 +34,11 @@ VDMA_DST_ADDY_L   :: 0xAF_0405  // 24-bit address of the destination block (rela
 VDMA_DST_ADDY_M   :: 0xAF_0406
 VDMA_DST_ADDY_H   :: 0xAF_0407
 
-//a for 1-D transfer
-VDMA_SIZE_L       :: 0xAF_0408  // For 1-D DMA, 24-bit size of transfer in bytes. 
-VDMA_SIZE_M       :: 0xAF_0409
-VDMA_SIZE_H       :: 0xAF_040A
-VDMA_IGNORED      :: 0xAF_040B
+//a for 1-D transfer - overlap with 2D, see case in c256_dma_write
+//VDMA_SIZE_L       :: 0xAF_0408  // For 1-D DMA, 24-bit size of transfer in bytes. 
+//VDMA_SIZE_M       :: 0xAF_0409
+//VDMA_SIZE_H       :: 0xAF_040A
+//VDMA_IGNORED      :: 0xAF_040B
 
 // for 2-D transfer
 VDMA_X_SIZE_L     :: 0xAF_0408  // For 2-D, 16-bit width of block
@@ -59,12 +59,12 @@ SDMA_SRC_ADDY_M   :: 0xAF_0423
 SDMA_SRC_ADDY_H   :: 0xAF_0424
 SDMA_DST_ADDY_L   :: 0xAF_0425  // 24-bit address of the destination (if system RAM is the destination)
 SDMA_DST_ADDY_M   :: 0xAF_0426
-SDMA_DST_ADDY     :: 0xAF_0427
+SDMA_DST_ADDY_H   :: 0xAF_0427
 
-//a for 1-D transfer
-SDMA_SIZE_L       :: 0xAF_0428  // 24-bit the size of the transfer in bytes if 1D transfer
-SDMA_SIZE_M       :: 0xAF_0429
-SDMA_SIZE_H       :: 0xAF_042A
+//a for 1-D transfer - overlap with 2D, see case in c256_dma_write
+//SDMA_SIZE_L       :: 0xAF_0428  // 24-bit the size of the transfer in bytes if 1D transfer
+//SDMA_SIZE_M       :: 0xAF_0429
+//SDMA_SIZE_H       :: 0xAF_042A
 
 // for 2-D transfer
 SDMA_X_SIZE_L     :: 0xAF_0428  // 16-bit width of the block for 2D transfer
@@ -400,14 +400,15 @@ c256_dma_write :: proc(mainbus: ^Bus, size: emu.Request_Size, addr, val: u32) {
     case VDMA_DST_ADDY_M  : bus.vdma.dst_addy   = assign_byte2(bus.vdma.dst_addy,   val)
     case VDMA_DST_ADDY_H  : bus.vdma.dst_addy   = assign_byte3(bus.vdma.dst_addy,   val)
 
-    case VDMA_SIZE_L      : bus.vdma.size       = assign_byte1(bus.vdma.size,       val)
-    case VDMA_SIZE_M      : bus.vdma.size       = assign_byte2(bus.vdma.size,       val)
-    case VDMA_SIZE_H      : bus.vdma.size       = assign_byte3(bus.vdma.size,       val)
+    case VDMA_X_SIZE_L    : bus.vdma.x_size     = assign_byte1(bus.vdma.x_size,     val)  // 2D VDMA_X_SIZE_L
+                            bus.vdma.size       = assign_byte1(bus.vdma.size,       val)  // 1D VDMA_SIZE_L
 
-    case VDMA_X_SIZE_L    : bus.vdma.x_size     = assign_byte1(bus.vdma.x_size,     val)
-    case VDMA_X_SIZE_H    : bus.vdma.x_size     = assign_byte2(bus.vdma.x_size,     val)
+    case VDMA_X_SIZE_H    : bus.vdma.x_size     = assign_byte2(bus.vdma.x_size,     val)  // 2D VDMA_X_SIZE_H
+                            bus.vdma.size       = assign_byte2(bus.vdma.size,       val)  // 1D VDMA_SIZE_M
 
-    case VDMA_Y_SIZE_L    : bus.vdma.y_size     = assign_byte1(bus.vdma.y_size,     val)
+    case VDMA_Y_SIZE_L    : bus.vdma.y_size     = assign_byte1(bus.vdma.y_size,     val)  // 2D VDMA_Y_SIZE_L
+                            bus.vdma.size       = assign_byte3(bus.vdma.size,       val)  // 1D VDMA_SIZE_H 
+
     case VDMA_Y_SIZE_H    : bus.vdma.y_size     = assign_byte2(bus.vdma.y_size,     val)
 
     case VDMA_SRC_STRIDE_L: bus.vdma.src_stride = assign_byte1(bus.vdma.src_stride, val)
@@ -451,14 +452,15 @@ c256_dma_write :: proc(mainbus: ^Bus, size: emu.Request_Size, addr, val: u32) {
     case SDMA_DST_ADDY_M  : bus.sdma.dst_addy   = assign_byte2(bus.sdma.dst_addy,   val)
     case SDMA_DST_ADDY_H  : bus.sdma.dst_addy   = assign_byte3(bus.sdma.dst_addy,   val)
 
-    case SDMA_SIZE_L      : bus.sdma.size       = assign_byte1(bus.sdma.size,       val)
-    case SDMA_SIZE_M      : bus.sdma.size       = assign_byte2(bus.sdma.size,       val)
-    case SDMA_SIZE_H      : bus.sdma.size       = assign_byte3(bus.sdma.size,       val)
+    case SDMA_X_SIZE_L    : bus.sdma.x_size     = assign_byte1(bus.sdma.x_size,     val)  // 2D SDMA_X_SIZE_L
+                            bus.sdma.size       = assign_byte1(bus.sdma.size,       val)  // 1D SDMA_SIZE_L
 
-    case SDMA_X_SIZE_L    : bus.sdma.x_size     = assign_byte1(bus.sdma.x_size,     val)
-    case SDMA_X_SIZE_H    : bus.sdma.x_size     = assign_byte2(bus.sdma.x_size,     val)
+    case SDMA_X_SIZE_H    : bus.sdma.x_size     = assign_byte2(bus.sdma.x_size,     val)  // 2D SDMA_X_SIZE_H
+                            bus.sdma.size       = assign_byte2(bus.sdma.size,       val)  // 1D SDMA_SIZE_M
 
-    case SDMA_Y_SIZE_L    : bus.sdma.y_size     = assign_byte1(bus.sdma.y_size,     val)
+    case SDMA_Y_SIZE_L    : bus.sdma.y_size     = assign_byte1(bus.sdma.y_size,     val)  // 2D SDMA_Y_SIZE_L
+                            bus.sdma.size       = assign_byte3(bus.sdma.size,       val)  // 1D SDMA_SIZE_H 
+
     case SDMA_Y_SIZE_H    : bus.sdma.y_size     = assign_byte2(bus.sdma.y_size,     val)
 
     case SDMA_SRC_STRIDE_L: bus.sdma.src_stride = assign_byte1(bus.sdma.src_stride, val)
