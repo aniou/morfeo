@@ -236,6 +236,26 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) ->
                 {0xFF, 0xFF, 0xFF, 0xFF},
         }
 
+    for _, color in g.bg_clut {
+        log.debugf("BASE BG LUT: %2d %d %3d : %3d %3d %3d %3d %08x",
+                   color, 0, 0,
+                   g.bg_clut[color][0],
+                   g.bg_clut[color][1],
+                   g.bg_clut[color][2],
+                   g.bg_clut[color][3],
+                   (transmute(^u32) &g.bg_clut[color])^
+        )
+    }
+    for _, color in g.fg_clut {
+        log.debugf("BASE FG LUT: %2d %d %3d : %3d %3d %3d %3d %08x",
+                   color, 0, 0,
+                   g.fg_clut[color][0],
+                   g.fg_clut[color][1],
+                   g.fg_clut[color][2],
+                   g.fg_clut[color][3],
+                   (transmute(^u32) &g.fg_clut[color])^
+        )
+    }
 
     gpu.model  = g
     vicky2_recalculate_screen(g)
@@ -344,12 +364,37 @@ vicky2_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u3
     case .TEXT_FG_LUT:
         color := addr >> 2 // every color ARGB bytes, assume 4-byte align
         pos   := addr  & 3 // position in 32-bit variable
-        d.fg_clut[color][pos] = u8(val)
+        if pos != 3 {      // ALPHA isn't settable, always FF (max)
+            d.fg_clut[color][pos] = u8(val)
+        }
+        /*
+        log.debugf("TEXT FG LUT: %2d %d %3d : %3d %3d %3d %3d %08x",
+                   color, pos, val,
+                   d.fg_clut[color][0],
+                   d.fg_clut[color][1],
+                   d.fg_clut[color][2],
+                   d.fg_clut[color][3],
+                   (transmute(^u32) &d.fg_clut[color])^
+        )
+        */
+
 
     case .TEXT_BG_LUT:
         color := addr >> 2 // every color ARGB bytes, assume 4-byte align
         pos   := addr  & 3 // position in 32-bit variable
-        d.bg_clut[color][pos] = u8(val)
+        if pos != 3 {      // ALPHA isn't settable, always FF (max)
+            d.bg_clut[color][pos] = u8(val)
+        }
+        /*
+        log.debugf("TEXT BG LUT: %2d %d %3d : %3d %3d %3d %3d %08x",
+                   color, pos, val,
+                   d.bg_clut[color][0],
+                   d.bg_clut[color][1],
+                   d.bg_clut[color][2],
+                   d.bg_clut[color][3],
+                   (transmute(^u32) &d.bg_clut[color])^
+        )
+        */
 
     case .FONT_BANK0:
         d.fontmem[addr] = val
