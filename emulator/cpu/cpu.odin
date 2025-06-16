@@ -1,5 +1,6 @@
 package cpu
 
+import "core:thread"
 import "base:runtime"
 import "emulator:bus"
 
@@ -15,8 +16,14 @@ CPU :: struct {
 
     all_cycles: u32,
 
+    // for thread management
+    active:   bool,
+    shutdown: bool,
+    thread:   ^thread.Thread,
+
     // tick etc. proc
     name:   string,
     bus:    ^bus.Bus,
     model: union {CPU_65xxx, CPU_m68k}
+
 }
