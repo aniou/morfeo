@@ -252,6 +252,7 @@ pic_c256_read :: proc(pic: ^PIC, size: emu.Request_Size, addr_orig, addr: u32) -
         val |= 0x20 if d.mask[.FNX1_INT05_MPU401         ] else 0
         val |= 0x40 if d.mask[.FNX1_INT06_LPT            ] else 0
         val |= 0x80 if d.mask[.FNX1_INT07_SDCARD         ] else 0
+        //log.debugf("pic0: %6s read   .INT_MASK_REG1: val %02x", d.name, val)
     case .INT_MASK_REG2:
         val |= 0x01 if d.mask[.FNX2_INT00_OPL3           ] else 0
         val |= 0x02 if d.mask[.FNX2_INT01_GABE_INT0      ] else 0
@@ -400,6 +401,7 @@ pic_c256_write :: proc(pic: ^PIC, size: emu.Request_Size, addr_orig, addr, val: 
         d.mask[.FNX0_INT06_FCC            ]  = (val & 0x40) != 0
         d.mask[.FNX0_INT07_MOUSE          ]  = (val & 0x80) != 0
     case .INT_MASK_REG1:
+        //log.debugf("pic0: %6s write  .INT_MASK_REG1: val %02x", d.name, val)
         d.mask[.FNX1_INT00_KBD            ]  = (val & 0x01) != 0
         d.mask[.FNX1_INT01_SC0            ]  = (val & 0x02) != 0
         d.mask[.FNX1_INT02_SC1            ]  = (val & 0x04) != 0
@@ -464,14 +466,10 @@ pic_c256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_C256)  {
     d.pending[irq] = true
     //log.debugf("IRQ: %v", irq)
 
-    // there is a problem with handling SOF with rate 60Hz - maybe
-    // emulator is too slow?
-    if d.mask[irq] && irq != .FNX0_INT00_SOF {
+    // there is a problem with handling SOF with rate 60Hz - maybe emulator is too slow?
+    if d.mask[irq] == false && irq != .FNX0_INT00_SOF {
         d.irq_active   = true
     } 
-    //else {
-    //    log.debugf("pic0: %6s IRQ %v masked", d.name, irq)
-    //}
     
     return
 }

@@ -6,6 +6,22 @@ import "lib:emu"
 
 // https://wiki.osdev.org/%228042%22_PS/2_Controller
 
+
+// Bit  Meaning
+// 0    Output buffer status (0 = empty, 1 = full)
+//       (must be set before attempting to read data from IO port 0x60)
+// 1    Input buffer status (0 = empty, 1 = full)
+//       (must be clear before attempting to write data to IO port 0x60 or IO port 0x64)
+// 2    System Flag
+//       Meant to be cleared on reset and set by firmware (via. PS/2 Controller
+//       Configuration Byte) if the system passes self tests (POST)
+// 3    Command/data (0 = data written to input buffer is data for PS/2 device, 
+//       1 = data written to input buffer is data for PS/2 controller command)
+// 4    Unknown (chipset specific)     May be "keyboard lock" (more likely unused on modern systems)
+// 5    Unknown (chipset specific)    May be "receive time-out" or "second PS/2 port output buffer full"
+// 6    Time-out error (0 = no error, 1 = time-out error)
+// 7    Parity error (0 = no error, 1 = parity error) 
+
 PS2_STAT_OBF    :: u8(0x01)
 PS2_STAT_IBF    :: u8(0x02)
 PS2_STAT_SYS    :: u8(0x04)
@@ -14,6 +30,8 @@ PS2_STAT_INH    :: u8(0x10)
 PS2_STAT_TTO    :: u8(0x20)
 PS2_STAT_RTO    :: u8(0x40)
 PS2_STAT_PE     :: u8(0x80)
+
+PS2_RESP_ACK    :: u8(0xFA)
 
 KBD_DATA        :: 0x03 // $AF1803 (FMX: $AF1060) for reading and writing
 KBD_COMMAND     :: 0x07 // $AF1807 (FMX: $AF1064) for writing
@@ -75,14 +93,14 @@ ps2_send_key :: proc(s: ^PS2, val: u8) {
 
 default:
 
-	KBD_DATA        :: 0x03 // $AF1803 for reading and writing
-	KBD_COMMAND     :: 0x07 // $AF1807 for writing
-	KBD_STATUS      :: 0x07 // $AF1807 for reading
+    KBD_DATA        :: 0x03 // $AF1803 for reading and writing
+    KBD_COMMAND     :: 0x07 // $AF1807 for writing
+    KBD_STATUS      :: 0x07 // $AF1807 for reading
 
 FMX:
-	KBD_DATA        :: 0x00 // $AF1060 for reading and writing
-	KBD_COMMAND     :: 0x04 // $AF1064 for writing
-	KBD_STATUS      :: 0x04 // $AF1064 for reading
+    KBD_DATA        :: 0x00 // $AF1060 for reading and writing
+    KBD_COMMAND     :: 0x04 // $AF1064 for writing
+    KBD_STATUS      :: 0x04 // $AF1064 for reading
 */
 
 ps2_read :: proc(s: ^PS2, mode: emu.Request_Size, addr_orig, addr: u32) -> (val: u32) {
@@ -138,10 +156,10 @@ ps2_read8 :: proc(s: ^PS2, addr: u32) -> (val: u8) {
 }
 
 ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
-	switch addr {
+    switch addr {
     case KBD_DATA: // 0x60
-    	if s.ccb_write_mode {
-        	log.debugf("ps2: %6s write    KBD_DATA: val %02x -> CCB", s.name, val)
+        if s.ccb_write_mode {
+            log.debugf("ps2: %6s write    KBD_DATA: val %02x -> CCB", s.name, val)
 
              s.ccb_write_mode  = false
              s.CCB             = val
@@ -150,27 +168,28 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
 
         switch val {
         case 0xf4: // mouse/keyboard enable
-        	s.status = s.status | PS2_STAT_OBF
+            s.status = s.status | PS2_STAT_OBF
+            s.data   = PS2_RESP_ACK
             s.debug  = false  // to get rid console messages in case of pooling
         case 0xf5: // mouse/keyboard disable
-        	s.status = s.status | PS2_STAT_OBF
+            s.status = s.status | PS2_STAT_OBF
         case 0xf6: // mouse - reset without self-test
-        	s.status = s.status | PS2_STAT_OBF
+            s.status = s.status | PS2_STAT_OBF
         case 0xff: // mouse/keyboard reset
-        	s.status = s.status | PS2_STAT_OBF
+            s.status = s.status | PS2_STAT_OBF
 
- 		case:
+        case:
             log.debugf("ps2: %6s write    KBD_DATA: val %02x - data UNKNOWN", s.name, val)
         }
 
         log.debugf("ps2: %6s write    KBD_DATA: val %02x", s.name, val)
    case KBD_COMMAND: // 0x64 - command when write
-   		log.debugf("ps2: %6s write KBD_COMMAND: val %02x", s.name, val)
+        log.debugf("ps2: %6s write KBD_COMMAND: val %02x", s.name, val)
         switch val {
         case 0x60:
-        	s.ccb_write_mode    = true
+            s.ccb_write_mode    = true
         case 0xd4: // write next byte to second PS/2 port
-        	s.status = s.status | PS2_STAT_OBF
+            s.status = s.status | PS2_STAT_OBF
         case 0xa7: // disable second PS/2 port
             s.status = s.status | PS2_STAT_OBF
             s.second_enabled = false
@@ -192,7 +211,7 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
             s.first_enabled = true
         case:
             log.debugf("ps2: %6s write KBD_COMMAND: val %02x - command UNKNOWN", s.name, val)
-		}
+        }
    case:
         log.warnf("ps2: %6s Write addr %6x val %2x is not implemented", s.name, addr, val)
    }
