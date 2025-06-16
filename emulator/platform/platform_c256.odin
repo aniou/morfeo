@@ -52,13 +52,13 @@ c256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
 }
 
 c256_delete :: proc(p: ^Platform) {
-         p.cpu->delete()
     p.bus.gpu0->delete()
      p.bus.pic->delete()
      p.bus.ps2->delete()
     p.bus.ram0->delete()
      p.bus.rtc->delete()
     p.bus.intu->delete()
+         p.cpu->delete()
          p.bus->delete()
 
     free(p);
