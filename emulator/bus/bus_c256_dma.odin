@@ -2,6 +2,8 @@ package bus
 
 import "core:log"
 
+import "emulator:pic"
+
 import "lib:emu"
 
 /*
@@ -79,11 +81,6 @@ SDMA_DST_STRIDE_H :: 0xAF_042F
 SDMA_STATUS_REG   :: 0xAF_0430  // on read  - status of SDMA
 SDMA_BYTE_2_WRITE :: 0xAF_0430  // on write - byte to fill memory
 
-// XXX - trigger IRQ
-// XXX - create read routines
-// XXX - simplify a things (ram assignement, status set)
-// XXX - convert ram to U32?
-
 DMA :: struct {
     ctrl_enable:     bool, // no comment
     ctrl_2d:         bool, // 0:        1d, 1: 2d
@@ -106,9 +103,13 @@ DMA :: struct {
     debug:           bool, // enable/disable debug
 }
 
+DMATYPE :: enum {
+    SRAM,
+    VRAM,
+}
+
 DMAOBJ :: struct {
-    memory:  ^[dynamic]u32,
-    status:  ^u32,
+    kind:   DMATYPE,
 
     addr:    u32,
     stride:  u32,
@@ -120,6 +121,7 @@ DMAOBJ :: struct {
     val:     u32,
     count:   u32,
     stop:    bool,
+    status:  u32,
 }
 
 
@@ -147,20 +149,41 @@ assign_byte4  :: #force_inline proc(dst, arg: u32) -> (val: u32) {
     return
 }
 
+// TODO - better name
+@private
+c256_dma_read8 :: #force_inline proc(bus: ^Bus, kind: DMATYPE, addr: u32) -> (val: u32) {
+    switch kind {
+    case .SRAM:    val = bus.ram0->read(.bits_8, addr)
+    case .VRAM:    val = bus.gpu0->read(.bits_8, addr, addr, .VRAM0)
+    }
+    return
+}
 
-c256_dma_operation :: proc(obj: ^DMAOBJ) {
+@private
+c256_dma_write8 :: #force_inline proc(bus: ^Bus, kind: DMATYPE, addr, val: u32)        {
+    switch kind {
+    case .SRAM:    //log.debugf("c256_dma_write8: SRAM %04X VAL %02X", addr, val)
+                   bus.ram0->write(.bits_8, addr, val)
+    case .VRAM:    //log.debugf("c256_dma_write8: VRAM %04X VAL %02X (%v)", addr, val, bus.gpu0.write)
+                   bus.gpu0->write(.bits_8, addr, addr, val, .VRAM0)
+    }
+    return
+}
+
+
+c256_dma_operation :: proc(bus: ^Bus, obj: ^DMAOBJ) {
     using obj
 
     if addr + index > 0xFF_FFFF {           // XXX compile-time max RAM/VRAM size?
         stop     = true
-        status^ |= 0x04  if source else 0x02
+        status  |= 0x04  if source else 0x02
         return
     }
 
     if source {
-        val = memory[addr + index]
+        val = c256_dma_read8(bus, kind, addr+index)
     } else {
-        memory[addr + index] = val
+        c256_dma_write8(bus, kind, addr+index, val)
     }
 
     count += 1
@@ -187,33 +210,15 @@ c256_dma_operation :: proc(obj: ^DMAOBJ) {
 //      stride = 0
 //      addr   = 0
       
-//  for copy operation: dst.val = src.val
-//  for fill operation: dst.val = constant
+//  for copy operation: dst.val = src.val   in     loop
+//  for fill operation: dst.val = constant  before loop
 
-
-c256_dma_set_objects :: proc(bus: ^BUS_C256, dma: ^DMA) -> (src, dst: DMAOBJ) {
+c256_dma_set_objects :: proc(dma: ^DMA) -> (src, dst: DMAOBJ) {
     src = DMAOBJ{stop = false, source = true }
     dst = DMAOBJ{stop = false, source = false}
 
-    if dma.ctrl_sysram_src {
-        src.memory  = &bus.ram0.data
-        src.status  = &bus.sdma.ctrl_status
-        src.status^ = 0
-    } else {
-        src.memory  = &bus.gpu0.vram0
-        src.status  = &bus.vdma.ctrl_status
-        src.status^ = 0
-    }
-
-    if dma.ctrl_sysram_dst {
-        dst.memory  = &bus.ram0.data
-        dst.status  = &bus.sdma.ctrl_status
-        dst.status^ = 0
-    } else {
-        dst.memory  = &bus.gpu0.vram0
-        dst.status  = &bus.vdma.ctrl_status
-        dst.status^ = 0
-    }
+    src.kind = .SRAM if dma.ctrl_sysram_src else .VRAM
+    dst.kind = .SRAM if dma.ctrl_sysram_dst else .VRAM
 
     if dma.ctrl_2d {
         src.x_size  = dma.x_size
@@ -249,17 +254,18 @@ c256_dma_set_objects :: proc(bus: ^BUS_C256, dma: ^DMA) -> (src, dst: DMAOBJ) {
 // so - vdma<>sdma transfer is handled only in c256_sdma_transfer because it 
 // is simpler - c256_vdma_transfer does nothing with that
 
-c256_sdma_transfer :: proc(bus: ^BUS_C256) {
+c256_sdma_transfer :: proc(mainbus: ^Bus) {
+    bus        := &mainbus.model.(BUS_C256)
 
     // FILL ---------------------------------------------------------------
     if bus.sdma.ctrl_trf_fill {
-        src,dst := c256_dma_set_objects(bus, &bus.sdma)
+        src,dst := c256_dma_set_objects(&bus.sdma)
         dst.val  = bus.sdma.byte_2_write
 
         for dst.stop == false {
-            c256_dma_operation(&dst) 
+            c256_dma_operation(mainbus, &dst) 
         }
-        log.debugf("%s copy finished after %d bytes status %02x", #procedure, dst.count, dst.status^)
+        log.debugf("%s copy finished after %d bytes status %02x", #procedure, dst.count, dst.status)
         //delete(src)
         //delete(dst)
         return
@@ -267,19 +273,19 @@ c256_sdma_transfer :: proc(bus: ^BUS_C256) {
 
     // SRAM to SRAM -------------------------------------------------------
     if  bus.sdma.ctrl_sysram_src &&  bus.sdma.ctrl_sysram_dst {
-        src, dst  := c256_dma_set_objects(bus, &bus.sdma)
+        src, dst  := c256_dma_set_objects(&bus.sdma)
 
         for (src.stop || dst.stop) == false {
-            c256_dma_operation(&src) 
+            c256_dma_operation(mainbus, &src) 
             dst.val = src.val
-            c256_dma_operation(&dst) 
+            c256_dma_operation(mainbus, &dst) 
         }
 
         if src.stop != dst.stop {
             log.errorf("%s invalid DMA, stop desync: src %v dst %v", #procedure, dst.stop, src.stop)
         }
 
-        log.debugf("%s copy finished after %d bytes status %02x", #procedure, dst.count, dst.status^)
+        log.debugf("%s copy finished after %d bytes status %02x", #procedure, dst.count, dst.status)
         //delete(src)
         //delete(dst)
         return
@@ -304,35 +310,42 @@ c256_sdma_transfer :: proc(bus: ^BUS_C256) {
         return
     }
 
-    src,dst   := c256_dma_set_objects(bus, &bus.vdma)
+    src,dst   := c256_dma_set_objects(&bus.sdma)
     for (src.stop || dst.stop) == false {
-        c256_dma_operation(&src) 
+        c256_dma_operation(mainbus, &src) 
         dst.val = src.val
-        c256_dma_operation(&dst) 
+        c256_dma_operation(mainbus, &dst) 
     }
 
     if src.stop != dst.stop {
+        bus.sdma.ctrl_status |= src.status   // TIMEOUT and SIZE errors not covered
+        bus.sdma.ctrl_status |= dst.status
         log.errorf("%s invalid DMA, stop desync: src %v dst %v", #procedure, dst.stop, src.stop)
     }
 
     //delete(src)
     //delete(dst)
-    log.debugf("%s copy finished after %d bytes status %02x", #procedure, dst.count, dst.status^)
+    log.debugf("%s copy finished after %d bytes status %02x", #procedure, dst.count, dst.status)
     return
 }
 
+
+
+
+
 // no support for "SIZE" error
-c256_vdma_transfer :: proc(bus: ^BUS_C256) {
+c256_vdma_transfer :: proc(mainbus: ^Bus) {
+    bus        := &mainbus.model.(BUS_C256)
 
     // FILL ---------------------------------------------------------------
     if bus.vdma.ctrl_trf_fill {
-        src,dst := c256_dma_set_objects(bus, &bus.vdma)
+        src,dst := c256_dma_set_objects(&bus.vdma)
         dst.val  = bus.vdma.byte_2_write
 
         for dst.stop == false {
-            c256_dma_operation(&dst) 
+            c256_dma_operation(mainbus, &dst) 
         }
-        log.debugf("%s copy finished after %d bytes status %02x", #procedure, dst.count, dst.status^)
+        log.debugf("%s copy finished after %d bytes status %02x", #procedure, dst.count, dst.status)
         //delete(src)
         //delete(dst)
         return
@@ -340,19 +353,21 @@ c256_vdma_transfer :: proc(bus: ^BUS_C256) {
 
     // VRAM to VRAM -------------------------------------------------------
     if !bus.vdma.ctrl_sysram_src && !bus.vdma.ctrl_sysram_dst {
-        src, dst  := c256_dma_set_objects(bus, &bus.vdma)
+        src, dst  := c256_dma_set_objects(&bus.vdma)
 
         for (src.stop || dst.stop) == false {
-            c256_dma_operation(&src) 
+            c256_dma_operation(mainbus, &src) 
             dst.val = src.val
-            c256_dma_operation(&dst) 
+            c256_dma_operation(mainbus, &dst) 
         }
 
         if src.stop != dst.stop {
+            bus.vdma.ctrl_status |= src.status // TIMEOUT and SIZE errors not covered
+            bus.vdma.ctrl_status |= dst.status
             log.errorf("%s invalid DMA, stop desync: src %v dst %v", #procedure, dst.stop, src.stop)
         }
 
-        log.debugf("%s copy finished after %d bytes status %02x", #procedure, dst.count, dst.status^)
+        log.debugf("%s copy finished after %d bytes status %02x", #procedure, dst.count, dst.status)
         //delete(src)
         //delete(dst)
         return
@@ -361,6 +376,79 @@ c256_vdma_transfer :: proc(bus: ^BUS_C256) {
     // SRAM to VRAM is initiated by SDMA -----------------------------------
     // VRAM to SRAM is initiated by SDMA too -------------------------------
 
+}
+
+c256_dma_read :: proc(mainbus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
+    bus        := &mainbus.model.(BUS_C256)
+
+    switch addr {
+    case VDMA_CONTROL_REG :
+        val |= 0x01 if bus.vdma.ctrl_enable     else 0
+        val |= 0x02 if bus.vdma.ctrl_2d         else 0
+        val |= 0x04 if bus.vdma.ctrl_trf_fill   else 0
+        val |= 0x08 if bus.vdma.ctrl_int_enable else 0
+        val |= 0x10 if bus.vdma.ctrl_sysram_src else 0
+        val |= 0x20 if bus.vdma.ctrl_sysram_dst else 0
+
+        val |= 0x80 if bus.vdma.ctrl_start      else 0
+
+
+    case VDMA_STATUS_REG  : val = bus.vdma.ctrl_status
+
+    case VDMA_SRC_ADDY_L  : val = emu.get_byte1(bus.vdma.src_addy)
+    case VDMA_SRC_ADDY_M  : val = emu.get_byte2(bus.vdma.src_addy)   
+    case VDMA_SRC_ADDY_H  : val = emu.get_byte3(bus.vdma.src_addy)   
+
+    case VDMA_DST_ADDY_L  : val = emu.get_byte1(bus.vdma.dst_addy)   
+    case VDMA_DST_ADDY_M  : val = emu.get_byte2(bus.vdma.dst_addy)   
+    case VDMA_DST_ADDY_H  : val = emu.get_byte3(bus.vdma.dst_addy)   
+
+    case VDMA_X_SIZE_L    : val = bus.vdma.x_size   if bus.vdma.ctrl_2d else bus.vdma.size    // XXX change to shared mem addr
+    case VDMA_X_SIZE_H    : val = bus.vdma.x_size   if bus.vdma.ctrl_2d else bus.vdma.size       
+    case VDMA_Y_SIZE_L    : val = bus.vdma.y_size   if bus.vdma.ctrl_2d else bus.vdma.size       
+    case VDMA_Y_SIZE_H    : val = bus.vdma.y_size   if bus.vdma.ctrl_2d else 0
+
+    case VDMA_SRC_STRIDE_L: val = emu.get_byte1(bus.vdma.src_stride)
+    case VDMA_SRC_STRIDE_H: val = emu.get_byte2(bus.vdma.src_stride) 
+
+    case VDMA_DST_STRIDE_L: val = emu.get_byte1(bus.vdma.dst_stride) 
+    case VDMA_DST_STRIDE_H: val = emu.get_byte2(bus.vdma.dst_stride) 
+
+    // ---------------------------------------------------------------------------------
+    case SDMA_CTRL_REG0   :
+        val |= 0x01 if bus.sdma.ctrl_enable     else 0
+        val |= 0x02 if bus.sdma.ctrl_2d         else 0
+        val |= 0x04 if bus.sdma.ctrl_trf_fill   else 0
+        val |= 0x08 if bus.sdma.ctrl_int_enable else 0
+        val |= 0x10 if bus.sdma.ctrl_sysram_src else 0
+        val |= 0x20 if bus.sdma.ctrl_sysram_dst else 0
+
+        val |= 0x80 if bus.sdma.ctrl_start      else 0
+
+
+    case SDMA_STATUS_REG  : val = bus.sdma.ctrl_status
+
+    case SDMA_SRC_ADDY_L  : val = bus.sdma.src_addy   
+    case SDMA_SRC_ADDY_M  : val = bus.sdma.src_addy   
+    case SDMA_SRC_ADDY_H  : val = bus.sdma.src_addy   
+
+    case SDMA_DST_ADDY_L  : val = bus.sdma.dst_addy   
+    case SDMA_DST_ADDY_M  : val = bus.sdma.dst_addy   
+    case SDMA_DST_ADDY_H  : val = bus.sdma.dst_addy   
+
+    case SDMA_X_SIZE_L    : val = bus.sdma.x_size   if bus.sdma.ctrl_2d else bus.sdma.size    // XXX change to shared mem addr
+    case SDMA_X_SIZE_H    : val = bus.sdma.x_size   if bus.sdma.ctrl_2d else bus.sdma.size       
+    case SDMA_Y_SIZE_L    : val = bus.sdma.y_size   if bus.sdma.ctrl_2d else bus.sdma.size       
+    case SDMA_Y_SIZE_H    : val = bus.sdma.y_size   if bus.sdma.ctrl_2d else 0
+
+    case SDMA_SRC_STRIDE_L: val = bus.sdma.src_stride 
+    case SDMA_SRC_STRIDE_H: val = bus.sdma.src_stride 
+
+    case SDMA_DST_STRIDE_L: val = bus.sdma.dst_stride 
+    case SDMA_DST_STRIDE_H: val = bus.sdma.dst_stride 
+    }
+
+    return
 }
 
 c256_dma_write :: proc(mainbus: ^Bus, size: emu.Request_Size, addr, val: u32) {
@@ -385,7 +473,8 @@ c256_dma_write :: proc(mainbus: ^Bus, size: emu.Request_Size, addr, val: u32) {
         // initiate transfer only if change is 0 -> 1
         if !bus.vdma.ctrl_start & cmd_ctrl_start  {
             bus.vdma.ctrl_start = true
-            c256_vdma_transfer(bus)
+            c256_vdma_transfer(mainbus)
+            mainbus.pic->trigger(.RESERVED_6)   // may generate spurious irqs
         } else {
             bus.vdma.ctrl_start = false
         }
@@ -437,7 +526,8 @@ c256_dma_write :: proc(mainbus: ^Bus, size: emu.Request_Size, addr, val: u32) {
         // initiate transfer only if change is 0 -> 1
         if !bus.sdma.ctrl_start & cmd_ctrl_start  {
             bus.sdma.ctrl_start = true
-            c256_sdma_transfer(bus)
+            c256_sdma_transfer(mainbus)
+            mainbus.pic->trigger(.RESERVED_5)   // may generate spurious irqs
         } else {
             bus.sdma.ctrl_start = false
         }
@@ -470,7 +560,6 @@ c256_dma_write :: proc(mainbus: ^Bus, size: emu.Request_Size, addr, val: u32) {
     case SDMA_DST_STRIDE_H: bus.sdma.dst_stride = assign_byte2(bus.sdma.dst_stride, val)
 
     }
-
 }
 
 

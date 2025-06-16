@@ -9,10 +9,11 @@ import "emulator:pic"
 GPU :: struct {
     read:    proc(^GPU, emu.Request_Size, u32, u32, emu.Mode) -> u32,
     write:   proc(^GPU, emu.Request_Size, u32, u32, u32,    emu.Mode),
-    read8:   proc(^GPU, u32) -> u8,
-    write8:  proc(^GPU, u32,    u8),
     delete:  proc(^GPU            ),
     render:  proc(^GPU            ),
+
+    //dma_read8:   proc(^GPU, u32) -> u32,
+    //dma_write8:  proc(^GPU, u32,    u32),
 
     name:               string,     // textual name of instance
     id:                 int,        // id of instance

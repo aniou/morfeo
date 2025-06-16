@@ -63,6 +63,20 @@ Register_vicky2 :: enum u32 {
     VKY2_TXT_CUR_YL   = 0x_00_16,     // A   - text cursor Y position (low)
     VKY2_TXT_CUR_YH   = 0x_00_17,     // A   - text cursor Y position (high)
 
+    BM0_CONTROL_REG   = 0x_01_00,     // A   - BM0 control
+    BM0_START_ADDY_L  = 0x_01_01,     // A   - Start Address Within the Video Memory (offset by $B0:0000) 
+    BM0_START_ADDY_M  = 0x_01_02,     // A
+    BM0_START_ADDY_H  = 0x_01_03,     // A
+    BM0_X_OFFSET      = 0x_01_04,     // A   - not implemented
+    BM0_Y_OFFSET      = 0x_01_05,     // A
+
+    BM1_CONTROL_REG   = 0x_01_08,     // A   - BM1 control
+    BM1_START_ADDY_L  = 0x_01_09,     // A   - Start Address Within the Video Memory (offset by $B0:0000) 
+    BM1_START_ADDY_M  = 0x_01_0A,     // A
+    BM1_START_ADDY_H  = 0x_01_0B,     // A
+    BM1_X_OFFSET      = 0x_01_0C,     // A   - not implemented
+    BM1_Y_OFFSET      = 0x_01_0D,     // A
+
 }
 
 VKY2_CURSOR_BLINK_RATE           :: [4]i32{1000, 500, 250, 200}
@@ -121,9 +135,10 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) ->
     gpu.write  = vicky2_write
     gpu.delete = vicky2_delete
     gpu.render = vicky2_render
+
     g         := GPU_Vicky2{gpu = gpu}
 
-   	g.vram0   = make([dynamic]u32,      vram) // video ram (depends from model)
+    g.vram0   = make([dynamic]u32,      vram) // video ram (depends from model)
     g.text    = make([dynamic]u32,    0x2000) // text memory                  0x4000 in GenX
     g.tc      = make([dynamic]u32,    0x2000) // text color memory            0x4000 in GenX
     g.fg      = make([dynamic]u32,    0x2000) // text foreground LUT cache    0x4000 in GenX
@@ -250,6 +265,19 @@ vicky2_delete :: proc(gpu: ^GPU) {
     return
 }
 
+/*
+vicky2_dma_read8 :: proc(gpu: ^GPU, addr: u32) -> (val: u32) {
+    d   := &gpu.model.(GPU_Vicky2)
+    val  = d.vram0[addr]
+    return
+}
+
+vicky2_dma_write8 :: proc(gpu: ^GPU, addr, val: u32) {
+    d   := &gpu.model.(GPU_Vicky2)
+    d.vram0[addr] = val
+    return
+}
+*/
 
 vicky2_read :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr: u32, mode: emu.Mode = .MAIN) -> (val: u32) {
     d := &gpu.model.(GPU_Vicky2)
@@ -268,26 +296,16 @@ vicky2_read :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr: u32, mod
     case .TEXT_COLOR:
         val = d.tc[addr]
     case .TEXT_FG_LUT:
-		color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+        color := addr >> 2 // every color ARGB bytes, assume 4-byte align
         pos   := addr  & 3 // position in 32-bit variable
         val = u32(d.fg_clut[color][pos])
     case .TEXT_BG_LUT:
-		color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+        color := addr >> 2 // every color ARGB bytes, assume 4-byte align
         pos   := addr  & 3 // position in 32-bit variable
         val = u32(d.bg_clut[color][pos])
 
-    // XXX - does not work yet
     case .LUT:
-		switch size {
-        case .bits_8:
-        	val = cast(u32) d.lut[addr]
-    	case .bits_16:
-        	ptr := transmute(^u16be) &d.lut[addr]
-        	val  = cast(u32) ptr^
-    	case .bits_32:
-        	ptr := transmute(^u32be) &d.lut[addr]
-        	val  = cast(u32) ptr^
-    	}
+        val = cast(u32) d.lut[addr]
 
     case .VRAM0:
         val = d.vram0[addr]
@@ -324,12 +342,12 @@ vicky2_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u3
         d.tc[addr] =  val & 0x00_00_00_ff
         
     case .TEXT_FG_LUT:
-	    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+        color := addr >> 2 // every color ARGB bytes, assume 4-byte align
         pos   := addr  & 3 // position in 32-bit variable
         d.fg_clut[color][pos] = u8(val)
 
     case .TEXT_BG_LUT:
-		color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+        color := addr >> 2 // every color ARGB bytes, assume 4-byte align
         pos   := addr  & 3 // position in 32-bit variable
         d.bg_clut[color][pos] = u8(val)
 
@@ -337,16 +355,8 @@ vicky2_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u3
         d.fontmem[addr] = val
         vicky2_update_font_cache(d, addr, u8(val))  // every bit in font cache is mapped to byte
 
-    // XXX: doesn't work yet
     case .LUT:
-        switch size {
-        case .bits_8:
-            d.lut[addr] = cast(u8) val
-        case .bits_16:
-            (transmute(^u16be) &d.lut[addr])^ = cast(u16be) val
-        case .bits_32:
-            (transmute(^u32be) &d.lut[addr])^ = cast(u32be) val
-        }
+        d.lut[addr] = cast(u8) val
         
     case .VRAM0:
         d.vram0[addr] = val
@@ -376,21 +386,21 @@ vicky2_write_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig,
             d.bitmap_enabled  = (val & VKY2_MCR_BITMAP )       != 0
             d.tile_enabled    = (val & VKY2_MCR_TILE )         != 0
             d.sprite_enabled  = (val & VKY2_MCR_SPRITE )       != 0
-			d.gamma_enabled   = (val & VKY2_MCR_GAMMA_ENABLE)  != 0
+            d.gamma_enabled   = (val & VKY2_MCR_GAMMA_ENABLE)  != 0
             d.gpu_enabled     = (val & VKY2_MCR_VIDEO_DISABLE) == 0
-		} else {
+        } else {
             emu.write_not_implemented(#procedure, ".VKY2_MCR_L/.MAIN_B", size, addr_orig, val)
-		}
+        }
 
     case .VKY2_MCR_H:
         if mode == .MAIN_A {
-			if d.resolution != (val & VKY2_MODE_MASK) {
+            if d.resolution != (val & VKY2_MODE_MASK) {
 
                 d.resolution     = val & VKY2_MODE_MASK
                 d.screen_resized = true
 
                 switch d.resolution {
-                case VKY2_MODE_640_480:		// 0
+                case VKY2_MODE_640_480:     // 0
                     d.screen_x_size = 640
                     d.screen_y_size = 480
                     d.delay         = 16  * time.Millisecond   // 16 for 60Hz, 14 for 70Hz
@@ -399,11 +409,11 @@ vicky2_write_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig,
                     d.screen_y_size = 600
                     d.delay         = 16  * time.Millisecond   // for 60Hz
                 }
-        		vicky2_recalculate_screen(d)
-    		}
-    	} else {
-   			emu.write_not_implemented(#procedure, ".VKY2_MCR_H/.MAIN_B", size, addr_orig, val)
-    	}
+                vicky2_recalculate_screen(d)
+            }
+        } else {
+            emu.write_not_implemented(#procedure, ".VKY2_MCR_H/.MAIN_B", size, addr_orig, val)
+        }
 
     case .VKY2_GAMMA_CR: 
         emu.write_not_implemented(#procedure, fmt.tprintf("%v", reg), size, addr_orig, val)
@@ -446,6 +456,29 @@ vicky2_write_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig,
     case .VKY2_TXT_CUR_XH: { }
     case .VKY2_TXT_CUR_YL: d.cursor_y  = val
     case .VKY2_TXT_CUR_YH: { }
+
+    case .BM0_CONTROL_REG : 
+		d.bm0_enabled           =  val & 0x01  != 0	  // bit 0
+		d.bm0_lut               = (val & 0x0E) >> 1   // bit 1 to 3
+		d.bm0_collision_enabled =  val & 0x40  != 0   // bit 6
+
+    case .BM0_START_ADDY_L: d.bm0_pointer = emu.assign_byte1(d.bm0_pointer, val)
+    case .BM0_START_ADDY_M: d.bm0_pointer = emu.assign_byte2(d.bm0_pointer, val)
+    case .BM0_START_ADDY_H: d.bm0_pointer = emu.assign_byte3(d.bm0_pointer, val)
+    case .BM0_X_OFFSET    : // not implemented
+    case .BM0_Y_OFFSET    : // not implemented
+
+    case .BM1_CONTROL_REG : 
+		d.bm1_enabled           =  val & 0x01  != 0	  // bit 0
+		d.bm1_lut               = (val & 0x0E) >> 1   // bit 1 to 3
+		d.bm1_collision_enabled =  val & 0x40  != 0   // bit 6
+
+    case .BM1_START_ADDY_L: d.bm1_pointer = emu.assign_byte1(d.bm1_pointer, val)
+    case .BM1_START_ADDY_M: d.bm1_pointer = emu.assign_byte2(d.bm1_pointer, val)
+    case .BM1_START_ADDY_H: d.bm1_pointer = emu.assign_byte3(d.bm1_pointer, val)
+    case .BM1_X_OFFSET    : // not implemented
+    case .BM1_Y_OFFSET    : // not implemented
+
     case                 : emu.write_not_implemented(#procedure, "UNKNOWN",         size, addr_orig, val)
     }
 }
@@ -517,6 +550,29 @@ vicky2_read_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig, 
     case .VKY2_TXT_CUR_XH: val = 0
     case .VKY2_TXT_CUR_YL: val = d.cursor_y
     case .VKY2_TXT_CUR_YH: val = 0
+
+    case .BM0_CONTROL_REG : 
+        val |= 0x01 if d.bm0_enabled           else 0 // bit 0
+        val |= 0x40 if d.bm0_collision_enabled else 0 // bit 6
+		val |=         (d.bm0_lut & 0x05) << 1        // bit 1 - 3 
+
+    case .BM0_START_ADDY_L: val = emu.get_byte1(d.bm0_pointer)
+    case .BM0_START_ADDY_M: val = emu.get_byte2(d.bm0_pointer)
+    case .BM0_START_ADDY_H: val = emu.get_byte3(d.bm0_pointer)
+    case .BM0_X_OFFSET    : val = 0 // not implemented
+    case .BM0_Y_OFFSET    : val = 0 // not implemented
+
+    case .BM1_CONTROL_REG : 
+        val |= 0x01 if d.bm1_enabled           else 0 // bit 0
+        val |= 0x40 if d.bm1_collision_enabled else 0 // bit 6
+		val |=         (d.bm1_lut & 0x05) << 1        // bit 1 - 3 
+
+    case .BM1_START_ADDY_L: val = emu.get_byte1(d.bm1_pointer)
+    case .BM1_START_ADDY_M: val = emu.get_byte2(d.bm1_pointer)
+    case .BM1_START_ADDY_H: val = emu.get_byte3(d.bm1_pointer)
+    case .BM1_X_OFFSET    : val = 0 // not implemented
+    case .BM1_Y_OFFSET    : val = 0 // not implemented
+
     case                 : emu.read_not_implemented(#procedure, "UNKNOWN", size, addr_orig)
     }
     return

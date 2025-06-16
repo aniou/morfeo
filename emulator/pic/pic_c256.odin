@@ -119,10 +119,10 @@ pic_c256_make :: proc(name: string) -> ^PIC {
 //
 pic_c256_read :: proc(pic: ^PIC, size: emu.Request_Size, addr_orig, addr: u32) -> (val: u32) {
 
-	if size != .bits_8 do emu.unsupported_read_size(#procedure, pic.name, pic.id, size, addr_orig)
+    if size != .bits_8 do emu.unsupported_read_size(#procedure, pic.name, pic.id, size, addr_orig)
 
     d         := &pic.model.(PIC_C256)
-	switch Register_pic_c256(addr) {
+    switch Register_pic_c256(addr) {
     case .INT_PENDING_REG0:
         val |= 0x01 if d.pending[.FNX0_INT00_SOF         ] else 0
         val |= 0x02 if d.pending[.FNX0_INT01_SOL         ] else 0
@@ -270,17 +270,17 @@ pic_c256_read :: proc(pic: ^PIC, size: emu.Request_Size, addr_orig, addr: u32) -
         val |= 0x20 if d.mask[.FNX3_INT05_TBD            ] else 0
         val |= 0x40 if d.mask[.FNX3_INT06_TBD            ] else 0
         val |= 0x80 if d.mask[.FNX3_INT07_TBD            ] else 0
-	}
+    }
 
     return
 }
 
 pic_c256_write :: proc(pic: ^PIC, size: emu.Request_Size, addr_orig, addr, val: u32)  {
 
-	if size != .bits_8 do emu.unsupported_write_size(#procedure, pic.name, pic.id, size, addr_orig, val)
+    if size != .bits_8 do emu.unsupported_write_size(#procedure, pic.name, pic.id, size, addr_orig, val)
 
     d         := &pic.model.(PIC_C256)
-	switch Register_pic_c256(addr) {
+    switch Register_pic_c256(addr) {
     case .INT_PENDING_REG0:
         if (val & 0x01) != 0 do d.pending[.FNX0_INT00_SOF         ] = false 
         if (val & 0x02) != 0 do d.pending[.FNX0_INT01_SOL         ] = false 
@@ -426,7 +426,7 @@ pic_c256_write :: proc(pic: ^PIC, size: emu.Request_Size, addr_orig, addr, val: 
         d.mask[.FNX3_INT05_TBD            ]  = (val & 0x20) != 0
         d.mask[.FNX3_INT06_TBD            ]  = (val & 0x40) != 0
         d.mask[.FNX3_INT07_TBD            ]  = (val & 0x80) != 0
-	}
+    }
 
     return
 }
@@ -462,6 +462,7 @@ pic_c256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_C256)  {
     d         := &pic.model.(PIC_C256)
 
     d.pending[irq] = true
+    //log.debugf("IRQ: %v", irq)
 
     // there is a problem with handling SOF with rate 60Hz - maybe
     // emulator is too slow?
@@ -479,6 +480,8 @@ pic_c256_trigger :: proc(pic: ^PIC, irq: IRQ)  {
     #partial switch irq {
     case      .KBD_PS2: pic_c256_internal_trigger(pic, .FNX1_INT00_KBD)
     case  .VICKY_A_SOF: pic_c256_internal_trigger(pic, .FNX0_INT00_SOF)
+    case   .RESERVED_5: pic_c256_internal_trigger(pic, .FNX2_INT03_SDMA)    // too bad, too bad we
+    case   .RESERVED_6: pic_c256_internal_trigger(pic, .FNX2_INT04_VDMA)    // need abstract irq names
     case          : emu.call_not_implemented(#procedure, fmt.aprintf("%s", irq))
     }
 }

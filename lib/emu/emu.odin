@@ -131,3 +131,51 @@ show_cpu_speed :: proc(cycles: u32) -> (u32, string) {
                 return cycles, "Hz"
         }
 }
+
+// helper routines
+// assign 8-bit part to corresponding byte in 32-bit value
+assign_byte1  :: #force_inline proc(dst, arg: u32) -> (val: u32) {
+    val  = dst & 0xFFFF_FF00
+    val |= arg 
+    return
+}
+
+assign_byte2  :: #force_inline proc(dst, arg: u32) -> (val: u32) {
+    val  = dst  & 0xFFFF_00FF
+    val |= arg << 8
+    return
+}
+
+assign_byte3  :: #force_inline proc(dst, arg: u32) -> (val: u32) {
+    val  = dst  & 0xFF00_FFFF
+    val |= arg << 16
+    return
+}
+
+assign_byte4  :: #force_inline proc(dst, arg: u32) -> (val: u32) {
+    val  = dst  & 0x00FF_FFFF
+    val |= arg << 24
+    return
+}
+
+get_byte1  :: #force_inline proc(dst: u32) -> (val: u32) {
+    val  = (dst & 0x0000_00FF)
+    return
+}
+
+get_byte2  :: #force_inline proc(dst: u32) -> (val: u32) {
+    val  = (dst & 0x0000_FF00) >> 8
+    return
+}
+
+get_byte3  :: #force_inline proc(dst: u32) -> (val: u32) {
+    val  = (dst & 0x00FF_0000) >> 16
+    return
+}
+
+get_byte4  :: #force_inline proc(dst: u32) -> (val: u32) {
+    val  = (dst & 0xFF00_0000) >> 24
+    return
+}
+
+// eof
