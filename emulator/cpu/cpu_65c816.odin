@@ -31,7 +31,9 @@ package cpu
 
 import "base:runtime"
 import "core:fmt"
-import "core:log"
+import "core:log" 
+import "core:time"
+import "core:thread"
 import "emulator:bus"
 import "emulator:pic"
 import "lib:emu"
@@ -47,6 +49,8 @@ make_w65c816 :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.delete     = delete_w65c816
     cpu.bus        = bus
     cpu.all_cycles = 0
+    cpu.active     = false
+    cpu.shutdown   = false
 
     c             := CPU_65xxx{cpu = cpu, type = CPU_65xxx_type.W65C816S}
     c.real65c02    = false
@@ -63,8 +67,15 @@ make_w65c816 :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     c.state        = .FETCH
     cpu.model      = c
 
-    // we need global because of external musashi
-    localbus   = bus
+    if t := thread.create_and_start_with_data(cpu, w65c816_worker); t != nil {
+        cpu.thread  = t
+    } else {
+        log.errorf("%s %s cannot create thread", #procedure, cpu.name)
+    }
+
+    // XXX - check this artifact from Musashi
+    localbus = bus
+
     return cpu
 }
 
@@ -85,6 +96,8 @@ setpc_w65c816 :: proc(cpu: ^CPU, address: u32) {
 }
 
 delete_w65c816 :: proc(cpu: ^CPU) {
+    cpu.shutdown = true
+    thread.join(cpu.thread)
     free(cpu)
     return
 }
@@ -131,6 +144,31 @@ reset_w65c816 :: proc(cpu: ^CPU) {
 //    4. Ideal model requires step-exact code, that is possible, but
 //       with different algorithm or even different language - maybe 
 //       in future?
+
+w65c816_worker :: proc(p: rawptr) {
+	logger_options := log.Options{.Level};
+    context.logger  = log.create_console_logger(opt = logger_options)
+
+
+    cpu := transmute(^CPU)p
+    c   := &cpu.model.(CPU_65xxx)
+
+    current_ticks : u32 = 0
+    ticks         : u32 = 1000
+    for !cpu.shutdown {
+        
+        for current_ticks < ticks {
+            if cpu.active do step_w65c816(c) // change it to start/stop thread
+            current_ticks += c.cycles
+        }
+        current_ticks = 0
+        //log.debugf("%s 65c816 tick from thread", cpu.name)
+        time.sleep(time.Microsecond)
+    }
+    
+    log.debugf("%s cpu_65c816 shutdown cpu thread", cpu.name)
+    log.destroy_console_logger(context.logger)
+}
 
 // ver.1 - less accurate, more performant, without ABORT
 run_w65c816 :: proc(cpu: ^CPU, ticks: u32 = 1000) {

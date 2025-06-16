@@ -109,13 +109,15 @@ main_loop :: proc(p: ^platform.Platform, config: ^emu.Config,) {
     p.bus.debug = config.busdump
 
     p->init()
-    p.cpu->reset()
+    p.cpu->reset()          // change to reset signal
+    p.cpu.active = true
     for !should_close {
 
         // Step 1: execute CPU and measure delays
         // XXX: move cpu_ticks into cpu's own structure, like for GPU
         // XXX: that algorithm is terrible, do the proper math...
         //      btw: typical delay on current imp. is abou 1800 micros.
+        /*
         ms_elapsed = u32(time.tick_since(cpu_ticks) / time.Microsecond)
         if ms_elapsed >= 500 {
             cpu_ticks = time.tick_now()
@@ -127,6 +129,7 @@ main_loop :: proc(p: ^platform.Platform, config: ^emu.Config,) {
             }
             p.cpu->run(desired_cycles)
         }
+        */
 
         // Step 2: process keyboard in (XXX: do it - mouse)
         should_close, switch_disasm = render_gui(p)
