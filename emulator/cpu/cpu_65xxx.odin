@@ -260,7 +260,7 @@ read_r :: #force_inline proc (reg: DataRegister_65xxx, size: bool) -> (result: u
     case byte:
         result =  reg.val & 0x00FF
     case word:
-        result = (reg.val & 0x00FF) | reg.b if reg.size else reg.val
+        result = (reg.val & 0x00FF) |       reg.b if reg.size else reg.val
     }
     return result
 }
@@ -1681,6 +1681,9 @@ oper_REP                    :: #force_inline proc (using c: ^CPU_65xxx) {
     f.C       = false if t.val & 0x01 == 0x01 else f.C
 
     // internal part
+    if a.size == byte && f.M == word {
+        a.val = a.val | a.b
+    }
     a.size    = f.M
     t.size    = f.M
     x.size    = f.X
@@ -1903,6 +1906,10 @@ oper_SEP                    :: #force_inline proc (using c: ^CPU_65xxx) {
     f.C       = true if t.val & 0x01 == 0x01 else f.C
 
     // internal part
+    if a.size == word && f.M == byte {
+        a.b   = a.val & 0xFF00
+        a.val = a.val & 0x00FF
+    }
     a.size    = f.M
     t.size    = f.M
     x.size    = f.X
