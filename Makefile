@@ -14,7 +14,7 @@ build_flags      += $(odin_defs) -o:speed
 
 .PHONY: doc a2560x test_w65c02s test_65c816 c256
 
-all: a2560x test_w65c02s test_65c816
+all: a2560x test_w65c02s test_65c816 c256
 
 help:
 	@echo "make release      - build a2560x-like optimized, faster version"
