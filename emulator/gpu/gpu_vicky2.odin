@@ -401,6 +401,24 @@ vicky2_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u3
         vicky2_update_font_cache(d, addr, u8(val))  // every bit in font cache is mapped to byte
 
     case .LUT:
+        lut_id := addr >> 10
+        color  := val   & 0xFF
+        pos    := val   & 0x03
+        base   := val   & 0xFFFC
+        log.debugf("BM LUT%d (%04X): color %3d position %3d val %3d : %3d %3d %3d %3d %08x",
+                   lut_id, addr,
+                   color, pos, val,
+                   d.lut[base+0],
+                   d.lut[base+1],
+                   d.lut[base+2],
+                   d.lut[base+3],
+                   (transmute(^u32) &d.lut[base])^
+        )
+        //if (addr & 3) == 3 {      // ALPHA isn't settable, always FF (max)
+        //    d.lut[addr] = 0xFF
+        //} else {
+        //    d.lut[addr] = cast(u8) val
+        //}
         d.lut[addr] = cast(u8) val
         
     case .VRAM0:
@@ -506,6 +524,7 @@ vicky2_write_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig,
 		d.bm0_enabled           =  val & 0x01  != 0	  // bit 0
 		d.bm0_lut               = (val & 0x0E) >> 1   // bit 1 to 3
 		d.bm0_collision_enabled =  val & 0x40  != 0   // bit 6
+        log.debugf("%s d.bm0_lut set to %d by val %d", #procedure, d.bm0_lut, val)
 
     case .BM0_START_ADDY_L: d.bm0_pointer = emu.assign_byte1(d.bm0_pointer, val)
     case .BM0_START_ADDY_M: d.bm0_pointer = emu.assign_byte2(d.bm0_pointer, val)
@@ -517,6 +536,7 @@ vicky2_write_register :: proc(d: ^GPU_Vicky2, size: emu.Request_Size, addr_orig,
 		d.bm1_enabled           =  val & 0x01  != 0	  // bit 0
 		d.bm1_lut               = (val & 0x0E) >> 1   // bit 1 to 3
 		d.bm1_collision_enabled =  val & 0x40  != 0   // bit 6
+        log.debugf("%s d.bm1_lut set to %d by val %d", #procedure, d.bm1_lut, val)
 
     case .BM1_START_ADDY_L: d.bm1_pointer = emu.assign_byte1(d.bm1_pointer, val)
     case .BM1_START_ADDY_M: d.bm1_pointer = emu.assign_byte2(d.bm1_pointer, val)
@@ -693,7 +713,7 @@ vicky2_render_bm0 :: proc(gpu: ^GPU) {
     max := u32(g.screen_x_size * g.screen_y_size)
     for i := u32(0); i < max; i += 1 {
         lut_index    := g.vram0[g.bm0_pointer + i]
-        lut_position := (g.bm0_lut * 256) + 4 * lut_index
+        lut_position := (g.bm0_lut * 256) + (4 * lut_index)
         g.BM0FB[i] = (transmute(^u32) &g.lut[lut_position])^
     }
 
@@ -705,8 +725,8 @@ vicky2_render_bm1 :: proc(gpu: ^GPU) {
     max := u32(g.screen_x_size * g.screen_y_size)
     for i := u32(0); i < max; i += 1 {
         lut_index    := g.vram0[g.bm1_pointer + i]
-        lut_position := (g.bm1_lut * 256) + 4 * lut_index
-        g.BM0FB[i] = (transmute(^u32) &g.lut[lut_position])^
+        lut_position := (g.bm1_lut * 256) + (4 * lut_index)
+        g.BM1FB[i] = (transmute(^u32) &g.lut[lut_position])^
     }
 
 }
