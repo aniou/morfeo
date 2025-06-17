@@ -150,7 +150,7 @@ Run:
 
 There are two additional switches available: ``-d`` and ``-b``. First one
 enables disassembler from the start - second one enables debug for writes
-and reads on internal bus:
+and reads on internal bus. 
 
 ```shell
 ./c256 -b data/kernel_FMX.hex
