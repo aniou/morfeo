@@ -401,6 +401,7 @@ vicky2_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u3
         vicky2_update_font_cache(d, addr, u8(val))  // every bit in font cache is mapped to byte
 
     case .LUT:
+        /*
         lut_id := addr >> 10
         color  := val   & 0xFF
         pos    := val   & 0x03
@@ -414,12 +415,12 @@ vicky2_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u3
                    d.lut[base+3],
                    (transmute(^u32) &d.lut[base])^
         )
-        //if (addr & 3) == 3 {      // ALPHA isn't settable, always FF (max)
-        //    d.lut[addr] = 0xFF
-        //} else {
-        //    d.lut[addr] = cast(u8) val
-        //}
-        d.lut[addr] = cast(u8) val
+        */
+        if (addr & 3) == 3 {      // ALPHA isn't settable, always FF (max)
+            d.lut[addr] = 0xFF
+        } else {
+            d.lut[addr] = cast(u8) val
+        }
         
     case .VRAM0:
         d.vram0[addr] = val
@@ -713,7 +714,7 @@ vicky2_render_bm0 :: proc(gpu: ^GPU) {
     max := u32(g.screen_x_size * g.screen_y_size)
     for i := u32(0); i < max; i += 1 {
         lut_index    := g.vram0[g.bm0_pointer + i]
-        lut_position := (g.bm0_lut * 256) + (4 * lut_index)
+        lut_position := (g.bm0_lut * 1024) + (4 * lut_index)
         g.BM0FB[i] = (transmute(^u32) &g.lut[lut_position])^
     }
 
@@ -725,7 +726,8 @@ vicky2_render_bm1 :: proc(gpu: ^GPU) {
     max := u32(g.screen_x_size * g.screen_y_size)
     for i := u32(0); i < max; i += 1 {
         lut_index    := g.vram0[g.bm1_pointer + i]
-        lut_position := (g.bm1_lut * 256) + (4 * lut_index)
+        lut_position := (g.bm1_lut * 1024) + (4 * lut_index)
+        //log.debugf("%s lut_position %08x", #procedure, lut_position)
         g.BM1FB[i] = (transmute(^u32) &g.lut[lut_position])^
     }
 
