@@ -35,8 +35,8 @@ well.
 
 ## c256
 
-An emulator capable to run subset of features C256 FMX/U/U+ machines (but
-without sound, that part has - unfortunately - low priority. At this moment
+An emulator capable to run subset of features C256 FMX/U/U+ machines, but
+without sound: that part has - unfortunately - low priority. At this moment
 a functional FMX (boot screen, basic) is avaiable, U/U+ has minor issues
 with bootscreen. 
 
