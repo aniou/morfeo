@@ -99,7 +99,7 @@ c256fmx_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32)
     case 0x00_AF_C000 ..= 0x00_AF_DFFF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_C000, .TEXT_COLOR )
     case 0x00_AF_E400 ..= 0x00_AF_E41f:  val = 0 // SID0
     case 0x00_AF_E80E                 :  val = 0x03 // boot BASIC
-    case 0x00_AD_E887                 :  val = 0x00 // simulate FMX id
+    case 0x00_AF_E887                 :  val = 0x00 // simulate FMX id
     case 0x00_AF_E000 ..= 0x00_AF_FFFF:  emu.read_not_implemented(#procedure, "io", size, addr                  )
     case 0x00_B0_0000 ..= 0x00_EF_FFFF:  val = bus.gpu0->read(size, addr, addr - 0x00_B0_0000, .VRAM0      )
     case 0x00_F0_0000 ..= 0x00_F7_FFFF:  emu.read_not_implemented(#procedure, "flash0", size, addr              )
@@ -182,7 +182,7 @@ c256_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
     case 0x00_AF_A000 ..= 0x00_AF_BFFF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_A000, .TEXT       )
     case 0x00_AF_C000 ..= 0x00_AF_DFFF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_C000, .TEXT_COLOR )
     case 0x00_AF_E400 ..= 0x00_AF_E41f:  val = 0 // SID0
-    case 0x00_AD_E887                 :  val = 0x05 // simulate U+ id
+    case 0x00_AF_E887                 :  val = 0x05 // simulate U+ id
     case 0x00_AF_E000 ..= 0x00_AF_FFFF:  emu.read_not_implemented(#procedure, "io", size, addr                  )
     case 0x00_B0_0000 ..= 0x00_CF_FFFF:  val = bus.gpu0->read(size, addr, addr - 0x00_B0_0000, .VRAM0      )
     case 0x00_F0_0000 ..= 0x00_F7_FFFF:  emu.read_not_implemented(#procedure, "flash0", size, addr              )
