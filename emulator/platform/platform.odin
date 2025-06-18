@@ -10,6 +10,8 @@ import "emulator:ps2"
 import "emulator:rtc"
 import "emulator:ram"
 
+import "lib:emu"
+
 import "core:fmt"
 import "core:log"
 
@@ -19,4 +21,6 @@ Platform   :: struct {
 
     cpu:     ^cpu.CPU,
     bus:     ^bus.Bus,
+
+    model:   emu.Type,
 }

@@ -31,8 +31,8 @@ c256_make :: proc(name: string, pic: ^pic.PIC, type: emu.Type) -> ^Bus {
 
     switch type {
     case .C256U:
-        d.read    = c256_read
-        d.write   = c256_write
+        d.read    = c256u_read
+        d.write   = c256_write      // yes, not c256u_write, just c256_
     case .C256UPLUS:
         d.read    = c256_read
         d.write   = c256_write
@@ -119,7 +119,7 @@ c256fmx_write :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
     switch addr {
     case 0x00_00_0100 ..= 0x00_00_012B:  bus.intu->write(size, addr, addr - 0x00_00_0100, val)
     case 0x00_00_0140 ..= 0x00_00_014F:  bus.pic->write(size, addr, addr, val)
-    case 0x00_00_0200 ..= 0x00_1F_FFFF:  bus.ram0->write(size, addr, val                        )
+    case 0x00_00_0000 ..= 0x00_1F_FFFF:  bus.ram0->write(size, addr, val                        )
     case 0x00_20_0000 ..= 0x00_4F_FFFF:  bus.ram0->write(size, addr,  val         )          // only valid for 4MB models
     case 0x00_AF_0400 ..= 0x00_AF_040F:  c256_dma_write(bus, size, addr, val)
     case 0x00_AF_0420 ..= 0x00_AF_0430:  c256_dma_write(bus, size, addr, val)
@@ -140,6 +140,39 @@ c256fmx_write :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
     case                              :  c256_bus_error(bus, "write", size, addr)
     }
 
+    return
+}
+
+// XXX - change it, it is rahter pathetic way to differentiate 1 bit in id!
+c256u_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
+    //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
+    //log.debugf("%s read       from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
+
+    switch addr {
+    case 0x00_00_0100 ..= 0x00_00_012B:  val = bus.intu->read(size, addr, addr - 0x00_00_0100)
+    case 0x00_00_0140 ..= 0x00_00_014F:  val = bus.pic->read(size, addr, addr)
+    case 0x00_00_0000 ..= 0x00_1F_FFFF:  val = bus.ram0->read(size, addr)
+    case 0x00_20_0000 ..= 0x00_4F_FFFF:  val = bus.ram0->read(size, addr)
+    case 0x00_AF_0400 ..= 0x00_AF_040F:  val = c256_dma_read(bus, size, addr)
+    case 0x00_AF_0420 ..= 0x00_AF_0430:  val = c256_dma_read(bus, size, addr)
+    case 0x00_AF_0000 ..= 0x00_AF_07FF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_0000, .MAIN_A     )
+    case 0x00_AF_1803 ..= 0x00_AF_1807:  val = bus.ps2->read (size, addr, addr - 0x00_AF_1800)
+    case 0x00_AF_1F40 ..= 0x00_AF_1F7F:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_1F40, .TEXT_FG_LUT)
+    case 0x00_AF_1F80 ..= 0x00_AF_1FFF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_1F80, .TEXT_BG_LUT)
+    case 0x00_AF_2000 ..= 0x00_AF_3FFF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_1F80, .LUT        )
+    case 0x00_AF_8000 ..= 0x00_AF_87FF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_8000, .FONT_BANK0 )
+    case 0x00_AF_8800 ..= 0x00_AF_9FFF:  emu.read_not_implemented(#procedure, "empty0", size, addr              )
+    case 0x00_AF_A000 ..= 0x00_AF_BFFF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_A000, .TEXT       )
+    case 0x00_AF_C000 ..= 0x00_AF_DFFF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_C000, .TEXT_COLOR )
+    case 0x00_AF_E400 ..= 0x00_AF_E41f:  val = 0    // SID0
+    case 0x00_AF_E80E                 :  val = 0x03 // hard-coded DIP: boot BASIC
+    case 0x00_AF_E887                 :  val = 0x01 // simulate U+ id
+    case 0x00_AF_E000 ..= 0x00_AF_FFFF:  emu.read_not_implemented(#procedure, "io", size, addr                  )
+    case 0x00_B0_0000 ..= 0x00_CF_FFFF:  val = bus.gpu0->read(size, addr, addr - 0x00_B0_0000, .VRAM0      )
+    case 0x00_F0_0000 ..= 0x00_F7_FFFF:  emu.read_not_implemented(#procedure, "flash0", size, addr              )
+    case 0x00_F8_0000 ..= 0x00_FF_FFFF:  emu.read_not_implemented(#procedure, "flash1", size, addr              )
+    case                              :  c256_bus_error(bus, "read", size, addr)
+    }
     return
 }
 

@@ -47,6 +47,7 @@ c256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
     p.cpu       = cpu.make_w65c816  ("cpu0", p.bus)
     p.delete    = c256_delete
     p.init      = c256_init
+    p.model     = config.model
 
     return
 }
@@ -71,9 +72,11 @@ c256_init :: proc(p: ^Platform) {
     // (or User Flash, if present) to Bank $00.  The entire 512KB are copied 
     // to address range $18:0000 to $1F:FFFF (or 38:000 to 3F:FFFF)
 
+    source : u32 = 0x18_0000 if p.model == .C256U else 0x38_0000
+
     // act ersatz - copy jump table
     for j in u32(0x1000) ..< u32(0x2000) {
-    	val := p.bus->read(.bits_8, 0x38_0000 + j)
+    	val := p.bus->read(.bits_8, source + j)
     	p.bus->write(.bits_8, j, val)
     }
  
