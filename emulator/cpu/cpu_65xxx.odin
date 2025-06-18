@@ -1682,7 +1682,8 @@ oper_REP                    :: #force_inline proc (using c: ^CPU_65xxx) {
 
     // internal part
     if a.size == byte && f.M == word {
-        a.val = a.val | a.b
+        a.val |= a.b
+        a.b    = 0
     }
     a.size    = f.M
     t.size    = f.M

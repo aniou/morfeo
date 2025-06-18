@@ -28,6 +28,7 @@ GUI :: struct {
     active_gpu:  u8,                    // GPU number
 
     switch_disasm: bool,
+    switch_busdump: bool,
     should_close:  bool,
     switch_gpu:    bool,
     current_gpu:   int,
@@ -237,6 +238,8 @@ process_input :: proc(p: ^platform.Platform) {
                 gui.should_close = true
             case .F10:
                 gui.switch_disasm = true
+            case .F9:
+                gui.switch_busdump = true
             case .F8:
                 gui.switch_gpu = true
             case:

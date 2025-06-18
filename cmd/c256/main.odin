@@ -103,6 +103,7 @@ main_loop :: proc(p: ^platform.Platform, config: ^emu.Config,) {
     desired_cycles  := CPU_SPEED
     should_close    := false
     switch_disasm   := false
+    switch_busdump  := false
 
     c       := &p.cpu.model.(cpu.CPU_65xxx)
     c.debug  = config.disasm
@@ -131,9 +132,15 @@ main_loop :: proc(p: ^platform.Platform, config: ^emu.Config,) {
         // Step 2: process keyboard in (XXX: do it - mouse)
         should_close, switch_disasm = render_gui(p)
 
+        // XXX why return when I have access to GUI? insane...
         if switch_disasm {
             c.debug = false if c.debug else true
             gui.switch_disasm = false
+        }
+
+        if gui.switch_busdump {
+            p.bus.debug = false if p.bus.debug else true
+            gui.switch_busdump = false
         }
 
         // Step  3: print some information
