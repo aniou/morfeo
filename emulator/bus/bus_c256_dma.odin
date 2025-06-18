@@ -265,9 +265,9 @@ c256_sdma_transfer :: proc(mainbus: ^Bus) {
         for dst.stop == false {
             c256_dma_operation(mainbus, &dst) 
         }
-        log.debugf("%s DMA fill finished after %d bytes status %02x", #procedure, dst.count, dst.status)
-        //delete(src)
-        //delete(dst)
+        if bus.sdma.debug {
+            log.debugf("%s DMA fill finished after %d bytes status %02x", #procedure, dst.count, dst.status)
+        }
         return
     }
 
@@ -285,9 +285,9 @@ c256_sdma_transfer :: proc(mainbus: ^Bus) {
             log.errorf("%s invalid DMA, stop desync: src %v dst %v", #procedure, dst.stop, src.stop)
         }
 
-        log.debugf("%s DMA SRAM->SRAM finished after %d bytes status %02x", #procedure, dst.count, dst.status)
-        //delete(src)
-        //delete(dst)
+        if bus.sdma.debug {
+            log.debugf("%s DMA SRAM->SRAM finished after %d bytes status %02x", #procedure, dst.count, dst.status)
+        }
         return
     }
 
@@ -330,12 +330,12 @@ c256_sdma_transfer :: proc(mainbus: ^Bus) {
         c256_dma_operation(mainbus, &src) 
         dst.val = src.val
         c256_dma_operation(mainbus, &dst) 
-        log.debugf("DMA %v to %v SRC %08x %08x DST %08x %08x VAL %02x",
-                   src.kind, dst.kind,
-                   src.addr, src.index,
-                   dst.addr, dst.index,
-                   src.val
-        )
+        //log.debugf("DMA %v to %v SRC %08x %08x DST %08x %08x VAL %02x",
+        //           src.kind, dst.kind,
+        //           src.addr, src.index,
+        //           dst.addr, dst.index,
+        //           src.val
+        //)
     }
 
     if src.stop != dst.stop {
@@ -366,9 +366,9 @@ c256_vdma_transfer :: proc(mainbus: ^Bus) {
         for dst.stop == false {
             c256_dma_operation(mainbus, &dst) 
         }
-        log.debugf("%s DMA fill finished after %d bytes status %02x", #procedure, dst.count, dst.status)
-        //delete(src)
-        //delete(dst)
+        if bus.vdma.debug {
+            log.debugf("%s DMA fill finished after %d bytes status %02x", #procedure, dst.count, dst.status)
+        }
         return
     }
 
@@ -388,9 +388,9 @@ c256_vdma_transfer :: proc(mainbus: ^Bus) {
             log.errorf("%s invalid DMA, stop desync: src %v dst %v", #procedure, dst.stop, src.stop)
         }
 
-        log.debugf("%s DMA VRAM->VRAM finished after %d bytes status %02x", #procedure, dst.count, dst.status)
-        //delete(src)
-        //delete(dst)
+        if bus.vdma.debug {
+            log.debugf("%s DMA VRAM->VRAM finished after %d bytes status %02x", #procedure, dst.count, dst.status)
+        }
         return
     }
 
