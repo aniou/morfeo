@@ -33,19 +33,26 @@ because of limitation of my eyes. Scaling and DIP-switches should be
 implemented in near future, I hope - but in-code resolution change works
 well.
 
-## c256
+## c256fmx
 
 An emulator capable to run subset of features C256 FMX/U/U+ machines, but
 without sound: that part has - unfortunately - low priority. At this moment
-a functional FMX (boot screen, basic) is avaiable, U/U+ has minor issues
-with bootscreen. 
+a functional FMX (boot screen, basic) is avaiable.
+
+> [!NOTE]
+> Currently a ``c256`` target builds only binary for c256fmx - it is a 
+> temporary limitation, introduced in favour of simplifying development.
+> Numerous differences between FMX and U/U+ versions makes me think about
+> different binaries and compile-time constraints and selections. Without
+> that code will be slower and unnecessary complicated by magnitude of
+> switches and passed-down parameters.
 
 Still lack of EVID card (second monitor), SD nor HDD - but they are on my
 short TODO list.
 
 # Some screenshots
 
-## a2560x with MCP kernelY
+## a2560x with MCP kernel
 
 ![splash screen](doc/morfeo-1.png)
 ![running system](doc/morfeo-2.png)
@@ -140,12 +147,12 @@ for unsupported functions and not-implemented-yet memory regions!
 F8       |Change active head in multi-head setups
 F12      |Exit emulator
 
-# Running c256
+# Running c256fmx
 
 Run:
 
 ```shell
-./c256 data/kernel_FMX.hex
+./c256fmx --disk0 data/test-fat32.img data/kernel_FMX.hex
 ```
 
 There are two additional switches available: ``-d`` and ``-b``. First one
@@ -153,7 +160,7 @@ enables disassembler from the start - second one enables debug for writes
 and reads on internal bus. 
 
 ```shell
-./c256 -b data/kernel_FMX.hex
+./c256fmx -b data/kernel_FMX.hex
 ...
 [DEBUG] --- bus0 read8  0000005f from 0x 0039:0F7B
 [DEBUG] --- bus0 read8  0000000f from 0x 0039:0F7C
@@ -171,7 +178,8 @@ logs for unsupported functions and not-implemented-yet memory regions!
 |Key     |Effect
 ---------|---------------------------
 F8       |Change active head in multi-head setups
-F10      |Enable rudimentary disassembler (to be improved)
+F9       |Enable/disable bus operation dump
+F10      |Enable/disable rudimentary disassembler (to be improved)
 F12      |Exit emulator
 
 # FQA
