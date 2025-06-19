@@ -84,6 +84,8 @@ c256fmx_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32)
     case 0x00_20_0000 ..= 0x00_4F_FFFF:  val = bus.ram0->read(size, addr)       // 2MB
     case 0x00_AF_0400 ..= 0x00_AF_040F:  val =  c256_dma_read(bus, size, addr)
     case 0x00_AF_0420 ..= 0x00_AF_0430:  val =  c256_dma_read(bus, size, addr)
+    case 0x00_AF_0500 ..= 0x00_AF_05FF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_0500, .MOUSEPTR0  )
+    case 0x00_AF_0600 ..= 0x00_AF_06FF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_0600, .MOUSEPTR1  )
     case 0x00_AF_0000 ..= 0x00_AF_07FF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_0000, .MAIN_A     )
     case 0x00_AF_1060 ..= 0x00_AF_1064:  val =  bus.ps2->read(size, addr, addr - 0x00_AF_1060)
     case 0x00_AF_1F40 ..= 0x00_AF_1F7F:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_1F40, .TEXT_FG_LUT)
@@ -124,6 +126,8 @@ c256fmx_write :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
     case 0x00_20_0000 ..= 0x00_4F_FFFF:  bus.ram0->write(size, addr,  val         )          // only valid for 4MB models
     case 0x00_AF_0400 ..= 0x00_AF_040F:  c256_dma_write(bus, size, addr, val)
     case 0x00_AF_0420 ..= 0x00_AF_0430:  c256_dma_write(bus, size, addr, val)
+    case 0x00_AF_0500 ..= 0x00_AF_05FF:  bus.gpu0->write(size, addr, addr - 0x00_AF_0500, val, .MOUSEPTR0  )
+    case 0x00_AF_0600 ..= 0x00_AF_06FF:  bus.gpu0->write(size, addr, addr - 0x00_AF_0600, val, .MOUSEPTR1  )
     case 0x00_AF_0000 ..= 0x00_AF_07FF:  bus.gpu0->write(size, addr, addr - 0x00_AF_0000, val, .MAIN_A     )
     case 0x00_AF_1060 ..= 0x00_AF_1064:  bus.ps2->write (size, addr, addr - 0x00_AF_1060, val)
     case 0x00_AF_1F40 ..= 0x00_AF_1F7F:  bus.gpu0->write(size, addr, addr - 0x00_AF_1F40, val, .TEXT_FG_LUT)

@@ -22,6 +22,7 @@ GPU :: struct {
     TFB:     ^[1024*768]u32,        // text    framebuffer (max resolution)
     BM0FB:   ^[1024*768]u32,        // bitmap0 framebuffer (max resolution)
     BM1FB:   ^[1024*768]u32,        // bitmap1 framebuffer (max resolution)
+    MOUSEFB: ^[  16* 16]u32,        // mouse pointer framebuffer
 
     gpu_enabled:       bool,
     text_enabled:      bool,
@@ -31,6 +32,8 @@ GPU :: struct {
     sprite_enabled:    bool,
     tile_enabled:      bool,
     gamma_enabled:     bool,
+    pointer_updated:   bool,
+    pointer_enabled:   bool,
 
     border_color_b:       u8,
     border_color_g:       u8,

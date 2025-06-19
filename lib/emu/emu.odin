@@ -32,6 +32,8 @@ Mode :: enum {
     FONT_BANK1,
     LUT,
     VRAM0,
+    MOUSEPTR0,  // mouse pointer memory in vicky
+    MOUSEPTR1,  // mouse pointer memory in vicky
 }
 
 // used to determine minor differences between platforms, XXX: add m68k

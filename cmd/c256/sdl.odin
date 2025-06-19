@@ -12,11 +12,14 @@ import "emulator:platform"
 WINDOW_NAME ::  "morfeo"
 
 GUI :: struct {
-    window:      ^sdl2.Window,
-    renderer:    ^sdl2.Renderer,
-    texture_txt: ^sdl2.Texture,
-    texture_bm0: ^sdl2.Texture,
-    texture_bm1: ^sdl2.Texture,
+    window:        ^sdl2.Window,
+    renderer:      ^sdl2.Renderer,
+    texture_txt:   ^sdl2.Texture,
+    texture_bm0:   ^sdl2.Texture,
+    texture_bm1:   ^sdl2.Texture,
+    texture_mouse: ^sdl2.Texture,
+
+    mouse_rectangle: sdl2.Rect,         // rectangle for mouse cursor definition
 
     orig_mode:   ^sdl2.DisplayMode,     // for return from fullscreen
 
@@ -39,13 +42,13 @@ GUI :: struct {
 
 gui: GUI
 
-create_texture :: proc() -> ^sdl2.Texture {
+create_texture :: proc(x_size, y_size: i32) -> ^sdl2.Texture {
     texture := sdl2.CreateTexture(
                gui.renderer,
                sdl2.PixelFormatEnum.ARGB8888,
                sdl2.TextureAccess.STREAMING, 
-               gui.x_size, 
-               gui.y_size
+               x_size, 
+               y_size
     )
     if texture == nil {
         error := sdl2.GetError()
@@ -109,6 +112,9 @@ init_sdl :: proc(p: ^platform.Platform, gpu_number: int = 1) -> (ok: bool) {
         return false
     }
 
+    // single instance, should be recalculated if scale_mult changes
+    gui.mouse_rectangle = sdl2.Rect{400, 400, 16 * gui.scale_mult, 16 * gui.scale_mult}
+
     ok = new_renderer_and_texture()
     return ok
 }
@@ -120,9 +126,11 @@ new_renderer_and_texture :: proc() -> (ok: bool) {
         return false
     }
 
-    gui.texture_txt = create_texture()
-    gui.texture_bm0 = create_texture()
-    gui.texture_bm1 = create_texture()
+    gui.texture_txt   = create_texture(gui.x_size, gui.y_size)
+    gui.texture_bm0   = create_texture(gui.x_size, gui.y_size)
+    gui.texture_bm1   = create_texture(gui.x_size, gui.y_size)
+    gui.texture_mouse = create_texture(16,16)
+    gui.g.pointer_updated = true // force re-create texture for mouse pointer
 
     // XXX workaround - I don't get that
     sdl2.SetTextureBlendMode(gui.texture_bm0, sdl2.BlendMode.NONE)
@@ -148,6 +156,7 @@ update_window_size :: proc() {
     sdl2.DestroyTexture(gui.texture_txt)
     sdl2.DestroyTexture(gui.texture_bm0)
     sdl2.DestroyTexture(gui.texture_bm1)
+    sdl2.DestroyTexture(gui.texture_mouse)
 
     sdl2.SetWindowSize(gui.window, gui.x_size * scale, gui.y_size * scale)
 
@@ -325,6 +334,16 @@ render_gui :: proc(p: ^platform.Platform) -> (bool, bool) {
         if gui.g.text_enabled {
             sdl2.UpdateTexture(gui.texture_txt, nil, gui.g.TFB, gui.x_size*4)
             sdl2.RenderCopy(gui.renderer, gui.texture_txt, nil, nil)
+        }
+
+        // Step 5d: mouse pointer
+        if gui.g.pointer_enabled {
+            if gui.g.pointer_updated {
+                sdl2.UpdateTexture(gui.texture_mouse, nil, gui.g.MOUSEFB, 16*4)
+                gui.g.pointer_updated = false
+            }
+            sdl2.RenderCopy(gui.renderer, gui.texture_mouse, nil, &gui.mouse_rectangle)
+            //sdl2.RenderCopy(gui.renderer, gui.texture_mouse, nil, nil)
         }
 
         // Step 5d: border

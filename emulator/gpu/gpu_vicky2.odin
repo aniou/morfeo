@@ -37,6 +37,12 @@ VKY2_CCR_RATE_MASK     :: 0x_00_00_00_06  // A   -  flash rate: 00 - 1/Sec, 01 -
 VKY2_CCR_FONT_PAGE0    :: 0x_00_00_00_08  // A   -  font page 0 or 1
 VKY2_CCR_FONT_PAGE1    :: 0x_00_00_00_10  // A   -  font page 0 or 1
 
+// selected mouse pointer bitmap
+MOUSE_PTR :: enum {
+    PTR0,
+    PTR1,
+}
+
 Register_vicky2 :: enum u32 {
     VKY2_MCR_L        = 0x_00_00,     // A   - master control register
     VKY2_MCR_H        = 0x_00_01,     // A   - master control register
@@ -85,18 +91,21 @@ VKY2_CURSOR_BLINK_RATE           :: [4]i32{1000, 500, 250, 200}
 GPU_Vicky2 :: struct {
     using gpu: ^GPU,
 
-    vram0:   [dynamic]u32,    // VRAM
-    text:    [dynamic]u32,   // text memory
-    tc:      [dynamic]u32,   // text color memory
+    vram0:     [dynamic]u32,   // VRAM
+    text:      [dynamic]u32,   // text memory
+    tc:        [dynamic]u32,   // text color memory
+    mouseptr0: [dynamic]u32,   // mouse pointer memory (16x16 bytes)
+    mouseptr1: [dynamic]u32,   // mouse pointer memory (16x16 bytes)
 
-    lut:     [dynamic]u8,    // LUT memory block (lut0 to lut7 ARGB)
-    fg:      [dynamic]u32,   // text foreground LUT cache
-    bg:      [dynamic]u32,   // text background LUT cache
-    font:    [dynamic]u8,    // font cache       : 256 chars  * 8 lines * 8 columns
-    fontmem: [dynamic]u32,   // font memory
+    lut:       [dynamic]u8,    // LUT memory block (lut0 to lut7 ARGB)
+    fg:        [dynamic]u32,   // text foreground LUT cache
+    bg:        [dynamic]u32,   // text background LUT cache
+    font:      [dynamic]u8,    // font cache       : 256 chars  * 8 lines * 8 columns
+    fontmem :  [dynamic]u32,   // font memory
 
-    fg_clut: [16][4]u8,         // 16 pre-calculated RGBA colors for text fore-
-    bg_clut: [16][4]u8,         // ...and background
+    mouse_lut: [256][4]u8,     // pre-calculated grayscale palette for mouse cursor
+    fg_clut:    [16][4]u8,     // 16 pre-calculated RGBA colors for text fore-
+    bg_clut:    [16][4]u8,     // ...and background
 
     starting_fb_row_pos: u32,
     text_cols:           u32,
@@ -108,8 +117,7 @@ GPU_Vicky2 :: struct {
     cursor_enabled:      bool,
     overlay_enabled:     bool,
 
-    pointer_enabled:     bool,
-    pointer_selected:    bool,
+    pointer_selected:    MOUSE_PTR, // pointer 0 or pointer 1 selected
 
     gamma_dip_override:  bool,      // 0: obey dip switch,   1: software control
     gamma_applied:       bool,      // 0: gamma not applied  1: gamma applied
@@ -131,7 +139,6 @@ VICKY2_SPRITE :: struct {
     y            : u32,  // u16 y position, first visible: 32
 }
 
-
 vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) -> ^GPU {
     log.infof("vicky2: gpu%d initialization start, name %s", id, name)
 
@@ -147,18 +154,21 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) ->
 
     g         := GPU_Vicky2{gpu = gpu}
 
-    g.vram0   = make([dynamic]u32,      vram) // video ram (depends from model)
-    g.text    = make([dynamic]u32,    0x2000) // text memory                  0x4000 in GenX
-    g.tc      = make([dynamic]u32,    0x2000) // text color memory            0x4000 in GenX
-    g.fg      = make([dynamic]u32,    0x2000) // text foreground LUT cache    0x4000 in GenX
-    g.bg      = make([dynamic]u32,    0x2000) // text backround  LUT cache    0x4000 in GenX
-    g.lut     = make([dynamic]u8,     0x2000) // 8 * 256 * 4 colors 
-    g.font    = make([dynamic]u8,  0x100*8*8) // font cache 256 chars * 8 lines * 8 columns
-    g.fontmem = make([dynamic]u32,     0x800) // font bank0 memory
+    g.vram0     = make([dynamic]u32,      vram) // video ram (depends from model)
+    g.text      = make([dynamic]u32,    0x2000) // text memory                  0x4000 in GenX
+    g.tc        = make([dynamic]u32,    0x2000) // text color memory            0x4000 in GenX
+    g.fg        = make([dynamic]u32,    0x2000) // text foreground LUT cache    0x4000 in GenX
+    g.bg        = make([dynamic]u32,    0x2000) // text backround  LUT cache    0x4000 in GenX
+    g.lut       = make([dynamic]u8,     0x2000) // 8 * 256 * 4 colors 
+    g.font      = make([dynamic]u8,  0x100*8*8) // font cache 256 chars * 8 lines * 8 columns
+    g.fontmem   = make([dynamic]u32,     0x800) // font bank0 memory
+    g.mouseptr0 = make([dynamic]u32,     0x100) // 16x16
+    g.mouseptr1 = make([dynamic]u32,     0x100) // 16x16
 
     g.TFB     = new([1024*768]u32)            // text framebuffer     - for max size
     g.BM0FB   = new([1024*768]u32)            // bitmap0 framebuffer  - for max size
     g.BM1FB   = new([1024*768]u32)            // bitmap1 framebuffer  - for max size
+    g.MOUSEFB = new([  16* 16]u32)            // mouse   framebuffer  - 16x16
 
     g.screen_x_size  = 800                if dip & DIP_HIRES == DIP_HIRES else 640
     g.screen_y_size  = 600                if dip & DIP_HIRES == DIP_HIRES else 480
@@ -168,10 +178,12 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) ->
     g.pixel_size           = 1
     g.cursor_enabled       = true
     g.cursor_visible       = true
-    g.bitmap_enabled       = true // XXX: there is no way to change it in vicky2?
+    g.bitmap_enabled       = true  // XXX: there is no way to change it in vicky2?
     g.text_enabled         = true 
     g.gamma_dip_override   = false
     g.gamma_applied        = false
+    g.pointer_enabled      = true
+    g.pointer_selected     = .PTR0
 
     g.border_color_b       = 0x20
     g.border_color_g       = 0x00
@@ -188,19 +200,16 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) ->
     g.delay                = 16 * time.Millisecond  // 16 milliseconds for ~60Hz XXX - to be checked
 
     // fake init
-    //v.mem[MASTER_CTRL_REG_L] = 0x01
     for _, i in g.text {
         g.text[i] = 35   // u32('#')
         g.fg[i]   = 2    // green in FoenixMCP
         g.bg[i]   = 0    // black in FoenixMCP
     }
 
-    /*
-    for _, i in g.fg_clut {
-        g.fg_clut[i] = u32(0xff00_00ff)
-        g.bg_clut[i] = u32(0xffcc_dd00)
+    g.mouse_lut[0] = {0,0,0,0}              // 0 is fully transparent 
+    for i in u8(1) ..= 0xFF {
+        g.mouse_lut[i] = {i, i, i, 0xFF}
     }
-    */
 
     g.fg_clut = [16][4]u8 {
                 {0x00, 0x00, 0x00, 0xFF},
@@ -277,28 +286,17 @@ vicky2_delete :: proc(gpu: ^GPU) {
     delete(g.lut)
     delete(g.font)
     delete(g.fontmem)
+    delete(g.mouseptr0)
+    delete(g.mouseptr1)
 
     free(g.TFB)
     free(g.BM0FB)
     free(g.BM1FB)
+    free(g.MOUSEFB)
 
     free(gpu)
     return
 }
-
-/*
-vicky2_dma_read8 :: proc(gpu: ^GPU, addr: u32) -> (val: u32) {
-    d   := &gpu.model.(GPU_Vicky2)
-    val  = d.vram0[addr]
-    return
-}
-
-vicky2_dma_write8 :: proc(gpu: ^GPU, addr, val: u32) {
-    d   := &gpu.model.(GPU_Vicky2)
-    d.vram0[addr] = val
-    return
-}
-*/
 
 vicky2_read :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr: u32, mode: emu.Mode = .MAIN) -> (val: u32) {
     d := &gpu.model.(GPU_Vicky2)
@@ -325,14 +323,11 @@ vicky2_read :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr: u32, mod
         pos   := addr  & 3 // position in 32-bit variable
         val = u32(d.bg_clut[color][pos])
 
-    case .LUT:
-        val = cast(u32) d.lut[addr]
-
-    case .VRAM0:
-        val = d.vram0[addr]
-
-    case .FONT_BANK0:
-        val = d.fontmem[addr]
+    case .LUT:        val = cast(u32) d.lut[addr]
+    case .VRAM0:      val = d.vram0[addr]
+    case .FONT_BANK0: val = d.fontmem[addr]
+    case .MOUSEPTR0:  val = d.mouseptr0[addr]
+    case .MOUSEPTR1:  val = d.mouseptr1[addr]
 
     case: 
         emu.read_not_implemented(#procedure, d.name, size, addr_orig)
@@ -425,6 +420,20 @@ vicky2_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u3
         
     case .VRAM0:
         d.vram0[addr] = val
+
+    case .MOUSEPTR0:
+        log.debugf("vicky2: %s mouseptr0  addr %d value %d", d.name, addr_orig, val)
+        d.mouseptr0[addr] = val
+        if d.pointer_selected == .PTR0 {
+            vicky2_render_mouse(d)
+        }
+
+    case .MOUSEPTR1:
+        log.debugf("vicky2: %s mouseptr1  addr %d value %d", d.name, addr_orig, val)
+        d.mouseptr1[addr] = val
+        if d.pointer_selected == .PTR1 {
+            vicky2_render_mouse(d)
+        }
 
     case        : 
         emu.write_not_implemented(#procedure, d.name, size, addr_orig, val)
@@ -707,6 +716,17 @@ vicky2_render :: proc(gpu: ^GPU) {
     if gpu.bm0_enabled  do vicky2_render_bm0(gpu)
     if gpu.bm1_enabled  do vicky2_render_bm1(gpu)
     return
+}
+
+vicky2_render_mouse :: proc(d: ^GPU_Vicky2) {
+    source  := d.mouseptr0 if d.pointer_selected == .PTR0 else d.mouseptr1
+
+    for i : u32 = 0; i <= 0xFF; i += 1 {
+        color        := source[i]
+        d.MOUSEFB[i]  = (transmute(^u32) &d.mouse_lut[color])^
+    }
+
+    d.pointer_updated = true
 }
 
 vicky2_render_bm0 :: proc(gpu: ^GPU) {
