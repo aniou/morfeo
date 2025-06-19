@@ -230,6 +230,8 @@ process_input :: proc(p: ^platform.Platform) {
 
     for sdl2.PollEvent(&e) {
         #partial switch(e.type) {
+        case .MOUSEMOTION:
+            log.debugf("SDL: mouse_motion x: %d y: %d", e.motion.x, e.motion.y)
         case .QUIT:
             gui.should_close = true
         case .KEYDOWN:
