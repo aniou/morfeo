@@ -88,7 +88,6 @@ GPU_Vicky2 :: struct {
     vram0:   [dynamic]u32,    // VRAM
     text:    [dynamic]u32,   // text memory
     tc:      [dynamic]u32,   // text color memory
-    pointer: [dynamic]u8,    // pointer memory (16 x 16 x 4 bytes)
 
     lut:     [dynamic]u8,    // LUT memory block (lut0 to lut7 ARGB)
     fg:      [dynamic]u32,   // text foreground LUT cache
@@ -156,7 +155,6 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) ->
     g.lut     = make([dynamic]u8,     0x2000) // 8 * 256 * 4 colors 
     g.font    = make([dynamic]u8,  0x100*8*8) // font cache 256 chars * 8 lines * 8 columns
     g.fontmem = make([dynamic]u32,     0x800) // font bank0 memory
-    g.pointer = make([dynamic]u8,      0x400) // pointer     16 x 16 x 4 bytes color
 
     g.TFB     = new([1024*768]u32)            // text framebuffer     - for max size
     g.BM0FB   = new([1024*768]u32)            // bitmap0 framebuffer  - for max size
@@ -279,7 +277,6 @@ vicky2_delete :: proc(gpu: ^GPU) {
     delete(g.lut)
     delete(g.font)
     delete(g.fontmem)
-    delete(g.pointer)
 
     free(g.TFB)
     free(g.BM0FB)
