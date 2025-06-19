@@ -13,7 +13,8 @@ STATE :: enum {
     IDE_DATA_OUT,
 }
 
-CMD_READ :: 0x20
+CMD_READ0 :: 0x20   // read with retries if fault comes
+CMD_READ1 :: 0x21   // read without retries
 
 ERROR :: enum {
     // controller errors (bits!)
@@ -52,14 +53,64 @@ ST_DRDY     :: u8(64)
 ST_BSY      :: u8(128)
 
 // addresses (address offset)
-REG_PATA_DATA       :: u32(0)  // data8 and data16
-REG_PATA_ERROR      :: u32(2)  // error on read, feature on write
-REG_PATA_SECT_CNT   :: u32(4)
-REG_PATA_SECT_SRT   :: u32(6)  // 06: LBA0: low
-REG_PATA_CLDR_LO    :: u32(8)  // 08: LBA1: med
-REG_PATA_CLDR_HI    :: u32(10) // 0a: LBA2: hi
-REG_PATA_DEVH       :: u32(12) // 0c: LBA3: top - bit 24 to 27 
-REG_PATA_CMD_STAT   :: u32(14) // 0e: command or status (write or read)
+when emu.TARGET == "a2560x" {
+    REG_PATA_DATA       : u32 : 0x00  // data8 and data16
+    REG_PATA_DATA_LO    : u32 : 0x00  // data8 and data16
+    REG_PATA_DATA_HI    : u32 : 0x01  // data8 and data16
+    REG_PATA_ERROR      : u32 : 0x02  // error on read, feature on write
+    REG_PATA_SECT_CNT   : u32 : 0x04
+    REG_PATA_SECT_SRT   : u32 : 0x06  // 06: LBA0: low
+    REG_PATA_CLDR_LO    : u32 : 0x08  // 08: LBA1: med
+    REG_PATA_CLDR_HI    : u32 : 0x0a  // 0a: LBA2: hi
+    REG_PATA_DEVH       : u32 : 0x0c  // 0c: LBA3: top - bit 24 to 27 
+    REG_PATA_CMD_STAT   : u32 : 0x0e  // 0e: command or status (write or read)
+} else when emu.TARGET == "c256fmx" {
+    REG_PATA_DATA       : u32 : 0x00  // data8
+    REG_PATA_ERROR      : u32 : 0x01  // error on read, feature on write
+    REG_PATA_SECT_CNT   : u32 : 0x02  // Sector Count Register (also used to pass parameter for timeout for IDLE Command)
+    REG_PATA_SECT_SRT   : u32 : 0x03  // 06: LBA0: low
+    REG_PATA_CLDR_LO    : u32 : 0x04  // 08: LBA1: med
+    REG_PATA_CLDR_HI    : u32 : 0x05  // 0a: LBA2: hi
+    REG_PATA_DEVH       : u32 : 0x06  // 0c: LBA3: top - bit 24 to 27 
+    REG_PATA_CMD_STAT   : u32 : 0x07  // 0e: command or status (write or read)
+    REG_PATA_DATA_LO    : u32 : 0x08  // data16 low  byte
+    REG_PATA_DATA_HI    : u32 : 0x09  // data16 high byte
+}
+
+// for debug purposes
+when emu.TARGET == "a2560x" {
+    REG :: [?]string{
+            "PATA_DATA lo",
+            "PATA_DATA hi",
+            "PATA_ERROR",
+            "offset 0x03",
+            "PATA_SECT_CNT",
+            "offset 0x05",
+            "PATA_SECT_SRT / LBA0",
+            "offset 0x07",
+            "PATA_CLDR_LO  / LBA1",
+            "offset 0x09",
+            "PATA_CLDR_HI  / LBA2",
+            "offset 0x0b",
+            "PATA_DEVH     / LBA3",
+            "offset 0x0d",
+            "PATA_CMD_STAT",
+            "offset 0x0f",
+    }
+} else when emu.TARGET == "c256fmx" {
+    REG :: [?]string{
+            "PATA_DATA8",
+            "PATA_ERROR",
+            "PATA_SECT_CNT",
+            "PATA_SECT_SRT / LBA0",
+            "PATA_CLDR_LO  / LBA1",
+            "PATA_CLDR_HI  / LBA2",
+            "PATA_DEVH     / LBA3",
+            "PATA_CMD_STAT",
+            "PATA_DATA16 lo",
+            "PATA_DATA16 hi",
+    }
+}
 
 /*
 Drive / Head Register 
@@ -109,26 +160,6 @@ PATA :: struct {
 
 }
 
-// for debug purposes
-REG :: [?]string{
-        "PATA_DATA lo",
-        "PATA_DATA hi",
-        "PATA_ERROR",
-        "offset 0x03",
-        "PATA_SECT_CNT",
-        "offset 0x05",
-        "PATA_SECT_SRT / LBA0",
-        "offset 0x07",
-        "PATA_CLDR_LO  / LBA1",
-        "offset 0x09",
-        "PATA_CLDR_HI  / LBA2",
-        "offset 0x0b",
-        "PATA_DEVH     / LBA3",
-        "offset 0x0d",
-        "PATA_CMD_STAT",
-        "offset 0x0f",
-}
-
 pata_make :: proc(name:string) -> ^PATA {
     pata         := new(PATA)
     pata.name     = name
@@ -167,13 +198,25 @@ pata_write :: proc(d: ^PATA, mode: emu.Request_Size, addr_orig, addr, val: u32) 
 }
 
 // XXX - convert (p)ata to (d)evice in code
+
+// there is only one place in FMX kernel, when read from IDE_DATA is mentioned and 
+// is look like in following code, so I presume, that IDE_DATA iface isn't used at
+// all on these platforms and is not implemented deliberately
+//
+// if ( TARGET_SYS == SYS_C256_FMX )
+//                 setas
+//                 LDA @l IDE_DATA                 ; Read and toss out one byte from the 8-bit interface
+// .endif
+// 
+
+
 pata_read8 :: proc(p: ^PATA, addr: u32) -> u8 {
         switch addr {
-        case REG_PATA_DATA:
+        case REG_PATA_DATA_LO:
             val := pata_get_data_from_buffer(p)
             //s.debug(LOG_TRACE, "pata: %6s drive %d read lo16 0x%02x from buffer\n", s.name, s.selected, val)
             return val
-        case REG_PATA_DATA+1:
+        case REG_PATA_DATA_HI:
             val := pata_get_data_from_buffer(p)
             //s.debug(LOG_TRACE, "pata: %6s drive %d read hi16 0x%02x from buffer\n", s.name, s.selected, val)
             return val
@@ -204,7 +247,7 @@ pata_write8 :: proc(p: ^PATA, addr: u32, val: u8) {
                 log.debugf("pata: %6s write 0x%02x to   %-22s (NOP)", p.name, val, reg[addr])
                 drive.status  &~=  ST_BSY
                 drive.status   |=  ST_DRDY
-            case CMD_READ:  // 0x20
+            case CMD_READ0, CMD_READ1:  // 0x20, 0x21
                 log.debugf("pata: %6s write 0x%02x to   %-22s (READ SECT)", p.name, val, reg[addr])
                 pata_cmd_read_sectors(p)
             case:
@@ -402,7 +445,7 @@ func (s *PATA) Write(fn byte, addr uint32, val byte) error {
                         s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s (NOP)\n", s.name, val, REG[addr])
             drive.status  &^=  ST_BSY
             drive.status   |=  ST_DRDY
-                case CMD_READ:  // 0x20
+                case CMD_READ0, CMD_READ1:  // 0x20, 0x21
                         s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s (READ SECT)\n", s.name, val, REG[addr])
             s.cmd_read_sectors()
                 default:

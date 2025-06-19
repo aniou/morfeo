@@ -4,6 +4,8 @@ package emu
 import "core:fmt"
 import "core:log"
 
+TARGET :: #config(TARGET, "none")
+
 // used by bus read to denote 8/16/32 bits operations
 // XXX: todo - expand to little and big endian ones
 Request_Size :: enum {
