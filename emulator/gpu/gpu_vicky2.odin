@@ -92,7 +92,6 @@ GPU_Vicky2 :: struct {
     pointer: [dynamic]u8,    // pointer memory (16 x 16 x 4 bytes)
     lut:     [dynamic]u8,    // LUT memory block (lut0 to lut7 ARGB)
 
-    blut:    [dynamic]u32,   // bitmap LUT cache : 256 colors * 8 banks (lut0 to lut7)
     fg:      [dynamic]u32,   // text foreground LUT cache
     bg:      [dynamic]u32,   // text background LUT cache
     font:    [dynamic]u8,    // font cache       : 256 chars  * 8 lines * 8 columns
@@ -105,8 +104,6 @@ GPU_Vicky2 :: struct {
     starting_fb_row_pos: u32,
     text_cols:           u32,
     text_rows:           u32,
-    bm0_blut_pos:        u32,
-    bm1_blut_pos:        u32,
     bm0_start_addr:      u32,
     bm1_start_addr:      u32,
     pixel_size:          u32,       // 1 for normal, 2 for double - XXX: not used yet
@@ -144,7 +141,6 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) ->
     g.fg      = make([dynamic]u32,    0x2000) // text foreground LUT cache    0x4000 in GenX
     g.bg      = make([dynamic]u32,    0x2000) // text backround  LUT cache    0x4000 in GenX
     g.lut     = make([dynamic]u8,     0x2000) // 8 * 256 * 4 colors 
-    g.blut    = make([dynamic]u32,     0x800) // bitmap LUT cache : 256 colors * 8 banks (lut0 to lut7)
     g.cram    = make([dynamic]u8,      0x100) // XXX - is supported?
     g.font    = make([dynamic]u8,  0x100*8*8) // font cache 256 chars * 8 lines * 8 columns
     g.fontmem = make([dynamic]u32,     0x800) // font bank0 memory
@@ -176,8 +172,6 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) ->
     g.starting_fb_row_pos  = 0x00
     g.text_cols            = 0x00
     g.text_rows            = 0x00
-    g.bm0_blut_pos         = 0x00
-    g.bm1_blut_pos         = 0x00
     g.bm0_start_addr       = 0x00 // relative from beginning of vram
     g.bm1_start_addr       = 0x00 // relative from beginning of vram
 
@@ -271,7 +265,6 @@ vicky2_delete :: proc(gpu: ^GPU) {
     delete(g.fg)
     delete(g.bg)
     delete(g.lut)
-    delete(g.blut)
     delete(g.cram)
     delete(g.font)
     delete(g.fontmem)
