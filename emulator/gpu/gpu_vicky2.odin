@@ -86,17 +86,15 @@ GPU_Vicky2 :: struct {
     using gpu: ^GPU,
 
     vram0:   [dynamic]u32,    // VRAM
-    //vram1:   [dynamic]u8,    // VRAM  -- not implemented yet?
     text:    [dynamic]u32,   // text memory
     tc:      [dynamic]u32,   // text color memory
     pointer: [dynamic]u8,    // pointer memory (16 x 16 x 4 bytes)
-    lut:     [dynamic]u8,    // LUT memory block (lut0 to lut7 ARGB)
 
+    lut:     [dynamic]u8,    // LUT memory block (lut0 to lut7 ARGB)
     fg:      [dynamic]u32,   // text foreground LUT cache
     bg:      [dynamic]u32,   // text background LUT cache
     font:    [dynamic]u8,    // font cache       : 256 chars  * 8 lines * 8 columns
     fontmem: [dynamic]u32,   // font memory
-    cram:    [dynamic]u8,    // XXX - temporary ram for FG clut/BG clut and others
 
     fg_clut: [16][4]u8,         // 16 pre-calculated RGBA colors for text fore-
     bg_clut: [16][4]u8,         // ...and background
@@ -120,6 +118,21 @@ GPU_Vicky2 :: struct {
 
 // --------------------------------------------------------------------
 
+// NOTE: The upper left corner of the sprite is offset by 32 pixels. Using (0,0)
+// will hide the sprite. Position (32,32) is mapped to the upper left corner of
+// the screen.
+
+VICKY2_SPRITE :: struct {
+    enable       : bool,
+    collision_en : bool, // XXX not supported yet
+    lut          : u32,
+    depth        : u32,  // XXX not supported yet
+    address      : u32,  // u24 in memory address
+    x            : u32,  // u16 x position, first visible: 32
+    y            : u32,  // u16 y position, first visible: 32
+}
+
+
 vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) -> ^GPU {
     log.infof("vicky2: gpu%d initialization start, name %s", id, name)
 
@@ -141,7 +154,6 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) ->
     g.fg      = make([dynamic]u32,    0x2000) // text foreground LUT cache    0x4000 in GenX
     g.bg      = make([dynamic]u32,    0x2000) // text backround  LUT cache    0x4000 in GenX
     g.lut     = make([dynamic]u8,     0x2000) // 8 * 256 * 4 colors 
-    g.cram    = make([dynamic]u8,      0x100) // XXX - is supported?
     g.font    = make([dynamic]u8,  0x100*8*8) // font cache 256 chars * 8 lines * 8 columns
     g.fontmem = make([dynamic]u32,     0x800) // font bank0 memory
     g.pointer = make([dynamic]u8,      0x400) // pointer     16 x 16 x 4 bytes color
@@ -265,7 +277,6 @@ vicky2_delete :: proc(gpu: ^GPU) {
     delete(g.fg)
     delete(g.bg)
     delete(g.lut)
-    delete(g.cram)
     delete(g.font)
     delete(g.fontmem)
     delete(g.pointer)
@@ -704,10 +715,11 @@ vicky2_render :: proc(gpu: ^GPU) {
 vicky2_render_bm0 :: proc(gpu: ^GPU) {
     g         := &gpu.model.(GPU_Vicky2)
    
-    max := u32(g.screen_x_size * g.screen_y_size)
+    max      := u32(g.screen_x_size * g.screen_y_size)
+    lut_addr := g.bm0_lut * 1024
     for i := u32(0); i < max; i += 1 {
         lut_index    := g.vram0[g.bm0_pointer + i]
-        lut_position := (g.bm0_lut * 1024) + (4 * lut_index)
+        lut_position := lut_addr + (4 * lut_index)
         g.BM0FB[i] = (transmute(^u32) &g.lut[lut_position])^
     }
 
@@ -716,11 +728,11 @@ vicky2_render_bm0 :: proc(gpu: ^GPU) {
 vicky2_render_bm1 :: proc(gpu: ^GPU) {
     g         := &gpu.model.(GPU_Vicky2)
    
-    max := u32(g.screen_x_size * g.screen_y_size)
+    max      := u32(g.screen_x_size * g.screen_y_size)
+    lut_addr := g.bm1_lut * 1024
     for i := u32(0); i < max; i += 1 {
         lut_index    := g.vram0[g.bm1_pointer + i]
-        lut_position := (g.bm1_lut * 1024) + (4 * lut_index)
-        //log.debugf("%s lut_position %08x", #procedure, lut_position)
+        lut_position := lut_addr + (4 * lut_index)
         g.BM1FB[i] = (transmute(^u32) &g.lut[lut_position])^
     }
 
