@@ -36,7 +36,7 @@ keycodes and events) and ``GPU`` module (for rendering)
 #### platform
 
 a place when all components are created at start and 
-destroyed ad quit plus some extra routines for reading 
+destroyed at quit plus some extra routines for reading 
 files into memory and preparing initial state of machine
 (for example - copying part of "flash" into ram)
 Platform has CPU directly attached because attaching CPU
