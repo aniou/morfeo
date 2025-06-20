@@ -27,6 +27,8 @@ GUI :: struct {
     scale_mult:  i32,                   // scale factor, 1 or 2
     x_size:      i32,                   // emulated x screen size
     y_size:      i32,                   // emulated y screen size
+    mouse_x:     i32,                   // X mouse cursor (SDL, that means * scale_mult)
+    mouse_y:     i32,                   // Y mouse cursor (SDL, that means * scale_mult)
 
     active_gpu:  u8,                    // GPU number
 
@@ -71,6 +73,8 @@ init_sdl :: proc(p: ^platform.Platform, gpu_number: int = 1) -> (ok: bool) {
     gui.y_size      = 600
     gui.scale_mult  = 2
     gui.fullscreen  = false
+    gui.mouse_x     = 32 * gui.scale_mult
+    gui.mouse_y     = 32 * gui.scale_mult
 
     // set initial parameters and force refresh in render_gui() by switch_gpu = 1
     // current_gpu number shuffle is a trick for switch_gpu routine at first run
@@ -113,7 +117,7 @@ init_sdl :: proc(p: ^platform.Platform, gpu_number: int = 1) -> (ok: bool) {
     }
 
     // single instance, should be recalculated if scale_mult changes
-    gui.mouse_rectangle = sdl2.Rect{400, 400, 16 * gui.scale_mult, 16 * gui.scale_mult}
+    gui.mouse_rectangle = sdl2.Rect{gui.mouse_x, gui.mouse_y, 16 * gui.scale_mult, 16 * gui.scale_mult}
 
     ok = new_renderer_and_texture()
     return ok
@@ -240,7 +244,9 @@ process_input :: proc(p: ^platform.Platform) {
     for sdl2.PollEvent(&e) {
         #partial switch(e.type) {
         case .MOUSEMOTION:
-            log.debugf("SDL: mouse_motion x: %d y: %d", e.motion.x, e.motion.y)
+            //log.debugf("SDL: mouse_motion x: %d y: %d", e.motion.x, e.motion.y)
+            gui.mouse_x = e.motion.x
+            gui.mouse_y = e.motion.y
         case .QUIT:
             gui.should_close = true
         case .KEYDOWN:
@@ -342,6 +348,8 @@ render_gui :: proc(p: ^platform.Platform) -> (bool, bool) {
                 sdl2.UpdateTexture(gui.texture_mouse, nil, gui.g.MOUSEFB, 16*4)
                 gui.g.pointer_updated = false
             }
+            gui.mouse_rectangle.x = gui.mouse_x
+            gui.mouse_rectangle.y = gui.mouse_y
             sdl2.RenderCopy(gui.renderer, gui.texture_mouse, nil, &gui.mouse_rectangle)
             //sdl2.RenderCopy(gui.renderer, gui.texture_mouse, nil, nil)
         }

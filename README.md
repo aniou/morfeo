@@ -7,15 +7,13 @@ At this moment MORFE/O supports 32bit m68k CPU (Musashi Core) and
 provides native implementation of 16bit WDC 65C816 and 8bit 
 WDC W65C02S cores.
 
-# Word of warning
-
-The main goal of MORFEO is to create a universal emulator, capable of emulating
-different sets of hardware.
-
-Not all assumptions for a2560x compatible system turned out to be correct for
-C256 family systems, hence some code inconsistency, which will be gradually
-removed.
-
+> [!WARNING] The main goal of MORFEO is to create a universal emulator, 
+> capable of emulating different sets of hardware.
+> 
+> Not all assumptions for a2560x compatible system turned out to be correct for
+> C256 family systems, hence some code inconsistency, which will be gradually
+> removed.
+ 
 # Available targets
 
 ## a2560x
