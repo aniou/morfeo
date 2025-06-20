@@ -3,7 +3,7 @@ package bus
 import "core:log"
 import "core:fmt"
 import "emulator:gpu"
-import "emulator:intu"
+import "emulator:inu"
 import "emulator:pic"
 import "emulator:ps2"
 import "emulator:ram"
@@ -67,7 +67,6 @@ c256_delete :: proc(bus: ^Bus) {
 // $af:0000 - $af:9fff - IO registers (mostly VICKY)
 //   $af:0800 - $af:080f - RTC
 //   $af:1000 - $af:13ff - GABE
-
 // $af:1F40 - $af:1F7F - VICKY - Text Foreground Look-Up Table 
 // $af:1F80 - $af:1FFF - VICKY - Text Background Look-Up Table 
 // $af:8000 - $af:87FF - VICKY - FONT BANK0 (no bank1 at all?)
@@ -84,7 +83,7 @@ c256_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
     //log.debugf("%s read     from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
 
     switch addr {
-    case 0x00_00_0100 ..= 0x00_00_012B:  val = bus.intu->read(size, addr, addr - 0x00_00_0100)
+    case 0x00_00_0100 ..= 0x00_00_012B:  val = bus.inu->read(size, addr, addr - 0x00_00_0100)
     case 0x00_00_0140 ..= 0x00_00_014F:  val =  bus.pic->read(size, addr, addr)
     case 0x00_00_0000 ..= SRAM_END    :  val = bus.ram0->read(size, addr)                    // 2 or 4 MB
     case PS2_START    ..= PS2_END     :  val =  bus.ps2->read(size, addr, addr - PS2_START)  // AF_1803-7 or AF_1060-4
@@ -125,7 +124,7 @@ c256_write :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
     }
 
     switch addr {
-    case 0x00_00_0100 ..= 0x00_00_012B:  bus.intu->write(size, addr, addr - 0x00_00_0100, val)
+    case 0x00_00_0100 ..= 0x00_00_012B:  bus.inu->write(size, addr, addr - 0x00_00_0100, val)
     case 0x00_00_0140 ..= 0x00_00_014F:  bus.pic->write(size, addr, addr, val)
     case 0x00_00_0000 ..= SRAM_END    :  bus.ram0->write(size, addr, val                        )
     case 0x00_AF_0400 ..= 0x00_AF_040F:  c256_dma_write(bus, size, addr, val)

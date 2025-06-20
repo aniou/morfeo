@@ -3,7 +3,7 @@ package platform
 import "emulator:ata"
 import "emulator:bus"
 import "emulator:cpu"
-import "emulator:intu"
+import "emulator:inu"
 import "emulator:gpu"
 import "emulator:pic"
 import "emulator:ps2"
@@ -43,8 +43,8 @@ c256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
     p.bus.gpu0  = gpu.vicky2_make    ("gpu0", pic, 0, vramsize, config.dip)
     p.bus.ps2   = ps2.ps2_make       ("ps2",  pic, config.model)
     p.bus.rtc   = rtc.bq4802_make    ("rtc0", pic)
-    p.bus.intu  = intu.intu_c256_make("math0")
-    p.bus.ata0  = ata.pata_make      ("pata0")          // XXX - update to PIC
+    p.bus.inu   = inu.inu_c256_make  ("inu0")
+    p.bus.ata0  = ata.pata_make      ("ata0")          // XXX - update to PIC
     p.cpu       = cpu.make_w65c816   ("cpu0", p.bus)
     p.delete    = c256_delete
     p.init      = c256_init
@@ -61,7 +61,7 @@ c256_delete :: proc(p: ^Platform) {
      p.bus.ps2->delete()
     p.bus.ram0->delete()
      p.bus.rtc->delete()
-    p.bus.intu->delete()
+     p.bus.inu->delete()
          p.bus->delete()
 
     free(p);

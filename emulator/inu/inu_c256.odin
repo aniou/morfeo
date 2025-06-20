@@ -1,43 +1,43 @@
 
-package intu
+package inu
 
 import "lib:emu"
 
-INTU_C256 :: struct {
-    using intu: ^INTU,
+INU_C256 :: struct {
+    using inu: ^INU,
     
     mem:    [0x2c]u32,
 }
 
-intu_c256_make :: proc(name: string) -> ^INTU {
-    intu          := new(INTU)
-    intu.name      = name
-    intu.id        = 0
+inu_c256_make :: proc(name: string) -> ^INU {
+    inu          := new(INU)
+    inu.name      = name
+    inu.id        = 0
 
-    intu.read      = intu_c256_read
-    intu.write     = intu_c256_write
-    intu.delete    = intu_c256_delete
+    inu.read      = inu_c256_read
+    inu.write     = inu_c256_write
+    inu.delete    = inu_c256_delete
 
-    m            := INTU_C256{intu = intu}
-    intu.model    = m
-    return intu
+    m            := INU_C256{inu = inu}
+    inu.model    = m
+    return inu
 } 
 
-intu_c256_delete :: proc(intu: ^INTU) {
-	free(intu)
+inu_c256_delete :: proc(inu: ^INU) {
+	free(inu)
     return
 }
 
-intu_c256_read :: proc(intu: ^INTU, size: emu.Request_Size, addr_orig, addr: u32) -> (val: u32) {
+inu_c256_read :: proc(inu: ^INU, size: emu.Request_Size, addr_orig, addr: u32) -> (val: u32) {
 
-    m         := &intu.model.(INTU_C256)
+    m         := &inu.model.(INU_C256)
 	val        = m.mem[addr]
 	return
 }
 
-intu_c256_write :: proc(intu: ^INTU, size: emu.Request_Size, addr_orig, addr, val: u32)  {
+inu_c256_write :: proc(inu: ^INU, size: emu.Request_Size, addr_orig, addr, val: u32)  {
 
-    m         := &intu.model.(INTU_C256)
+    m         := &inu.model.(INU_C256)
 
 	switch addr {
         case 0x00, 0x01, 0x02, 0x03:   // UNSIGNED_MULT_A, UNSIGNED_MULT_B
