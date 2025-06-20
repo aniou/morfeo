@@ -43,7 +43,6 @@ c256_make :: proc(name: string, pic: ^pic.PIC, type: emu.Type) -> ^Bus {
 
 	b            := BUS_C256{sdma = DMA{}, vdma = DMA{}}
     d.model       = b
-    ebus          = d
     return d
 }
 

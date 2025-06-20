@@ -20,7 +20,6 @@ make_simple6502 :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
     d.write   = write_simple6502
     d.delete  = delete_simple6502
 
-    ebus = d
     return d
 }
 

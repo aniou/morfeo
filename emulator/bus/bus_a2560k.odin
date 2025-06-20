@@ -29,7 +29,6 @@ a2560k_make :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
     b.name    = name
     b.pic     = pic
 
-    ebus = b
     return b
 }
 

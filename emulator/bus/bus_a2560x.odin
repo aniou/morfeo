@@ -20,7 +20,6 @@ a2560x_make :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
     d.write   = a2560x_write
     d.delete  = a2560x_delete
 
-    ebus = d
     return d
 }
 

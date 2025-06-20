@@ -12,7 +12,6 @@ import "emulator:ram"
 
 import "core:prof/spall"
 
-ebus:   ^Bus        // test global XXX: remove it?
 spall_ctx: spall.Context
 spall_buffer: spall.Buffer
 
@@ -20,6 +19,7 @@ Bus :: struct {
     name:    string,
       id:    int,
     type:    emu.Type,
+    peek:    proc(^Bus, emu.Request_Size, u32) -> u32,
     read:    proc(^Bus, emu.Request_Size, u32) -> u32,
    write:    proc(^Bus, emu.Request_Size, u32,     u32),
   delete:    proc(^Bus),

@@ -20,7 +20,6 @@ test816_make :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
     d.write   = test816_write
     d.delete  = test816_delete
 
-    ebus = d
     return d
 }
 

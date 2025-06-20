@@ -53,18 +53,7 @@ ST_DRDY     :: u8(64)
 ST_BSY      :: u8(128)
 
 // addresses (address offset)
-when emu.TARGET == "a2560x" {
-    REG_PATA_DATA       : u32 : 0x00  // data8 and data16
-    REG_PATA_DATA_LO    : u32 : 0x00  // data8 and data16
-    REG_PATA_DATA_HI    : u32 : 0x01  // data8 and data16
-    REG_PATA_ERROR      : u32 : 0x02  // error on read, feature on write
-    REG_PATA_SECT_CNT   : u32 : 0x04
-    REG_PATA_SECT_SRT   : u32 : 0x06  // 06: LBA0: low
-    REG_PATA_CLDR_LO    : u32 : 0x08  // 08: LBA1: med
-    REG_PATA_CLDR_HI    : u32 : 0x0a  // 0a: LBA2: hi
-    REG_PATA_DEVH       : u32 : 0x0c  // 0c: LBA3: top - bit 24 to 27 
-    REG_PATA_CMD_STAT   : u32 : 0x0e  // 0e: command or status (write or read)
-} else when emu.TARGET == "c256fmx" {
+when emu.TARGET == "c256fmx" {
     REG_PATA_DATA       : u32 : 0x00  // data8
     REG_PATA_ERROR      : u32 : 0x01  // error on read, feature on write
     REG_PATA_SECT_CNT   : u32 : 0x02  // Sector Count Register (also used to pass parameter for timeout for IDLE Command)
@@ -75,10 +64,34 @@ when emu.TARGET == "a2560x" {
     REG_PATA_CMD_STAT   : u32 : 0x07  // 0e: command or status (write or read)
     REG_PATA_DATA_LO    : u32 : 0x08  // data16 low  byte
     REG_PATA_DATA_HI    : u32 : 0x09  // data16 high byte
+} else { 
+    REG_PATA_DATA       : u32 : 0x00  // data8 and data16
+    REG_PATA_DATA_LO    : u32 : 0x00  // data8 and data16
+    REG_PATA_DATA_HI    : u32 : 0x01  // data8 and data16
+    REG_PATA_ERROR      : u32 : 0x02  // error on read, feature on write
+    REG_PATA_SECT_CNT   : u32 : 0x04
+    REG_PATA_SECT_SRT   : u32 : 0x06  // 06: LBA0: low
+    REG_PATA_CLDR_LO    : u32 : 0x08  // 08: LBA1: med
+    REG_PATA_CLDR_HI    : u32 : 0x0a  // 0a: LBA2: hi
+    REG_PATA_DEVH       : u32 : 0x0c  // 0c: LBA3: top - bit 24 to 27 
+    REG_PATA_CMD_STAT   : u32 : 0x0e  // 0e: command or status (write or read)
 }
 
 // for debug purposes
-when emu.TARGET == "a2560x" {
+when emu.TARGET == "c256fmx" {
+    REG :: [?]string{
+            "PATA_DATA8",
+            "PATA_ERROR",
+            "PATA_SECT_CNT",
+            "PATA_SECT_SRT / LBA0",
+            "PATA_CLDR_LO  / LBA1",
+            "PATA_CLDR_HI  / LBA2",
+            "PATA_DEVH     / LBA3",
+            "PATA_CMD_STAT",
+            "PATA_DATA16 lo",
+            "PATA_DATA16 hi",
+    }
+} else {
     REG :: [?]string{
             "PATA_DATA lo",
             "PATA_DATA hi",
@@ -96,19 +109,6 @@ when emu.TARGET == "a2560x" {
             "offset 0x0d",
             "PATA_CMD_STAT",
             "offset 0x0f",
-    }
-} else when emu.TARGET == "c256fmx" {
-    REG :: [?]string{
-            "PATA_DATA8",
-            "PATA_ERROR",
-            "PATA_SECT_CNT",
-            "PATA_SECT_SRT / LBA0",
-            "PATA_CLDR_LO  / LBA1",
-            "PATA_CLDR_HI  / LBA2",
-            "PATA_DEVH     / LBA3",
-            "PATA_CMD_STAT",
-            "PATA_DATA16 lo",
-            "PATA_DATA16 hi",
     }
 }
 
