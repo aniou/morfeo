@@ -47,7 +47,7 @@ on the BUS to access to memory and selected devices)
 
 processor routines itself - they connect to different parts
 via BUS and - directly - to PIC. Again: that structure gave
-cyclic-free dependency because devices cannot be accesible
+cyclic-free dependency because devices cannot be both accesible
 via BUS and access PIC via BUS itself due to circular deps,
 that make various programming languages hairy.
 
