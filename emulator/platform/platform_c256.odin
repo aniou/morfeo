@@ -38,7 +38,7 @@ c256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
 
     p           = new(Platform)
     pic        := pic.pic_c256_make  ("pic0")
-    p.bus       = bus.c256_make      ("bus0", pic, config.model)
+    p.bus       = bus.c256_make      ("bus0", pic)
     p.bus.ram0  = ram.make_ram       ("ram0", ramsize)
     p.bus.gpu0  = gpu.vicky2_make    ("gpu0", pic, 0, vramsize, config.dip)
     p.bus.ps2   = ps2.ps2_make       ("ps2",  pic, config.model)

@@ -33,9 +33,9 @@ PS2_STAT_PE     :: u8(0x80)
 
 PS2_RESP_ACK    :: u8(0xFA)
 
-KBD_DATA        :: 0x03 // $AF1803 (FMX: $AF1060) for reading and writing
-KBD_COMMAND     :: 0x07 // $AF1807 (FMX: $AF1064) for writing
-KBD_STATUS      :: 0x07 // $AF1807 (FMX: $AF1064) for reading
+KBD_DATA        :: 0x00 // $AF1803 (FMX: $AF1060) for reading and writing
+KBD_COMMAND     :: 0x04 // $AF1807 (FMX: $AF1064) for writing
+KBD_STATUS      :: 0x04 // $AF1807 (FMX: $AF1064) for reading
 
 PS2 :: struct {
     read:     proc(^PS2, emu.Request_Size, u32, u32) -> u32,
@@ -110,11 +110,14 @@ ps2_read :: proc(s: ^PS2, mode: emu.Request_Size, addr_orig, addr: u32) -> (val:
         return
     }
 
+    /*
     if s.fmx {
         val = cast(u32) ps2_read8(s, addr+3)
     } else {
         val = cast(u32) ps2_read8(s, addr)
     }
+    */
+    val = cast(u32) ps2_read8(s, addr)
 
     return
 }
@@ -126,11 +129,14 @@ ps2_write :: proc(s: ^PS2, mode: emu.Request_Size, addr_orig, addr, val: u32) {
         return
     }
 
+    /*
     if s.fmx { 
         ps2_write8(s, addr+3, u8(val))
     } else {
         ps2_write8(s, addr,   u8(val))
     }
+    */
+    ps2_write8(s, addr,   u8(val))
 
     return
 }

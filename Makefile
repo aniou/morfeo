@@ -12,11 +12,11 @@ odin_defs        += -collection:emulator=emulator
 odin_defs        += -collection:lib=lib
 build_flags      += $(odin_defs) -o:speed
 
-.PHONY: doc a2560x test_w65c02s test_65c816 c256fmx
+.PHONY: doc a2560x test_w65c02s test_65c816 c256fmx c256u
 
-all: a2560x test_w65c02s test_65c816 c256fmx
+all: a2560x test_w65c02s test_65c816 c256fmx c256u
 
-c256: c256fmx
+c256: c256fmx c256u
 
 help:
 	@echo "make release      - build a2560x-like optimized, faster version"
@@ -31,10 +31,10 @@ help:
 	@echo "make clean-all    - clean-up binaries and object files"
 
 clean:
-	rm -fv a2560x test_w65c02s test_65c816 c256fmx
+	rm -fv a2560x test_w65c02s test_65c816 c256fmx c256u
 
 clean-all: $(musashi_objects)
-	rm -fv a2560x test_w65c02s test_65c816 c256fmx
+	rm -fv a2560x test_w65c02s test_65c816 c256fmx c256u
 	rm -fv $^
 	rm -fv $(musashi_dir)/m68kconf.h
 
@@ -51,6 +51,9 @@ a2560x: $(musashi_objects)
 
 c256fmx:
 	odin build cmd/c256 -define:TARGET=c256fmx -out:c256fmx -debug $(build_flags)
+
+c256u:
+	odin build cmd/c256 -define:TARGET=c256u -out:c256u -debug $(build_flags)
 
 test_65c816:
 	odin build cmd/test_65c816 -debug $(build_flags)
