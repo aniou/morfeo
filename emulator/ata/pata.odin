@@ -79,7 +79,7 @@ when emu.TARGET == "c256fmx" {
 
 // for debug purposes
 when emu.TARGET == "c256fmx" {
-    REG :: [?]string{
+    REG_DESC :: [?]string{
             "PATA_DATA8",
             "PATA_ERROR",
             "PATA_SECT_CNT",
@@ -92,7 +92,7 @@ when emu.TARGET == "c256fmx" {
             "PATA_DATA16 hi",
     }
 } else {
-    REG :: [?]string{
+    REG_DESC :: [?]string{
             "PATA_DATA lo",
             "PATA_DATA hi",
             "PATA_ERROR",
@@ -221,7 +221,7 @@ pata_read8 :: proc(p: ^PATA, addr: u32) -> u8 {
             //s.debug(LOG_TRACE, "pata: %6s drive %d read hi16 0x%02x from buffer\n", s.name, s.selected, val)
             return val
         case REG_PATA_CMD_STAT: // 0x0e - check status when read
-             reg := REG
+             reg := REG_DESC
              log.debugf("pata: %6s read  0x%02x from %13s", p.name, p.drive[p.selected].status, reg[addr])
              return p.drive[p.selected].status
         case:
@@ -231,7 +231,7 @@ pata_read8 :: proc(p: ^PATA, addr: u32) -> u8 {
 }
 
 pata_write8 :: proc(p: ^PATA, addr: u32, val: u8) {
-        reg := REG
+        reg := REG_DESC
         switch addr {
         case REG_PATA_CMD_STAT: // 0x0e - issue command when write
 
@@ -442,34 +442,34 @@ func (s *PATA) Write(fn byte, addr uint32, val byte) error {
 
                 switch val {
                 case 0x00: 
-                        s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s (NOP)\n", s.name, val, REG[addr])
+                        s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s (NOP)\n", s.name, val, REG_DESC[addr])
             drive.status  &^=  ST_BSY
             drive.status   |=  ST_DRDY
                 case CMD_READ0, CMD_READ1:  // 0x20, 0x21
-                        s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s (READ SECT)\n", s.name, val, REG[addr])
+                        s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s (READ SECT)\n", s.name, val, REG_DESC[addr])
             s.cmd_read_sectors()
                 default:
-                        s.debug(LOG_ERROR, "pata: %6s write 0x%02x to   %-22s (unknown)\n", s.name, val, REG[addr])
+                        s.debug(LOG_ERROR, "pata: %6s write 0x%02x to   %-22s (unknown)\n", s.name, val, REG_DESC[addr])
                 }
 
         case REG_PATA_SECT_CNT:  // 0x04
-                s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s\n", s.name, val, REG[addr])
+                s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s\n", s.name, val, REG_DESC[addr])
                 s.drive[s.selected].sector_count = val
 
         case REG_PATA_SECT_SRT:  // 0x06
-                s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s\n", s.name, val, REG[addr])
+                s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s\n", s.name, val, REG_DESC[addr])
                 s.drive[s.selected].lba0         = val
 
         case REG_PATA_CLDR_LO:   // 0x08
-                s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s\n", s.name, val, REG[addr])
+                s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s\n", s.name, val, REG_DESC[addr])
                 s.drive[s.selected].lba1         = val
 
         case REG_PATA_CLDR_HI:   // 0x0a
-                s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s\n", s.name, val, REG[addr])
+                s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s\n", s.name, val, REG_DESC[addr])
                 s.drive[s.selected].lba2         = val
 
         case REG_PATA_DEVH: // 0x0c
-                s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s\n", s.name, val, REG[addr])
+                s.debug(LOG_TRACE, "pata: %6s write 0x%02x to   %-22s\n", s.name, val, REG_DESC[addr])
 
                 if (val & DEVH_DEV) > 0 {
                         s.selected = 1
