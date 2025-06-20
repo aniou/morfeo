@@ -7,7 +7,8 @@ At this moment MORFE/O supports 32bit m68k CPU (Musashi Core) and
 provides native implementation of 16bit WDC 65C816 and 8bit 
 WDC W65C02S cores.
 
-> [!WARNING] The main goal of MORFEO is to create a universal emulator, 
+> [!WARNING] 
+> The main goal of MORFEO is to create a universal emulator, 
 > capable of emulating different sets of hardware.
 > 
 > Not all assumptions for a2560x compatible system turned out to be correct for
@@ -219,6 +220,10 @@ development platform for system software, thus lack of support in
 graphics and sound
 
 # Hacking
+
+An preliminary documentation about internals is available in 
+[doc\internals](https://github.com/aniou/morfeo/blob/master/doc/internals/README.md)
+directory. 
 
 A crucial for understanding internal code and way in which modules
 are implemented is an [union concept](https://github.com/odin-lang/Odin/blob/master/examples/demo/demo.odin#L577).
