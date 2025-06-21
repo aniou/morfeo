@@ -24,8 +24,8 @@ Bus :: struct {
     read:    proc(^Bus, BITS, u32) -> u32,
    write:    proc(^Bus, BITS, u32,    u32),
   delete:    proc(^Bus),
-     pic:    ^pic.PIC,
-     ps2:    ^ps2.PS2,
+    pic0:    ^pic.PIC,
+    ps20:    ^ps2.PS2,     // looks weird, but in future... multiple ps2?
     gpu0:    ^gpu.GPU,
     gpu1:    ^gpu.GPU,
      rtc:    ^rtc.RTC,
@@ -33,7 +33,7 @@ Bus :: struct {
     ram0:    ^ram.RAM,	   // first slot (ram/sram/flash...)
     ram1:    ^ram.RAM,     // second...
     ram2:    ^ram.RAM,     // third...
-     inu:    ^inu.INU,
+    inu0:    ^inu.INU,
 
     debug:   bool,          // enable/disable debug
 

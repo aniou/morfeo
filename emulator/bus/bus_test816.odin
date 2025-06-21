@@ -15,7 +15,7 @@ import "core:prof/spall"
 test816_make :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
     d        := new(Bus)
     d.name    = name
-    d.pic     = pic
+    d.pic0    = pic
     d.read    = test816_read
     d.write   = test816_write
     d.delete  = test816_delete

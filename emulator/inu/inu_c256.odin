@@ -28,16 +28,17 @@ inu_c256_delete :: proc(inu: ^INU) {
     return
 }
 
-inu_c256_read :: proc(inu: ^INU, size: emu.Bitsize, addr_orig, addr: u32) -> (val: u32) {
+inu_c256_read :: proc(inu: ^INU, size: BITS, base, busaddr: u32) -> (val: u32) {
 
     m         := &inu.model.(INU_C256)
-	val        = m.mem[addr]
+	val        = m.mem[busaddr - base]
 	return
 }
 
-inu_c256_write :: proc(inu: ^INU, size: emu.Bitsize, addr_orig, addr, val: u32)  {
+inu_c256_write :: proc(inu: ^INU, size: BITS, base, busaddr, val: u32)  {
 
     m         := &inu.model.(INU_C256)
+    addr      := busaddr - base
 
 	switch addr {
         case 0x00, 0x01, 0x02, 0x03:   // UNSIGNED_MULT_A, UNSIGNED_MULT_B

@@ -496,7 +496,7 @@ c256_dma_write :: proc(mainbus: ^Bus, size: emu.Bitsize, addr, val: u32) {
         if !bus.vdma.ctrl_start & cmd_ctrl_start  {
             bus.vdma.ctrl_start = true
             c256_vdma_transfer(mainbus)
-            mainbus.pic->trigger(.RESERVED_6)   // may generate spurious irqs
+            mainbus.pic0->trigger(.RESERVED_6)   // may generate spurious irqs
         } else {
             bus.vdma.ctrl_start = false
         }
@@ -549,7 +549,7 @@ c256_dma_write :: proc(mainbus: ^Bus, size: emu.Bitsize, addr, val: u32) {
         if !bus.sdma.ctrl_start & cmd_ctrl_start  {
             bus.sdma.ctrl_start = true
             c256_sdma_transfer(mainbus)
-            mainbus.pic->trigger(.RESERVED_5)   // may generate spurious irqs
+            mainbus.pic0->trigger(.RESERVED_5)   // may generate spurious irqs
         } else {
             bus.sdma.ctrl_start = false
         }

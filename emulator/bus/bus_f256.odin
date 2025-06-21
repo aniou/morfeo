@@ -27,7 +27,7 @@ BUS_F256 :: struct {
 make_f256    :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
     d        := new(Bus)
     d.name    = name
-    d.pic     = pic
+    d.pic0    = pic
     d.read    = read_f256
     d.write   = write_f256
     d.delete  = delete_f256

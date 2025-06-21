@@ -15,7 +15,7 @@ import "core:prof/spall"
 make_simple6502 :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
     d        := new(Bus)
     d.name    = name
-    d.pic     = pic
+    d.pic0    = pic
     d.read    = read_simple6502
     d.write   = write_simple6502
     d.delete  = delete_simple6502

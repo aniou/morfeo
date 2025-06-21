@@ -37,9 +37,10 @@ KBD_DATA        :: 0x00 // $AF1803 (FMX: $AF1060) for reading and writing
 KBD_COMMAND     :: 0x04 // $AF1807 (FMX: $AF1064) for writing
 KBD_STATUS      :: 0x04 // $AF1807 (FMX: $AF1064) for reading
 
-PS2 :: struct {
-    read:     proc(^PS2, emu.Bitsize, u32, u32) -> u32,
-    write:    proc(^PS2, emu.Bitsize, u32, u32,    u32),
+BITS :: emu.Bitsize
+PS2  :: struct {
+    read:     proc(^PS2, BITS, u32, u32) -> u32,
+    write:    proc(^PS2, BITS, u32, u32,    u32),
     read8:    proc(^PS2, u32) -> u8,
     write8:   proc(^PS2, u32, u8),
     send_key: proc(^PS2, u8),
@@ -103,40 +104,26 @@ FMX:
     KBD_STATUS      :: 0x04 // $AF1064 for reading
 */
 
-ps2_read :: proc(s: ^PS2, mode: emu.Bitsize, addr_orig, addr: u32) -> (val: u32) {
+ps2_read :: proc(s: ^PS2, mode: BITS, base, busaddr: u32) -> (val: u32) {
 
     if mode != .bits_8 {
-        emu.unsupported_read_size(#procedure, s.name, s.id, mode, addr_orig)
+        emu.unsupported_read_size(#procedure, s.name, s.id, mode, busaddr)
         return
     }
 
-    /*
-    if s.fmx {
-        val = cast(u32) ps2_read8(s, addr+3)
-    } else {
-        val = cast(u32) ps2_read8(s, addr)
-    }
-    */
-    val = cast(u32) ps2_read8(s, addr)
+    val = cast(u32) ps2_read8(s, busaddr - base)
 
     return
 }
 
-ps2_write :: proc(s: ^PS2, mode: emu.Bitsize, addr_orig, addr, val: u32) {
+ps2_write :: proc(s: ^PS2, mode: BITS, base, busaddr, val: u32) {
 
     if mode != .bits_8 {
-        emu.unsupported_write_size(#procedure, s.name, s.id, mode, addr_orig, val)
+        emu.unsupported_write_size(#procedure, s.name, s.id, mode, busaddr, val)
         return
     }
 
-    /*
-    if s.fmx { 
-        ps2_write8(s, addr+3, u8(val))
-    } else {
-        ps2_write8(s, addr,   u8(val))
-    }
-    */
-    ps2_write8(s, addr,   u8(val))
+    ps2_write8(s, busaddr - base,   u8(val))
 
     return
 }

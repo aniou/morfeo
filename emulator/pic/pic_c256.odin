@@ -117,11 +117,16 @@ pic_c256_make :: proc(name: string) -> ^PIC {
 // four, separate groups or creating non-trivial selector. Finally it
 // will lead to much more complex solution when irq trigger come to play.
 //
-pic_c256_read :: proc(pic: ^PIC, size: emu.Bitsize, addr_orig, addr: u32) -> (val: u32) {
+pic_c256_read :: proc(pic: ^PIC, size: BITS, base, busaddr: u32) -> (val: u32) {
 
-    if size != .bits_8 do emu.unsupported_read_size(#procedure, pic.name, pic.id, size, addr_orig)
+    if size != .bits_8 {
+        emu.unsupported_read_size(#procedure, pic.name, pic.id, size, busaddr)
+        return
+    }
 
+    addr      := busaddr                // current version has fixed adressess
     d         := &pic.model.(PIC_C256)
+
     switch Register_pic_c256(addr) {
     case .INT_PENDING_REG0:
         val |= 0x01 if d.pending[.FNX0_INT00_SOF         ] else 0
@@ -276,11 +281,16 @@ pic_c256_read :: proc(pic: ^PIC, size: emu.Bitsize, addr_orig, addr: u32) -> (va
     return
 }
 
-pic_c256_write :: proc(pic: ^PIC, size: emu.Bitsize, addr_orig, addr, val: u32)  {
+pic_c256_write :: proc(pic: ^PIC, size: BITS, base, busaddr, val: u32)  {
 
-    if size != .bits_8 do emu.unsupported_write_size(#procedure, pic.name, pic.id, size, addr_orig, val)
+    if size != .bits_8 {
+        emu.unsupported_write_size(#procedure, pic.name, pic.id, size, busaddr, val)
+        return
+    }
 
+    addr      := busaddr                // current version has fixed adressess
     d         := &pic.model.(PIC_C256)
+
     switch Register_pic_c256(addr) {
     case .INT_PENDING_REG0:
         if (val & 0x01) != 0 do d.pending[.FNX0_INT00_SOF         ] = false 

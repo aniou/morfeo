@@ -229,7 +229,7 @@ send_key_to_ps2 :: proc(p: ^platform.Platform, code: sdl2.Scancode, event: sdl2.
         ps2code += 0x80
     }
 
-    p.bus.ps2->send_key(ps2code)
+    p.bus.ps20->send_key(ps2code)
     // irq!
 
 

@@ -15,7 +15,7 @@ import "core:prof/spall"
 a2560x_make :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
     d        := new(Bus)
     d.name    = name
-    d.pic     = pic
+    d.pic0    = pic
     d.read    = a2560x_read
     d.write   = a2560x_write
     d.delete  = a2560x_delete
@@ -38,11 +38,11 @@ a2560x_read :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32) {
     case 0x00_A0_0000 ..= 0x00_BF_FFFF:  emu.read_not_implemented(#procedure, "vram1", size, addr)  
     case 0x02_00_0000 ..= 0x05_FF_FFFF:  emu.read_not_implemented(#procedure, "dram0", size, addr)
     case 0xFE_C0_0080 ..= 0xFE_C0_009F:  val =  bus.rtc->read(size, addr, addr - 0xFE_C0_0080)        // XXX unify that
-    case 0xFE_C0_0100 ..= 0xFE_C0_011F:  val =  bus.pic->read(size, addr, addr - 0xFE_C0_0100)
+    case 0xFE_C0_0100 ..= 0xFE_C0_011F:  val =  bus.pic0->read(size, 0xFE_C0_0100, addr)
     case 0xFE_C0_0220                 :  val =  bus.gpu0.frames   // TIMER 3
     case 0xFE_C0_0224                 :  val =  bus.gpu1.frames   // TIMER 4 
     case 0xFE_C0_0400 ..= 0xFE_C0_040F:  val = bus.ata0->read(size, addr, addr - 0xFE_C0_0400)
-    case 0xFE_C0_2060 ..= 0xFE_C0_2068:  val =  bus.ps2->read(size, addr, addr - 0xFE_C0_2060)
+    case 0xFE_C0_2060 ..= 0xFE_C0_2068:  val =  bus.ps20->read(size, 0xFE_C0_2060, addr)
 
     case 0xFE_C4_0000 ..= 0xFE_C4_003C:  val = bus.gpu0->read(size, addr, addr - 0xFE_C4_0000, .MAIN_A)
     case 0xFE_C4_8000 ..= 0xFE_C4_8FFF:  val = bus.gpu0->read(size, addr, addr - 0xFE_C4_8000, .FONT_BANK0)
@@ -78,10 +78,10 @@ a2560x_write :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     case 0x00_A0_0000 ..= 0x00_BF_FFFF:  emu.write_not_implemented(#procedure, "vram1", size, addr, val)   // 8M in 2M banks?
     case 0x02_00_0000 ..= 0x05_FF_FFFF:  emu.write_not_implemented(#procedure, "dram0", size, addr, val)
     case 0xFE_C0_0080 ..= 0xFE_C0_009F:   bus.rtc->write(size, addr, addr - 0xFE_C0_0080, val)        // XXX unify that
-    case 0xFE_C0_0100 ..= 0xFE_C0_011F:   bus.pic->write(size, addr, addr - 0xFE_C0_0100, val)
+    case 0xFE_C0_0100 ..= 0xFE_C0_011F:   bus.pic0->write(size, 0xFE_C0_0100, addr, val)
 
     case 0xFE_C0_0400 ..= 0xFE_C0_040F:  bus.ata0->write(size, addr, addr - 0xFE_C0_0400, val)
-    case 0xFE_C0_2060 ..= 0xFE_C0_2068:   bus.ps2->write(size, addr, addr - 0xFE_C0_2060, val)
+    case 0xFE_C0_2060 ..= 0xFE_C0_2068:   bus.ps20->write(size, 0xFE_C0_2060, addr, val)
 
     case 0xFE_C4_0000 ..= 0xFE_C4_003C:  bus.gpu0->write(size, addr, addr - 0xFE_C4_0000, val, .MAIN_A)
     case 0xFE_C4_8000 ..= 0xFE_C4_8FFF:  bus.gpu0->write(size, addr, addr - 0xFE_C4_8000, val, .FONT_BANK0)

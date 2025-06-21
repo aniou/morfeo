@@ -42,9 +42,10 @@ BUS_C256 :: struct {
 c256_make :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
     d        := new(Bus)
     d.name    = name
-    d.pic     = pic
+    d.pic0    = pic
     d.delete  = c256_delete
     d.debug   = false
+    d.peek    = c256_read    // XXX: reconsider peek implementation
     d.read    = c256_read
     d.write   = c256_write
 
@@ -83,10 +84,10 @@ c256_read :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32) {
     //log.debugf("%s read     from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
 
     switch addr {
-    case 0x00_0100 ..= 0x00_012B:  val = bus.inu->read(size, addr, addr - 0x00_0100)
-    case 0x00_0140 ..= 0x00_014F:  val =  bus.pic->read(size, addr, addr)
-    case 0x00_0000 ..= SRAM_END    :  val = bus.ram0->read(size, 0x0000, addr)                    // 2 or 4 MB
-    case PS2_START    ..= PS2_END     :  val =  bus.ps2->read(size, addr, addr - PS2_START)  // AF_1803-7 or AF_1060-4
+    case 0x00_0100 ..= 0x00_012B:  val = bus.inu0->read(size, 0x00_0100, addr)
+    case 0x00_0140 ..= 0x00_014F:  val = bus.pic0->read(size, 0x00_0140, addr)
+    case 0x00_0000 ..= SRAM_END :  val = bus.ram0->read(size, 0x00_0000, addr)  // 2 or 4 MB
+    case PS2_START ..= PS2_END  :  val = bus.ps20->read(size, PS2_START, addr)  // AF_1803-7 or AF_1060-4
     case 0xAF_0400 ..= 0xAF_040F:  val =  c256_dma_read(bus, size, addr)
     case 0xAF_0420 ..= 0xAF_0430:  val =  c256_dma_read(bus, size, addr)
     case 0xAF_0500 ..= 0xAF_05FF:  val = bus.gpu0->read(size, addr, addr - 0xAF_0500, .MOUSEPTR0  )
@@ -127,15 +128,15 @@ c256_write :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     }
 
     switch addr {
-    case 0x00_0100 ..= 0x00_012B:  bus.inu->write(size, addr, addr - 0x00_0100, val)
-    case 0x00_0140 ..= 0x00_014F:  bus.pic->write(size, addr, addr, val)
-    case 0x00_0000 ..= SRAM_END    :  bus.ram0->write(size, 0x00_0000, addr, val                        )
+    case 0x00_0100 ..= 0x00_012B:  bus.inu0->write(size, 0x00_0100, addr, val)
+    case 0x00_0140 ..= 0x00_014F:  bus.pic0->write(size, 0x00_0140, addr, val)
+    case 0x00_0000 ..= SRAM_END :  bus.ram0->write(size, 0x00_0000, addr, val)
+    case PS2_START ..= PS2_END  :  bus.ps20->write(size, PS2_START, addr, val)
     case 0xAF_0400 ..= 0xAF_040F:  c256_dma_write(bus, size, addr, val)
     case 0xAF_0420 ..= 0xAF_0430:  c256_dma_write(bus, size, addr, val)
     case 0xAF_0500 ..= 0xAF_05FF:  bus.gpu0->write(size, addr, addr - 0xAF_0500, val, .MOUSEPTR0  )
     case 0xAF_0600 ..= 0xAF_06FF:  bus.gpu0->write(size, addr, addr - 0xAF_0600, val, .MOUSEPTR1  )
     case 0xAF_0000 ..= 0xAF_07FF:  bus.gpu0->write(size, addr, addr - 0xAF_0000, val, .MAIN_A     )
-    case PS2_START    ..= PS2_END     :  bus.ps2->write (size, addr, addr - PS2_START, val)
     case 0xAF_1F40 ..= 0xAF_1F7F:  bus.gpu0->write(size, addr, addr - 0xAF_1F40, val, .TEXT_FG_LUT)
     case 0xAF_1F80 ..= 0xAF_1FFF:  bus.gpu0->write(size, addr, addr - 0xAF_1F80, val, .TEXT_BG_LUT)
     case 0xAF_2000 ..= 0xAF_3FFF:  bus.gpu0->write(size, addr, addr - 0xAF_2000, val, .LUT        )

@@ -27,7 +27,7 @@ a2560k_write8 :: proc(bus: ^Bus, addr: u32, val: u8) {
 a2560k_make :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
     b        := new(Bus)
     b.name    = name
-    b.pic     = pic
+    b.pic0     = pic
 
     return b
 }

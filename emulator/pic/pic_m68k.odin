@@ -292,8 +292,9 @@ pic_m68k_make :: proc(name: string) -> ^PIC {
 }
 
 // XXX - workaround
-pic_m68k_write :: proc(d: ^PIC, size: emu.Bitsize, addr_orig, addr, val: u32) {
+pic_m68k_write :: proc(d: ^PIC, size: BITS, base, busaddr, val: u32) {
     //d         := &pic.model.(PIC_M68K)
+    addr  := busaddr - base
     switch size {
     case .bits_8: 
         pic_m68k_write8(d, addr, u8(val))
@@ -308,8 +309,9 @@ pic_m68k_write :: proc(d: ^PIC, size: emu.Bitsize, addr_orig, addr, val: u32) {
     return
 }
 
-pic_m68k_read :: proc(d: ^PIC, size: emu.Bitsize, addr_orig, addr: u32) -> (val: u32) {
+pic_m68k_read :: proc(d: ^PIC, size: BITS, base, busaddr: u32) -> (val: u32) {
     //d         := &pic.model.(PIC_M68K)
+    addr  := busaddr - base
     switch size {
     case .bits_8: 
         return cast(u32) pic_m68k_read8(d, addr)
