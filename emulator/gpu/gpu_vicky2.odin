@@ -298,18 +298,20 @@ vicky2_delete :: proc(gpu: ^GPU) {
     return
 }
 
-vicky2_read :: proc(gpu: ^GPU, size: emu.Bitsize, addr_orig, addr: u32, mode: emu.Region = .MAIN) -> (val: u32) {
-    d := &gpu.model.(GPU_Vicky2)
+vicky2_read :: proc(gpu: ^GPU, size: BITS, base, busaddr: u32, mode: emu.Region = .MAIN) -> (val: u32) {
+    d    := &gpu.model.(GPU_Vicky2)
+    addr := busaddr - base
 
     if size != .bits_8 {
-        emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
+        emu.unsupported_read_size(#procedure, d.name, d.id, size, busaddr)
     }
+
 
     #partial switch mode {
     case .MAIN_A: 
-        val = vicky2_read_register(d, size, addr_orig, addr, mode)
+        val = vicky2_read_register(d, size, busaddr, addr, mode)
     case .MAIN_B: 
-        val = vicky2_read_register(d, size, addr_orig, addr, mode)
+        val = vicky2_read_register(d, size, busaddr, addr, mode)
     case .TEXT:
         val = d.text[addr]
     case .TEXT_COLOR:
@@ -330,27 +332,30 @@ vicky2_read :: proc(gpu: ^GPU, size: emu.Bitsize, addr_orig, addr: u32, mode: em
     case .MOUSEPTR1:  val = d.mouseptr1[addr]
 
     case: 
-        emu.read_not_implemented(#procedure, d.name, size, addr_orig)
+        emu.read_not_implemented(#procedure, d.name, size, busaddr)
     }
     return
 }
 
 
-vicky2_write :: proc(gpu: ^GPU, size: emu.Bitsize, addr_orig, addr, val: u32, mode: emu.Region = .MAIN) {
-    d := &gpu.model.(GPU_Vicky2)
+vicky2_write :: proc(gpu: ^GPU, size: BITS, base, busaddr, val: u32, mode: emu.Region = .MAIN) {
+    d    := &gpu.model.(GPU_Vicky2)
+    addr := busaddr - base
+
     if size != .bits_8 {
-        emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
+        emu.unsupported_write_size(#procedure, d.name, d.id, size, busaddr, val)
     } 
+
     #partial switch mode {
     case .MAIN_A: 
-        vicky2_write_register(&d.model.(GPU_Vicky2), size, addr_orig, addr, val, mode)
+        vicky2_write_register(&d.model.(GPU_Vicky2), size, busaddr, addr, val, mode)
 
     case .MAIN_B: 
-        vicky2_write_register(&d.model.(GPU_Vicky2), size, addr_orig, addr, val, mode)
+        vicky2_write_register(&d.model.(GPU_Vicky2), size, busaddr, addr, val, mode)
 
     case .TEXT:
         d.text[addr] = val & 0x00_00_00_ff
-        //log.debugf("vicky2: %s text memory  addr %d value %d", d.name, addr_orig, val)
+        //log.debugf("vicky2: %s text memory  addr %d value %d", d.name, busaddr, val)
 
     case .TEXT_COLOR:
         d.fg[addr] = (val & 0xf0) >> 4
@@ -422,30 +427,31 @@ vicky2_write :: proc(gpu: ^GPU, size: emu.Bitsize, addr_orig, addr, val: u32, mo
         d.vram0[addr] = val
 
     case .MOUSEPTR0:
-        log.debugf("vicky2: %s mouseptr0  addr %d value %d", d.name, addr_orig, val)
+        log.debugf("vicky2: %s mouseptr0  addr %d value %d", d.name, busaddr, val)
         d.mouseptr0[addr] = val
         if d.pointer_selected == .PTR0 {
             vicky2_render_mouse(d)
         }
 
     case .MOUSEPTR1:
-        log.debugf("vicky2: %s mouseptr1  addr %d value %d", d.name, addr_orig, val)
+        log.debugf("vicky2: %s mouseptr1  addr %d value %d", d.name, busaddr, val)
         d.mouseptr1[addr] = val
         if d.pointer_selected == .PTR1 {
             vicky2_render_mouse(d)
         }
 
     case        : 
-        emu.write_not_implemented(#procedure, d.name, size, addr_orig, val)
+        emu.write_not_implemented(#procedure, d.name, size, busaddr, val)
     }
     return
 }
 
 
 @private
-vicky2_write_register :: proc(d: ^GPU_Vicky2, size: emu.Bitsize, addr_orig, addr, val: u32, mode: emu.Region) {
+vicky2_write_register :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr, val: u32, mode: emu.Region) {
+
     if size != .bits_8 {
-        emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
+        emu.unsupported_write_size(#procedure, d.name, d.id, size, busaddr, val)
         return
     }
 
@@ -463,7 +469,7 @@ vicky2_write_register :: proc(d: ^GPU_Vicky2, size: emu.Bitsize, addr_orig, addr
             d.gamma_enabled   = (val & VKY2_MCR_GAMMA_ENABLE)  != 0
             d.gpu_enabled     = (val & VKY2_MCR_VIDEO_DISABLE) == 0
         } else {
-            emu.write_not_implemented(#procedure, ".VKY2_MCR_L/.MAIN_B", size, addr_orig, val)
+            emu.write_not_implemented(#procedure, ".VKY2_MCR_L/.MAIN_B", size, busaddr, val)
         }
 
     case .VKY2_MCR_H:
@@ -486,17 +492,17 @@ vicky2_write_register :: proc(d: ^GPU_Vicky2, size: emu.Bitsize, addr_orig, addr
                 vicky2_recalculate_screen(d)
             }
         } else {
-            emu.write_not_implemented(#procedure, ".VKY2_MCR_H/.MAIN_B", size, addr_orig, val)
+            emu.write_not_implemented(#procedure, ".VKY2_MCR_H/.MAIN_B", size, busaddr, val)
         }
 
     case .VKY2_GAMMA_CR: 
-        emu.write_not_implemented(#procedure, fmt.tprintf("%v", reg), size, addr_orig, val)
+        emu.write_not_implemented(#procedure, fmt.tprintf("%v", reg), size, busaddr, val)
 
     case .VKY2_BCR:
         d.border_enabled = (val & VKY2_BCR_ENABLE )       != 0
 
         if (val & VKY2_BCR_X_SCROLL) != 0 {
-            emu.write_not_implemented(#procedure, "VKY2_A_BCR_X_SCROLL", size, addr_orig, val)
+            emu.write_not_implemented(#procedure, "VKY2_A_BCR_X_SCROLL", size, busaddr, val)
         }
 
     case .VKY2_BRD_COL_B: d.border_color_b =  u8(val); if d.border_enabled do vicky2_recalculate_screen(d)
@@ -513,13 +519,13 @@ vicky2_write_register :: proc(d: ^GPU_Vicky2, size: emu.Bitsize, addr_orig, addr
         d.cursor_rate      = i32((val & VKY2_CCR_RATE_MASK ) >> 1)   // XXX - why i32?
 
         if (val & VKY2_CCR_FONT_PAGE0) != 0 {
-            emu.write_not_implemented(#procedure, "VKY2_CCR_FONT_PAGE0", size, addr_orig, val)
+            emu.write_not_implemented(#procedure, "VKY2_CCR_FONT_PAGE0", size, busaddr, val)
         }
         if (val & VKY2_CCR_FONT_PAGE1) != 0 {
-            emu.write_not_implemented(#procedure, "VKY2_CCR_FONT_PAGE1", size, addr_orig, val)
+            emu.write_not_implemented(#procedure, "VKY2_CCR_FONT_PAGE1", size, busaddr, val)
         }
 
-    case .VKY2_TXT_SAPTR:    emu.write_not_implemented(#procedure, "VKY2_TXT_SAPTR", size, addr_orig, val)
+    case .VKY2_TXT_SAPTR:    emu.write_not_implemented(#procedure, "VKY2_TXT_SAPTR", size, busaddr, val)
     case .VKY2_TXT_CUR_CHAR: d.cursor_character = val
 
     case .VKY2_TXT_CUR_CLR:     
@@ -555,14 +561,15 @@ vicky2_write_register :: proc(d: ^GPU_Vicky2, size: emu.Bitsize, addr_orig, addr
     case .BM1_X_OFFSET    : // not implemented
     case .BM1_Y_OFFSET    : // not implemented
 
-    case                 : emu.write_not_implemented(#procedure, "UNKNOWN",         size, addr_orig, val)
+    case                 : emu.write_not_implemented(#procedure, "UNKNOWN",         size, busaddr, val)
     }
 }
 
 @private
-vicky2_read_register :: proc(d: ^GPU_Vicky2, size: emu.Bitsize, addr_orig, addr: u32, mode: emu.Region) -> (val: u32) {
+vicky2_read_register :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr: u32, mode: emu.Region) -> (val: u32) {
+
     if size != .bits_8 {
-        emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
+        emu.unsupported_read_size(#procedure, d.name, d.id, size, busaddr)
         return
     }
 
@@ -579,7 +586,7 @@ vicky2_read_register :: proc(d: ^GPU_Vicky2, size: emu.Bitsize, addr_orig, addr:
             val |= VKY2_MCR_GAMMA_ENABLE  if d.gamma_enabled   else 0           // Bit[6]
             val |= VKY2_MCR_VIDEO_DISABLE if ! d.gpu_enabled   else 0           // Bit[7]
         } else {
-            emu.read_not_implemented(#procedure, ".VKY2_MCR_L / !.MAIN_A", size, addr_orig)
+            emu.read_not_implemented(#procedure, ".VKY2_MCR_L / !.MAIN_A", size, busaddr)
         }
     case .VKY2_MCR_H:
             val |= VKY2_MODE_800_600  if  d.resolution == VKY2_MODE_800_600  else 0
@@ -613,7 +620,7 @@ vicky2_read_register :: proc(d: ^GPU_Vicky2, size: emu.Bitsize, addr_orig, addr:
         // XXX: cursor font page 0 and 1 read_not implemented!
 
     case .VKY2_TXT_SAPTR:
-        emu.read_not_implemented(#procedure, fmt.tprintf("%v", reg), size, addr_orig)
+        emu.read_not_implemented(#procedure, fmt.tprintf("%v", reg), size, busaddr)
 
     case .VKY2_TXT_CUR_CHAR: 
         val = d.cursor_character
@@ -649,19 +656,19 @@ vicky2_read_register :: proc(d: ^GPU_Vicky2, size: emu.Bitsize, addr_orig, addr:
     case .BM1_X_OFFSET    : val = 0 // not implemented
     case .BM1_Y_OFFSET    : val = 0 // not implemented
 
-    case                 : emu.read_not_implemented(#procedure, "UNKNOWN", size, addr_orig)
+    case                 : emu.read_not_implemented(#procedure, "UNKNOWN", size, busaddr)
     }
     return
 }
 
 @private
-vicky2_b_write_register :: proc(d: ^GPU_Vicky2, size: emu.Bitsize, addr_orig, addr, val: u32) {
-    emu.write_not_implemented(#procedure, d.name, size, addr_orig, val)
+vicky2_b_write_register :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr, val: u32) {
+    emu.write_not_implemented(#procedure, d.name, size, busaddr, val)
 }
 
 @private
-vicky2_b_read_register :: proc(d: ^GPU_Vicky2, size: emu.Bitsize, addr_orig, addr: u32) -> (val: u32) {
-    emu.read_not_implemented(#procedure, d.name, size, addr_orig)
+vicky2_b_read_register :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr: u32) -> (val: u32) {
+    emu.read_not_implemented(#procedure, d.name, size, busaddr)
     return
 }
 

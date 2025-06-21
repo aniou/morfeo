@@ -6,9 +6,10 @@ import "lib:emu"
 
 import "emulator:pic"
 
-GPU :: struct {
-    read:    proc(^GPU, emu.Bitsize, u32, u32, emu.Region) -> u32,
-    write:   proc(^GPU, emu.Bitsize, u32, u32, u32,    emu.Region),
+BITS :: emu.Bitsize
+GPU  :: struct {
+    read:    proc(^GPU, BITS, u32, u32, emu.Region) -> u32,
+    write:   proc(^GPU, BITS, u32, u32, u32,    emu.Region),
     delete:  proc(^GPU            ),
     render:  proc(^GPU            ),
 
@@ -87,11 +88,11 @@ GPU :: struct {
 //    read_bus :: proc {switch b in bus...}
 //    read     :: proc {read_bus, read_gpu} ?
 
-render :: #force_inline proc(gpu: ^GPU) {
-    switch g in gpu.model {
-    case GPU_Vicky3: vicky3_render_text(g)
-    case GPU_Vicky2: 
-    case GPU_tVicky:
-    }
-}
-
+// render :: #force_inline proc(gpu: ^GPU) {
+//     switch g in gpu.model {
+//     case GPU_Vicky3: vicky3_render_text(g)
+//     case GPU_Vicky2: 
+//     case GPU_tVicky:
+//     }
+// }
+ 
