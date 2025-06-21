@@ -83,30 +83,30 @@ c256_read :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32) {
     //log.debugf("%s read     from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
 
     switch addr {
-    case 0x00_00_0100 ..= 0x00_00_012B:  val = bus.inu->read(size, addr, addr - 0x00_00_0100)
-    case 0x00_00_0140 ..= 0x00_00_014F:  val =  bus.pic->read(size, addr, addr)
-    case 0x00_00_0000 ..= SRAM_END    :  val = bus.ram0->read(size, 0x00_0000, addr)                    // 2 or 4 MB
+    case 0x00_0100 ..= 0x00_012B:  val = bus.inu->read(size, addr, addr - 0x00_0100)
+    case 0x00_0140 ..= 0x00_014F:  val =  bus.pic->read(size, addr, addr)
+    case 0x00_0000 ..= SRAM_END    :  val = bus.ram0->read(size, 0x0000, addr)                    // 2 or 4 MB
     case PS2_START    ..= PS2_END     :  val =  bus.ps2->read(size, addr, addr - PS2_START)  // AF_1803-7 or AF_1060-4
-    case 0x00_AF_0400 ..= 0x00_AF_040F:  val =  c256_dma_read(bus, size, addr)
-    case 0x00_AF_0420 ..= 0x00_AF_0430:  val =  c256_dma_read(bus, size, addr)
-    case 0x00_AF_0500 ..= 0x00_AF_05FF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_0500, .MOUSEPTR0  )
-    case 0x00_AF_0600 ..= 0x00_AF_06FF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_0600, .MOUSEPTR1  )
-    case 0x00_AF_0000 ..= 0x00_AF_07FF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_0000, .MAIN_A     )
-    case 0x00_AF_1F40 ..= 0x00_AF_1F7F:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_1F40, .TEXT_FG_LUT)
-    case 0x00_AF_1F80 ..= 0x00_AF_1FFF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_1F80, .TEXT_BG_LUT)
-    case 0x00_AF_2000 ..= 0x00_AF_3FFF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_1F80, .LUT        )
-    case 0x00_AF_8000 ..= 0x00_AF_87FF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_8000, .FONT_BANK0 )
-    case 0x00_AF_8800 ..= 0x00_AF_9FFF:  emu.read_not_implemented(#procedure, "empty0", size, addr)
-    case 0x00_AF_A000 ..= 0x00_AF_BFFF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_A000, .TEXT       )
-    case 0x00_AF_C000 ..= 0x00_AF_DFFF:  val = bus.gpu0->read(size, addr, addr - 0x00_AF_C000, .TEXT_COLOR )
-    case 0x00_AF_E400 ..= 0x00_AF_E41f:  val = 0    // SID0 - silence it for a while
-    case 0x00_AF_E80E                 :  val = 0x03 // hard-coded DIP: boot BASIC
-    case 0x00_AF_E830 ..= 0x00_AF_E839:  val = bus.ata0->read(size, addr, addr - 0x00_AF_E830)
-    case 0x00_AF_E887                 :  val = PLATFORM_ID
-    case 0x00_AF_E000 ..= 0x00_AF_FFFF:  emu.read_not_implemented(#procedure, "io",     size, addr)
-    case 0x00_B0_0000 ..= VRAM_END    :  val = bus.gpu0->read(size, addr, addr - 0x00_B0_0000, .VRAM0      ) // 2 or 4MB
-    case 0x00_F0_0000 ..= 0x00_F7_FFFF:  emu.read_not_implemented(#procedure, "flash0", size, addr)
-    case 0x00_F8_0000 ..= 0x00_FF_FFFF:  emu.read_not_implemented(#procedure, "flash1", size, addr)
+    case 0xAF_0400 ..= 0xAF_040F:  val =  c256_dma_read(bus, size, addr)
+    case 0xAF_0420 ..= 0xAF_0430:  val =  c256_dma_read(bus, size, addr)
+    case 0xAF_0500 ..= 0xAF_05FF:  val = bus.gpu0->read(size, addr, addr - 0xAF_0500, .MOUSEPTR0  )
+    case 0xAF_0600 ..= 0xAF_06FF:  val = bus.gpu0->read(size, addr, addr - 0xAF_0600, .MOUSEPTR1  )
+    case 0xAF_0000 ..= 0xAF_07FF:  val = bus.gpu0->read(size, addr, addr - 0xAF_0000, .MAIN_A     )
+    case 0xAF_1F40 ..= 0xAF_1F7F:  val = bus.gpu0->read(size, addr, addr - 0xAF_1F40, .TEXT_FG_LUT)
+    case 0xAF_1F80 ..= 0xAF_1FFF:  val = bus.gpu0->read(size, addr, addr - 0xAF_1F80, .TEXT_BG_LUT)
+    case 0xAF_2000 ..= 0xAF_3FFF:  val = bus.gpu0->read(size, addr, addr - 0xAF_1F80, .LUT        )
+    case 0xAF_8000 ..= 0xAF_87FF:  val = bus.gpu0->read(size, addr, addr - 0xAF_8000, .FONT_BANK0 )
+    case 0xAF_8800 ..= 0xAF_9FFF:  emu.read_not_implemented(#procedure, "empty0", size, addr)
+    case 0xAF_A000 ..= 0xAF_BFFF:  val = bus.gpu0->read(size, addr, addr - 0xAF_A000, .TEXT       )
+    case 0xAF_C000 ..= 0xAF_DFFF:  val = bus.gpu0->read(size, addr, addr - 0xAF_C000, .TEXT_COLOR )
+    case 0xAF_E400 ..= 0xAF_E41f:  val = 0    // SID0 - silence it for a while
+    case 0xAF_E80E                 :  val = 0x03 // hard-coded DIP: boot BASIC
+    case 0xAF_E830 ..= 0xAF_E839:  val = bus.ata0->read(size, addr, addr - 0xAF_E830)
+    case 0xAF_E887                 :  val = PLATFORM_ID
+    case 0xAF_E000 ..= 0xAF_FFFF:  emu.read_not_implemented(#procedure, "io",     size, addr)
+    case 0xB0_0000 ..= VRAM_END    :  val = bus.gpu0->read(size, addr, addr - 0xB0_0000, .VRAM0      ) // 2 or 4MB
+    case 0xF0_0000 ..= 0xF7_FFFF:  emu.read_not_implemented(#procedure, "flash0", size, addr)
+    case 0xF8_0000 ..= 0xFF_FFFF:  emu.read_not_implemented(#procedure, "flash1", size, addr)
     case                              :  c256_bus_error(bus, "read", size, addr)
     }
 
@@ -127,28 +127,28 @@ c256_write :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     }
 
     switch addr {
-    case 0x00_00_0100 ..= 0x00_00_012B:  bus.inu->write(size, addr, addr - 0x00_00_0100, val)
-    case 0x00_00_0140 ..= 0x00_00_014F:  bus.pic->write(size, addr, addr, val)
-    case 0x00_00_0000 ..= SRAM_END    :  bus.ram0->write(size, 0x00_00_0000, addr, val                        )
-    case 0x00_AF_0400 ..= 0x00_AF_040F:  c256_dma_write(bus, size, addr, val)
-    case 0x00_AF_0420 ..= 0x00_AF_0430:  c256_dma_write(bus, size, addr, val)
-    case 0x00_AF_0500 ..= 0x00_AF_05FF:  bus.gpu0->write(size, addr, addr - 0x00_AF_0500, val, .MOUSEPTR0  )
-    case 0x00_AF_0600 ..= 0x00_AF_06FF:  bus.gpu0->write(size, addr, addr - 0x00_AF_0600, val, .MOUSEPTR1  )
-    case 0x00_AF_0000 ..= 0x00_AF_07FF:  bus.gpu0->write(size, addr, addr - 0x00_AF_0000, val, .MAIN_A     )
+    case 0x00_0100 ..= 0x00_012B:  bus.inu->write(size, addr, addr - 0x00_0100, val)
+    case 0x00_0140 ..= 0x00_014F:  bus.pic->write(size, addr, addr, val)
+    case 0x00_0000 ..= SRAM_END    :  bus.ram0->write(size, 0x00_0000, addr, val                        )
+    case 0xAF_0400 ..= 0xAF_040F:  c256_dma_write(bus, size, addr, val)
+    case 0xAF_0420 ..= 0xAF_0430:  c256_dma_write(bus, size, addr, val)
+    case 0xAF_0500 ..= 0xAF_05FF:  bus.gpu0->write(size, addr, addr - 0xAF_0500, val, .MOUSEPTR0  )
+    case 0xAF_0600 ..= 0xAF_06FF:  bus.gpu0->write(size, addr, addr - 0xAF_0600, val, .MOUSEPTR1  )
+    case 0xAF_0000 ..= 0xAF_07FF:  bus.gpu0->write(size, addr, addr - 0xAF_0000, val, .MAIN_A     )
     case PS2_START    ..= PS2_END     :  bus.ps2->write (size, addr, addr - PS2_START, val)
-    case 0x00_AF_1F40 ..= 0x00_AF_1F7F:  bus.gpu0->write(size, addr, addr - 0x00_AF_1F40, val, .TEXT_FG_LUT)
-    case 0x00_AF_1F80 ..= 0x00_AF_1FFF:  bus.gpu0->write(size, addr, addr - 0x00_AF_1F80, val, .TEXT_BG_LUT)
-    case 0x00_AF_2000 ..= 0x00_AF_3FFF:  bus.gpu0->write(size, addr, addr - 0x00_AF_2000, val, .LUT        )
-    case 0x00_AF_8000 ..= 0x00_AF_87FF:  bus.gpu0->write(size, addr, addr - 0x00_AF_8000, val, .FONT_BANK0 )
-    case 0x00_AF_8800 ..= 0x00_AF_9FFF:  emu.write_not_implemented(#procedure, "empty0", size, addr, val               )
-    case 0x00_AF_A000 ..= 0x00_AF_BFFF:  bus.gpu0->write(size, addr, addr - 0x00_AF_A000, val, .TEXT       )
-    case 0x00_AF_C000 ..= 0x00_AF_DFFF:  bus.gpu0->write(size, addr, addr - 0x00_AF_C000, val, .TEXT_COLOR )
-    case 0x00_AF_E400 ..= 0x00_AF_E41F:  // SID0
-    case 0x00_AF_E830 ..= 0x00_AF_E839:  bus.ata0->write(size, addr, addr - 0x00_AF_E830, val)
-    case 0x00_AF_E000 ..= 0x00_AF_FFFF:  emu.write_not_implemented(#procedure, "io", size, addr, val                   )
-    case 0x00_B0_0000 ..= VRAM_END    :  bus.gpu0->write(size, addr, addr - 0x00_B0_0000, val, .VRAM0      )
-    case 0x00_F0_0000 ..= 0x00_F7_FFFF:  emu.write_not_implemented(#procedure, "flash0", size, addr, val               )
-    case 0x00_F8_0000 ..= 0x00_FF_FFFF:  emu.write_not_implemented(#procedure, "flash1", size, addr, val               )
+    case 0xAF_1F40 ..= 0xAF_1F7F:  bus.gpu0->write(size, addr, addr - 0xAF_1F40, val, .TEXT_FG_LUT)
+    case 0xAF_1F80 ..= 0xAF_1FFF:  bus.gpu0->write(size, addr, addr - 0xAF_1F80, val, .TEXT_BG_LUT)
+    case 0xAF_2000 ..= 0xAF_3FFF:  bus.gpu0->write(size, addr, addr - 0xAF_2000, val, .LUT        )
+    case 0xAF_8000 ..= 0xAF_87FF:  bus.gpu0->write(size, addr, addr - 0xAF_8000, val, .FONT_BANK0 )
+    case 0xAF_8800 ..= 0xAF_9FFF:  emu.write_not_implemented(#procedure, "empty0", size, addr, val               )
+    case 0xAF_A000 ..= 0xAF_BFFF:  bus.gpu0->write(size, addr, addr - 0xAF_A000, val, .TEXT       )
+    case 0xAF_C000 ..= 0xAF_DFFF:  bus.gpu0->write(size, addr, addr - 0xAF_C000, val, .TEXT_COLOR )
+    case 0xAF_E400 ..= 0xAF_E41F:  // SID0
+    case 0xAF_E830 ..= 0xAF_E839:  bus.ata0->write(size, addr, addr - 0xAF_E830, val)
+    case 0xAF_E000 ..= 0xAF_FFFF:  emu.write_not_implemented(#procedure, "io", size, addr, val                   )
+    case 0xB0_0000 ..= VRAM_END    :  bus.gpu0->write(size, addr, addr - 0xB0_0000, val, .VRAM0      )
+    case 0xF0_0000 ..= 0xF7_FFFF:  emu.write_not_implemented(#procedure, "flash0", size, addr, val               )
+    case 0xF8_0000 ..= 0xFF_FFFF:  emu.write_not_implemented(#procedure, "flash1", size, addr, val               )
     case                              :  c256_bus_error(bus, "write", size, addr)
     }
 
