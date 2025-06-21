@@ -26,7 +26,6 @@ read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
     argp := getargs.make_getargs()
     getargs.add_arg(&argp, "d",     "disasm",  .None)
     getargs.add_arg(&argp, "b",     "busdump", .None)
-    getargs.add_arg(&argp, "model", "",        .Required)
     getargs.add_arg(&argp, "dip",   "",        .Required)
     getargs.add_arg(&argp, "disk0", "",        .Required)
     getargs.add_arg(&argp, "gpu",   "",        .Required)
@@ -36,7 +35,7 @@ read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
 
     if ((len(os.args) == 1) || (getargs.get_flag(&argp, "h"))) {
         args_ok = false
-        fmt.printf("\nUsage: morfeo [-d] [-b] [--model fmx|u|u+] [--dip ...] [--gpu=0 or 1] [--disk0 path-to-image] file1.hex [file2.hex]\n")
+        fmt.printf("\nUsage: morfeo [-d] [-b] [--dip 123..8] [--gpu=0 or 1] [--disk0 path-to-image] file1.hex [file2.hex]\n")
         return
     }
 
@@ -50,15 +49,6 @@ read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
         log.errorf("Invalid gpu number (should be 0 or 1)")
         args_ok  = false
         c.gpu_id = 0
-    }
-
-    payload = getargs.get_payload(&argp, "model") or_else "fmx"
-    switch payload {
-        case "fmx": c.model = .C256FMX
-        case "u"  : c.model = .C256U
-        case "u+" : c.model = .C256UPLUS
-        case      : log.errorf("Unknown model %s, should be fmx, u or u+)", payload)
-                    args_ok = false
     }
 
     payload, ok = getargs.get_payload(&argp, "disk0")
