@@ -42,7 +42,7 @@ c256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
     p.bus.ram0  = ram.ram_make       ("ram0", ramsize)
     p.bus.gpu0  = gpu.vicky2_make    ("gpu0", pic, 0, vramsize, config.dip)
     p.bus.ps20  = ps2.ps2_make       ("ps2",  pic, config.model)
-    p.bus.rtc   = rtc.bq4802_make    ("rtc0", pic)
+    p.bus.rtc0  = rtc.bq4802_make    ("rtc0", pic)
     p.bus.inu0  = inu.inu_c256_make  ("inu0")
     p.bus.ata0  = ata.pata_make      ("ata0")          // XXX - update to PIC
     p.cpu       = cpu.make_w65c816   ("cpu0", p.bus)
@@ -60,7 +60,7 @@ c256_delete :: proc(p: ^Platform) {
     p.bus.pic0->delete()
     p.bus.ps20->delete()
     p.bus.ram0->delete()
-     p.bus.rtc->delete()
+    p.bus.rtc0->delete()
     p.bus.inu0->delete()
          p.bus->delete()
 

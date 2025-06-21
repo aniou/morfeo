@@ -28,7 +28,7 @@ Bus :: struct {
     ps20:    ^ps2.PS2,     // looks weird, but in future... multiple ps2?
     gpu0:    ^gpu.GPU,
     gpu1:    ^gpu.GPU,
-     rtc:    ^rtc.RTC,
+    rtc0:    ^rtc.RTC,
     ata0:    ^ata.PATA,
     ram0:    ^ram.RAM,	   // first slot (ram/sram/flash...)
     ram1:    ^ram.RAM,     // second...

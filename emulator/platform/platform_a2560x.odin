@@ -20,7 +20,7 @@ a2560x_make :: proc() -> ^Platform {
     p.bus.gpu0  = gpu.vicky3_make  ("A", pic, 0, 0)        // XXX - no DIP switch support
     p.bus.gpu1  = gpu.vicky3_make  ("B", pic, 1, 0)        // XXX - no DIP switch support
     p.bus.ps20  = ps2.ps2_make     ("ps20", pic, .C256FMX)    // XXX - change to proper id
-    p.bus.rtc   = rtc.bq4802_make  ("rtc0", pic)
+    p.bus.rtc0  = rtc.bq4802_make  ("rtc0", pic)
     p.bus.ram0  = ram.ram_make     ("ram0", 0x40_0000)
     p.cpu       = cpu.m68k_make    ("cpu0", p.bus)
 
@@ -35,7 +35,7 @@ a2560x_delete :: proc(p: ^Platform) {
     p.bus.pic0->delete()
     p.bus.ps20->delete()
     p.bus.ram0->delete()
-     p.bus.rtc->delete()
+    p.bus.rtc0->delete()
          p.cpu->delete()
          p.bus->delete()
 

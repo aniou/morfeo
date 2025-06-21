@@ -8,6 +8,8 @@ import "core:thread"
 import "emulator:pic"
 import "lib:emu"
 
+BITS :: emu.Bitsize
+
 /*
 
  bq4802Y: 5-V   Operation
@@ -68,10 +70,10 @@ RTC :: struct {
     id:     u8,
     pic:    ^pic.PIC,
 
-    read:     proc(^RTC, emu.Bitsize, u32, u32) -> u32,
-    write:    proc(^RTC, emu.Bitsize, u32, u32,    u32),
-    read8:    proc(^RTC, u32) -> u8,
-    write8:   proc(^RTC, u32, u8),
+    read:     proc(^RTC, BITS, u32, u32) -> u32,
+    write:    proc(^RTC, BITS, u32, u32,    u32),
+    //read8:    proc(^RTC, u32) -> u8,
+    //write8:   proc(^RTC, u32, u8),
     delete:   proc(^RTC),
 
     clock:    ^thread.Thread,
@@ -82,8 +84,8 @@ bq4802_make :: proc(name: string, pic: ^pic.PIC) -> ^RTC {
     r         := new(RTC)
     r.name     = name
     r.pic      = pic
-    r.read8    = bq4802_read8
-    r.write8   = bq4802_write8
+    //r.read8    = bq4802_read8
+    //r.write8   = bq4802_write8
     r.delete   = bq4802_delete
     r.read     = bq4802_read
     r.write    = bq4802_write
@@ -100,16 +102,20 @@ bq4802_make :: proc(name: string, pic: ^pic.PIC) -> ^RTC {
     return r
 }
 
-bq4802_read :: proc(r: ^RTC, mode: emu.Bitsize, addr_real, addr: u32) -> (val: u32) {
-    log.warnf("%s bq4802 read%d     from %2x  %-15s not implemented", r.name, mode, addr, addr_name(addr))
+bq4802_read :: proc(r: ^RTC, mode: BITS, base, busaddr: u32) -> (val: u32) {
+    addr := busaddr - base
+    log.warnf("%s bq4802 read%d     from %2x  %-15s not implemented", r.name, mode, busaddr, addr_name(addr))
     return 0
 }
 
-bq4802_write :: proc(r: ^RTC, mode: emu.Bitsize, addr_real, addr, val: u32) {
-    log.warnf("%s bq4802 write%d      to  %-15s not implemented", r.name, mode, addr, addr_name(addr))
+bq4802_write :: proc(r: ^RTC, mode: BITS, base, busaddr, val: u32) {
+    addr := busaddr - base
+    log.warnf("%s bq4802 write%d      to  %-15s not implemented", r.name, mode, busaddr, addr_name(addr))
     return
 }
 
+// XXX - not used?
+/*
 bq4802_read8 :: proc(r: ^RTC, addr: u32) -> (val: u8) {
     log.warnf("%s bq4802 read     from %2x  %-15s not implemented", r.name, addr, addr_name(addr))
     return 0
@@ -119,6 +125,7 @@ bq4802_write8 :: proc(r: ^RTC, addr: u32, val: u8) {
     log.warnf("%s bq4802 write %02x to   %2x  %-15s not implemented", r.name, val, addr, addr_name(addr))
     return
 }
+*/
 
 bq4802_delete :: proc(r: ^RTC) {
     r.shutdown = true
