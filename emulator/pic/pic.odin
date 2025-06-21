@@ -7,8 +7,8 @@ PIC :: struct {
     name:       string,
     id:         int, 
 
-    read:       proc(^PIC, emu.Request_Size, u32, u32) -> u32,
-    write:      proc(^PIC, emu.Request_Size, u32, u32,    u32),
+    read:       proc(^PIC, emu.Bitsize, u32, u32) -> u32,
+    write:      proc(^PIC, emu.Bitsize, u32, u32,    u32),
     read8:      proc(^PIC, u32) -> u8,
     write8:     proc(^PIC, u32, u8),
     trigger:    proc(^PIC, IRQ),

@@ -153,7 +153,7 @@ assign_byte4  :: #force_inline proc(dst, arg: u32) -> (val: u32) {
 @private
 c256_dma_read8 :: #force_inline proc(bus: ^Bus, kind: DMATYPE, addr: u32) -> (val: u32) {
     switch kind {
-    case .SRAM:    val = bus.ram0->read(.bits_8, addr)
+    case .SRAM:    val = bus.ram0->read(.bits_8, 0x00, addr)
     case .VRAM:    val = bus.gpu0->read(.bits_8, addr, addr, .VRAM0)
     }
     return
@@ -163,7 +163,7 @@ c256_dma_read8 :: #force_inline proc(bus: ^Bus, kind: DMATYPE, addr: u32) -> (va
 c256_dma_write8 :: #force_inline proc(bus: ^Bus, kind: DMATYPE, addr, val: u32)        {
     switch kind {
     case .SRAM:    //log.debugf("c256_dma_write8: SRAM %04X VAL %02X", addr, val)
-                   bus.ram0->write(.bits_8, addr, val)
+                   bus.ram0->write(.bits_8, 0x00, addr, val)
     case .VRAM:    //log.debugf("c256_dma_write8: VRAM %04X VAL %02X (%v)", addr, val, bus.gpu0.write)
                    bus.gpu0->write(.bits_8, addr, addr, val, .VRAM0)
     }
@@ -399,7 +399,7 @@ c256_vdma_transfer :: proc(mainbus: ^Bus) {
 
 }
 
-c256_dma_read :: proc(mainbus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
+c256_dma_read :: proc(mainbus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32) {
     bus        := &mainbus.model.(BUS_C256)
 
     switch addr {
@@ -472,7 +472,7 @@ c256_dma_read :: proc(mainbus: ^Bus, size: emu.Request_Size, addr: u32) -> (val:
     return
 }
 
-c256_dma_write :: proc(mainbus: ^Bus, size: emu.Request_Size, addr, val: u32) {
+c256_dma_write :: proc(mainbus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     bus        := &mainbus.model.(BUS_C256)
 
     log.debugf("%s DMA write value %02x to addr %08x", #procedure, addr, val)

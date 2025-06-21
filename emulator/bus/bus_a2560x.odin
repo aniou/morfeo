@@ -28,12 +28,12 @@ a2560x_delete :: proc(bus: ^Bus) {
     return
 }
 
-a2560x_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
+a2560x_read :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32) {
     //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
     //log.debugf("%s read       from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
 
     switch addr {
-    case 0x00_00_0000 ..= 0x00_3F_FFFF:  val = bus.ram0->read(size, addr)
+    case 0x00_00_0000 ..= 0x00_3F_FFFF:  val = bus.ram0->read(size, 0x00_00_000, addr)
     case 0x00_80_0000 ..= 0x00_9F_FFFF:  val = bus.gpu1->read(size, addr, addr - 0x00_80_0000, .VRAM0) // XXX VRAMA i VRAMB
     case 0x00_A0_0000 ..= 0x00_BF_FFFF:  emu.read_not_implemented(#procedure, "vram1", size, addr)  
     case 0x02_00_0000 ..= 0x05_FF_FFFF:  emu.read_not_implemented(#procedure, "dram0", size, addr)
@@ -68,12 +68,12 @@ a2560x_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) 
     return
 }
 
-a2560x_write :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
+a2560x_write :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
 
     //log.debugf("%s write%d %08x   to 0x %04X:%04X", bus.name, size, val, u16(addr >> 16), u16(addr & 0x0000_ffff))
     switch addr {
-    case 0x00_00_0000 ..= 0x00_3F_FFFF:  bus.ram0->write(size, addr, val)
+    case 0x00_00_0000 ..= 0x00_3F_FFFF:  bus.ram0->write(size, 0x00_00_0000, addr, val)
     case 0x00_80_0000 ..= 0x00_9F_FFFF:  bus.gpu1->write(size, addr, addr - 0x00_80_0000, val, .VRAM0) // XXX VRAMA i VRAMB
     case 0x00_A0_0000 ..= 0x00_BF_FFFF:  emu.write_not_implemented(#procedure, "vram1", size, addr, val)   // 8M in 2M banks?
     case 0x02_00_0000 ..= 0x05_FF_FFFF:  emu.write_not_implemented(#procedure, "dram0", size, addr, val)
@@ -106,7 +106,7 @@ a2560x_write :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
     return
 }
 
-a2560x_bus_error :: proc(d: ^Bus, op: string, size: emu.Request_Size, addr: u32) {
+a2560x_bus_error :: proc(d: ^Bus, op: string, size: emu.Bitsize, addr: u32) {
     log.errorf("%s err %5s%d    at 0x %04X:%04X - a2560x unknown segment", 
                 d.name, 
                 op, 

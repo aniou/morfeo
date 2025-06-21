@@ -8,7 +8,7 @@ TARGET :: #config(TARGET, "none")
 
 // used by bus read to denote 8/16/32 bits operations
 // XXX: todo - expand to little and big endian ones
-Request_Size :: enum {
+Bitsize :: enum {
     bits_8   = 8,
     bits_16  = 16,
     bits_32  = 32
@@ -20,7 +20,7 @@ Access_Type :: enum {
 }
 
 // used by devices to denote function
-Mode :: enum {
+Region :: enum {
     MAIN,
     MAIN_A,
     MAIN_B,
@@ -68,7 +68,7 @@ Config :: struct {
 
 
 // used by devices
-unsupported_read_size :: proc(procedure, dev_name: string, dev_id: int, mode: Request_Size, addr: u32) {
+unsupported_read_size :: proc(procedure, dev_name: string, dev_id: int, mode: Bitsize, addr: u32) {
     log.errorf("%-12s %s%d read%-2d          from %04X:%04X not supported", 
                 procedure, 
                 dev_name, 
@@ -79,7 +79,7 @@ unsupported_read_size :: proc(procedure, dev_name: string, dev_id: int, mode: Re
 }
 
 // used by devices
-unsupported_write_size :: proc(procedure, dev_name: string, dev_id: int, mode: Request_Size, addr, val: u32) {
+unsupported_write_size :: proc(procedure, dev_name: string, dev_id: int, mode: Bitsize, addr, val: u32) {
     log.errorf("%-12s %s%d write%-2d %04X:%04X to %04X:%04X not supported", 
                 procedure, 
                 dev_name, 
@@ -91,7 +91,7 @@ unsupported_write_size :: proc(procedure, dev_name: string, dev_id: int, mode: R
 }
 
 // used by devices
-write_not_implemented :: proc(procedure, dev_name: string, bits: Request_Size, addr, val: u32) {
+write_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr, val: u32) {
     display_val : string 
     switch bits {
         case .bits_8:  display_val = fmt.aprintf("%02X",        u8(val & 0x0000_00ff))
@@ -108,7 +108,7 @@ write_not_implemented :: proc(procedure, dev_name: string, bits: Request_Size, a
     )
 }
 
-read_not_implemented :: proc(procedure, dev_name: string, bits: Request_Size, addr: u32) {
+read_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr: u32) {
     log.errorf("%-12s %s read  bits%2d   addr %04X:%04X               not implemented at all", 
                 procedure, 
                 dev_name, 

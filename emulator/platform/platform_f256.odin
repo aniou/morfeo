@@ -17,8 +17,8 @@ make_f256 :: proc() -> ^Platform {
     p          := new(Platform)
     pic        := pic.pic_make    ("pic0")          // XXX: dummy, so far
     p.bus       = bus.make_f256   ("bus0", pic)
-    p.bus.ram0  = ram.make_ram    ("ram0", 0x40_0000) // XXX check it
-    p.bus.ram1  = ram.make_ram    ("ram0", 0x40_0000) // XXX check it
+    p.bus.ram0  = ram.ram_make    ("ram0", 0x40_0000) // XXX check it
+    p.bus.ram1  = ram.ram_make    ("ram0", 0x40_0000) // XXX check it
     p.bus.gpu0  = gpu.make_tvicky ("gpu0", p.bus.ram0)
     p.bus.ps2   = ps2.ps2_make    ("ps2",  pic)
     p.bus.rtc   = rtc.bq4802_make ("rtc0", pic)

@@ -28,23 +28,23 @@ delete_simple6502 :: proc(bus: ^Bus) {
     return
 }
 
-read_simple6502   :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
+read_simple6502   :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32) {
     switch addr {
-    case 0x0000 ..= 0xFFFF:  val = bus.ram0->read(size, addr)
+    case 0x0000 ..= 0xFFFF:  val = bus.ram0->read(size, 0x0000, addr)
     case                  :  bus_error_simple6502(bus, "read", size, addr)
     }
     return
 }
 
-write_simple6502   :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
+write_simple6502   :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     switch addr {
-    case 0x0000 ..= 0xFFFF:  bus.ram0->write(size, addr, val)
+    case 0x0000 ..= 0xFFFF:  bus.ram0->write(size, 0x0000, addr, val)
     case                  :  bus_error_simple6502(bus, "write", size, addr)
     }
     return
 }
 
-bus_error_simple6502 :: proc(d: ^Bus, op: string, size: emu.Request_Size, addr: u32) {
+bus_error_simple6502 :: proc(d: ^Bus, op: string, size: emu.Bitsize, addr: u32) {
     log.errorf("%s err %5s%d    at 0x %04X:%04X - simple6502 unknown segment", 
                 d.name, 
                 op, 

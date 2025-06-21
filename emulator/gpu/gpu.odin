@@ -7,8 +7,8 @@ import "lib:emu"
 import "emulator:pic"
 
 GPU :: struct {
-    read:    proc(^GPU, emu.Request_Size, u32, u32, emu.Mode) -> u32,
-    write:   proc(^GPU, emu.Request_Size, u32, u32, u32,    emu.Mode),
+    read:    proc(^GPU, emu.Bitsize, u32, u32, emu.Region) -> u32,
+    write:   proc(^GPU, emu.Bitsize, u32, u32, u32,    emu.Region),
     delete:  proc(^GPU            ),
     render:  proc(^GPU            ),
 

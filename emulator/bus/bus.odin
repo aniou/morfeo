@@ -15,12 +15,14 @@ import "core:prof/spall"
 spall_ctx: spall.Context
 spall_buffer: spall.Buffer
 
+BITS :: emu.Bitsize
+
 Bus :: struct {
     name:    string,
       id:    int,
-    peek:    proc(^Bus, emu.Request_Size, u32) -> u32,
-    read:    proc(^Bus, emu.Request_Size, u32) -> u32,
-   write:    proc(^Bus, emu.Request_Size, u32,     u32),
+    peek:    proc(^Bus, BITS, u32) -> u32,
+    read:    proc(^Bus, BITS, u32) -> u32,
+   write:    proc(^Bus, BITS, u32,    u32),
   delete:    proc(^Bus),
      pic:    ^pic.PIC,
      ps2:    ^ps2.PS2,

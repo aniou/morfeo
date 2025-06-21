@@ -51,7 +51,7 @@ delete_f256 :: proc(bus: ^Bus) {
 // bits A15...A13 are used to lookup to 8-element, 8 bit table
 // and that result is shifted to positon A20-A13
 //
-read_f256 :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
+read_f256 :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32) {
     b     := &bus.model.(BUS_F256)
     bank  := addr & 0xE000              // A15..A13 from addr
     bank >>= 13
@@ -89,7 +89,7 @@ read_f256 :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
     ea    := addr & 0x1FFF                  // A12..A0
     ea    |= b.mlut[b.mlut_active][bank]    // A20..A13
     switch ea {
-    case  0x00_0002 ..= 0x07_FFFF: val = bus.ram0->read(size, addr)                            // RAM   512
+    case  0x00_0002 ..= 0x07_FFFF: val = bus.ram0->read(size, 0x00, addr)                            // RAM   512
     case  0x08_0000 ..= 0x0F_FFFF: emu.read_not_implemented(#procedure, "ram2", size, addr)         // FLASH 512
     case  0x10_0000 ..= 0x13_FFFF: emu.read_not_implemented(#procedure, "ram3", size, addr)         // RAM   256   (expansion)
     case                         : emu.read_not_implemented(#procedure, "bus0", size, addr)
@@ -99,7 +99,7 @@ read_f256 :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
     //case 0x0000 ..= 0xFFFF:  val = bus.ram0->read(size, addr)
 
 
-write_f256   :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
+write_f256   :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     b     := &bus.model.(BUS_F256)
     bank  := addr & 0xE000                      // A15..A13 from addr
     bank >>= 13
@@ -141,7 +141,7 @@ write_f256   :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
     ea    := addr & 0x1FFF                  // A12..A0
     ea    |= b.mlut[b.mlut_active][bank]    // A20..A13
     switch ea {
-    case  0x00_0002 ..= 0x07_FFFF:  bus.ram0->write(size, addr, val)                      // RAM   512
+    case  0x00_0002 ..= 0x07_FFFF:  bus.ram0->write(size, 0x00_0000, addr, val)                      // RAM   512
     case  0x08_0000 ..= 0x0F_FFFF:  emu.write_not_implemented(#procedure, "ram2", size, addr, val)   // FLASH 512
     case  0x10_0000 ..= 0x13_FFFF:  emu.write_not_implemented(#procedure, "ram3", size, addr, val)   // RAM   256   (expansion)
     case                         :  emu.write_not_implemented(#procedure, "bus0", size, addr, val)

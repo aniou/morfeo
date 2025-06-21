@@ -15,7 +15,7 @@ import "core:log"
 test816_make :: proc() -> ^Platform {
     p          := new(Platform)
     p.bus       = bus.test816_make("bus0", nil)
-    p.bus.ram0  = ram.make_ram    ("ram0", 256 * 65536)      // 16 megabytes
+    p.bus.ram0  = ram.ram_make    ("ram0", 256 * 65536)      // 16 megabytes
     p.cpu       = cpu.make_w65c816("cpu0", p.bus)
 
     p.delete    = test816_delete

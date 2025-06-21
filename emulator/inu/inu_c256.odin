@@ -28,14 +28,14 @@ inu_c256_delete :: proc(inu: ^INU) {
     return
 }
 
-inu_c256_read :: proc(inu: ^INU, size: emu.Request_Size, addr_orig, addr: u32) -> (val: u32) {
+inu_c256_read :: proc(inu: ^INU, size: emu.Bitsize, addr_orig, addr: u32) -> (val: u32) {
 
     m         := &inu.model.(INU_C256)
 	val        = m.mem[addr]
 	return
 }
 
-inu_c256_write :: proc(inu: ^INU, size: emu.Request_Size, addr_orig, addr, val: u32)  {
+inu_c256_write :: proc(inu: ^INU, size: emu.Bitsize, addr_orig, addr, val: u32)  {
 
     m         := &inu.model.(INU_C256)
 

@@ -68,8 +68,8 @@ RTC :: struct {
     id:     u8,
     pic:    ^pic.PIC,
 
-    read:     proc(^RTC, emu.Request_Size, u32, u32) -> u32,
-    write:    proc(^RTC, emu.Request_Size, u32, u32,    u32),
+    read:     proc(^RTC, emu.Bitsize, u32, u32) -> u32,
+    write:    proc(^RTC, emu.Bitsize, u32, u32,    u32),
     read8:    proc(^RTC, u32) -> u8,
     write8:   proc(^RTC, u32, u8),
     delete:   proc(^RTC),
@@ -100,12 +100,12 @@ bq4802_make :: proc(name: string, pic: ^pic.PIC) -> ^RTC {
     return r
 }
 
-bq4802_read :: proc(r: ^RTC, mode: emu.Request_Size, addr_real, addr: u32) -> (val: u32) {
+bq4802_read :: proc(r: ^RTC, mode: emu.Bitsize, addr_real, addr: u32) -> (val: u32) {
     log.warnf("%s bq4802 read%d     from %2x  %-15s not implemented", r.name, mode, addr, addr_name(addr))
     return 0
 }
 
-bq4802_write :: proc(r: ^RTC, mode: emu.Request_Size, addr_real, addr, val: u32) {
+bq4802_write :: proc(r: ^RTC, mode: emu.Bitsize, addr_real, addr, val: u32) {
     log.warnf("%s bq4802 write%d      to  %-15s not implemented", r.name, mode, addr, addr_name(addr))
     return
 }

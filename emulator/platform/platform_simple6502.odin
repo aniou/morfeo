@@ -15,7 +15,7 @@ import "core:log"
 make_simple6502 :: proc() -> ^Platform {
     p          := new(Platform)
     p.bus       = bus.make_simple6502("bus0", nil)
-    p.bus.ram0  = ram.make_ram("ram0", 65536)
+    p.bus.ram0  = ram.ram_make("ram0", 65536)
     p.cpu       = cpu.make_w65c02s("cpu0", p.bus)
 
     p.delete    = delete_simple6502

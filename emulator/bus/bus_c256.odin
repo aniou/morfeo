@@ -78,14 +78,14 @@ c256_delete :: proc(bus: ^Bus) {
 // $f0:0000 - $f7:ffff - 512KB System Flash
 // $f8:0000 - $ff:ffff - 512KB User Flash (if populated)
 
-c256_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
+c256_read :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32) {
     //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
     //log.debugf("%s read     from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
 
     switch addr {
     case 0x00_00_0100 ..= 0x00_00_012B:  val = bus.inu->read(size, addr, addr - 0x00_00_0100)
     case 0x00_00_0140 ..= 0x00_00_014F:  val =  bus.pic->read(size, addr, addr)
-    case 0x00_00_0000 ..= SRAM_END    :  val = bus.ram0->read(size, addr)                    // 2 or 4 MB
+    case 0x00_00_0000 ..= SRAM_END    :  val = bus.ram0->read(size, 0x00_0000, addr)                    // 2 or 4 MB
     case PS2_START    ..= PS2_END     :  val =  bus.ps2->read(size, addr, addr - PS2_START)  // AF_1803-7 or AF_1060-4
     case 0x00_AF_0400 ..= 0x00_AF_040F:  val =  c256_dma_read(bus, size, addr)
     case 0x00_AF_0420 ..= 0x00_AF_0430:  val =  c256_dma_read(bus, size, addr)
@@ -117,7 +117,10 @@ c256_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
 }
 
 // XXX: todo - add base address for ram?
-c256_write :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
+// old signature: size, busaddr, addr, val
+// new signature  size, base,    addr, val
+//
+c256_write :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
     if bus.debug {
         log.debugf("%s write%d %08x   to 0x %04X:%04X", bus.name, size, val, u16(addr >> 16), u16(addr & 0x0000_ffff))
@@ -126,7 +129,7 @@ c256_write :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
     switch addr {
     case 0x00_00_0100 ..= 0x00_00_012B:  bus.inu->write(size, addr, addr - 0x00_00_0100, val)
     case 0x00_00_0140 ..= 0x00_00_014F:  bus.pic->write(size, addr, addr, val)
-    case 0x00_00_0000 ..= SRAM_END    :  bus.ram0->write(size, addr, val                        )
+    case 0x00_00_0000 ..= SRAM_END    :  bus.ram0->write(size, 0x00_00_0000, addr, val                        )
     case 0x00_AF_0400 ..= 0x00_AF_040F:  c256_dma_write(bus, size, addr, val)
     case 0x00_AF_0420 ..= 0x00_AF_0430:  c256_dma_write(bus, size, addr, val)
     case 0x00_AF_0500 ..= 0x00_AF_05FF:  bus.gpu0->write(size, addr, addr - 0x00_AF_0500, val, .MOUSEPTR0  )
@@ -152,7 +155,7 @@ c256_write :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
     return
 }
 
-c256_bus_error :: proc(d: ^Bus, op: string, size: emu.Request_Size, addr: u32) {
+c256_bus_error :: proc(d: ^Bus, op: string, size: emu.Bitsize, addr: u32) {
     log.errorf("%s err %5s%d    at 0x %04X:%04X - c256 unknown segment", 
                 d.name, 
                 op, 

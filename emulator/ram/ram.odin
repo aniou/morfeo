@@ -3,32 +3,24 @@ package ram
 
 import "lib:emu"
 
-RAM :: struct {
-    delete:  proc(^RAM           ),
-    read:    proc(^RAM, emu.Request_Size, u32)-> u32 ,
-    write:   proc(^RAM, emu.Request_Size, u32,   u32),
+BITS :: emu.Bitsize
 
-    //dma_read8:   proc(^RAM, u32) -> u32,
-    //dma_write8:  proc(^RAM, u32,    u32),
+RAM  :: struct {
+    peek:    proc(^RAM, BITS, u32, u32) -> u32,
+    read:    proc(^RAM, BITS, u32, u32) -> u32,
+    write:   proc(^RAM, BITS, u32, u32,    u32),
+    delete:  proc(^RAM),
 
     name:   string,
+    size:   int,
+
     data:   [dynamic]u8,
-    size:   int
 }
 
-/*
-ram_dma_read8 :: proc(d: ^RAM, addr: u32) -> (val: u32) {
-    val  = u32(d.data[addr])
-    return
-}
 
-ram_dma_write8 :: proc(d: ^RAM, addr, val: u32) {
-    d.data[addr] = u8(val)
-    return
-}
-*/
+ram_read :: #force_inline proc(ram: ^RAM, mode: BITS, base, busaddr: u32) -> (val: u32) {
+    addr := busaddr - base
 
-read_ram :: #force_inline proc(ram: ^RAM, mode: emu.Request_Size, addr: u32) -> (val: u32) {
     switch mode {
     case .bits_8: 
         val = cast(u32) ram.data[addr]
@@ -42,7 +34,9 @@ read_ram :: #force_inline proc(ram: ^RAM, mode: emu.Request_Size, addr: u32) -> 
     return
 }
 
-write_ram :: #force_inline proc(ram: ^RAM, mode: emu.Request_Size, addr, val: u32) {
+ram_write :: #force_inline proc(ram: ^RAM, mode: BITS, base, busaddr, val: u32) {
+    addr := busaddr - base
+
     switch mode {
     case .bits_8: 
         ram.data[addr] = cast(u8) val
@@ -54,25 +48,23 @@ write_ram :: #force_inline proc(ram: ^RAM, mode: emu.Request_Size, addr, val: u3
     return
 }
 
-make_ram :: proc(name: string, size: int) -> ^RAM {
-
+ram_make :: proc(name: string, size: int) -> ^RAM {
     ram           := new(RAM)
     ram.name       = name
-    ram.delete     = delete_ram
-    ram.read       = read_ram
-    ram.write      = write_ram
-    //ram.dma_read8  = ram_dma_read8
-    //ram.dma_write8 = ram_dma_write8
-    ram.data       = make([dynamic]u8,     size+3)
+    ram.delete     = ram_delete
+    ram.peek       = ram_read
+    ram.read       = ram_read
+    ram.write      = ram_write
+    ram.data       = make([dynamic]u8, size+3) // margin for m68k 32-bit writing at 0x..FF
     ram.size       = size
 
-    //g         := RAM_Ram{ram = ram}
     return ram
 }
 
-delete_ram :: proc(ram: ^RAM) {
+ram_delete :: proc(ram: ^RAM) {
     delete(ram.data)
     free(ram)
     return
 }
 
+// eof

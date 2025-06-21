@@ -203,7 +203,7 @@ vicky3_delete :: proc(gpu: ^GPU) {
 }
 
 
-vicky3_read :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr: u32, mode: emu.Mode = .MAIN) -> (val: u32) {
+vicky3_read :: proc(gpu: ^GPU, size: emu.Bitsize, addr_orig, addr: u32, mode: emu.Region = .MAIN) -> (val: u32) {
     d := &gpu.model.(GPU_Vicky3)
     #partial switch mode {
     case .MAIN_A: 
@@ -269,7 +269,7 @@ vicky3_read :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr: u32, mod
 }
 
 
-vicky3_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u32, mode: emu.Mode = .MAIN) {
+vicky3_write :: proc(gpu: ^GPU, size: emu.Bitsize, addr_orig, addr, val: u32, mode: emu.Region = .MAIN) {
     d := &gpu.model.(GPU_Vicky3)
     #partial switch mode {
     case .MAIN_A: 
@@ -345,7 +345,7 @@ vicky3_write :: proc(gpu: ^GPU, size: emu.Request_Size, addr_orig, addr, val: u3
 
 
 @private
-vicky3_write_register :: proc(d: ^GPU_Vicky3, size: emu.Request_Size, addr_orig, addr, val: u32, mode: emu.Mode) {
+vicky3_write_register :: proc(d: ^GPU_Vicky3, size: emu.Bitsize, addr_orig, addr, val: u32, mode: emu.Region) {
     if size != .bits_32 {
         emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
         return
@@ -482,7 +482,7 @@ vicky3_write_register :: proc(d: ^GPU_Vicky3, size: emu.Request_Size, addr_orig,
 }
 
 @private
-vicky3_read_register :: proc(d: ^GPU_Vicky3, size: emu.Request_Size, addr_orig, addr: u32, mode: emu.Mode) -> (val: u32) {
+vicky3_read_register :: proc(d: ^GPU_Vicky3, size: emu.Bitsize, addr_orig, addr: u32, mode: emu.Region) -> (val: u32) {
     if size != .bits_32 {
         emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
         return
@@ -568,12 +568,12 @@ vicky3_read_register :: proc(d: ^GPU_Vicky3, size: emu.Request_Size, addr_orig, 
 }
 
 @private
-vicky3_b_write_register :: proc(d: ^GPU_Vicky3, size: emu.Request_Size, addr_orig, addr, val: u32) {
+vicky3_b_write_register :: proc(d: ^GPU_Vicky3, size: emu.Bitsize, addr_orig, addr, val: u32) {
     emu.write_not_implemented(#procedure, d.name, size, addr_orig, val)
 }
 
 @private
-vicky3_b_read_register :: proc(d: ^GPU_Vicky3, size: emu.Request_Size, addr_orig, addr: u32) -> (val: u32) {
+vicky3_b_read_register :: proc(d: ^GPU_Vicky3, size: emu.Bitsize, addr_orig, addr: u32) -> (val: u32) {
     emu.read_not_implemented(#procedure, d.name, size, addr_orig)
     return
 }

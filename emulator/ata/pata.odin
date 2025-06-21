@@ -148,8 +148,8 @@ PATA :: struct {
     name:     string,
     id:       int,
 
-    read:     proc(^PATA, emu.Request_Size, u32, u32) -> u32,
-    write:    proc(^PATA, emu.Request_Size, u32, u32,    u32),
+    read:     proc(^PATA, emu.Bitsize, u32, u32) -> u32,
+    write:    proc(^PATA, emu.Bitsize, u32, u32,    u32),
     read8:    proc(^PATA, u32) -> u8,
     write8:   proc(^PATA, u32,    u8),
     delete:   proc(^PATA            ),
@@ -175,7 +175,7 @@ pata_make :: proc(name:string) -> ^PATA {
     return pata
 }
 
-pata_read :: proc(d: ^PATA, mode: emu.Request_Size, addr_orig, addr: u32) -> (val: u32) {
+pata_read :: proc(d: ^PATA, mode: emu.Bitsize, addr_orig, addr: u32) -> (val: u32) {
     switch mode {
         case .bits_8:  
             val = cast(u32) pata_read8(d, addr)
@@ -188,7 +188,7 @@ pata_read :: proc(d: ^PATA, mode: emu.Request_Size, addr_orig, addr: u32) -> (va
     return
 }
 
-pata_write :: proc(d: ^PATA, mode: emu.Request_Size, addr_orig, addr, val: u32) {
+pata_write :: proc(d: ^PATA, mode: emu.Bitsize, addr_orig, addr, val: u32) {
     switch mode {
         case .bits_8:   pata_write8(d, addr, u8(val))
         case .bits_16:  emu.unsupported_write_size(#procedure, d.name, d.id, mode, addr_orig, val)

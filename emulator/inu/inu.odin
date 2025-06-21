@@ -8,9 +8,9 @@ INU :: struct {
     id:     int,
 
     delete:  proc(^INU           ),
-    peek:    proc(^INU, emu.Request_Size, u32, u32)-> u32 ,
-    read:    proc(^INU, emu.Request_Size, u32, u32)-> u32 ,
-    write:   proc(^INU, emu.Request_Size, u32, u32,   u32),
+    peek:    proc(^INU, emu.Bitsize, u32, u32)-> u32 ,
+    read:    proc(^INU, emu.Bitsize, u32, u32)-> u32 ,
+    write:   proc(^INU, emu.Bitsize, u32, u32,   u32),
 
     model: union {INU_C256}
 }

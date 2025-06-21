@@ -117,7 +117,7 @@ pic_c256_make :: proc(name: string) -> ^PIC {
 // four, separate groups or creating non-trivial selector. Finally it
 // will lead to much more complex solution when irq trigger come to play.
 //
-pic_c256_read :: proc(pic: ^PIC, size: emu.Request_Size, addr_orig, addr: u32) -> (val: u32) {
+pic_c256_read :: proc(pic: ^PIC, size: emu.Bitsize, addr_orig, addr: u32) -> (val: u32) {
 
     if size != .bits_8 do emu.unsupported_read_size(#procedure, pic.name, pic.id, size, addr_orig)
 
@@ -276,7 +276,7 @@ pic_c256_read :: proc(pic: ^PIC, size: emu.Request_Size, addr_orig, addr: u32) -
     return
 }
 
-pic_c256_write :: proc(pic: ^PIC, size: emu.Request_Size, addr_orig, addr, val: u32)  {
+pic_c256_write :: proc(pic: ^PIC, size: emu.Bitsize, addr_orig, addr, val: u32)  {
 
     if size != .bits_8 do emu.unsupported_write_size(#procedure, pic.name, pic.id, size, addr_orig, val)
 

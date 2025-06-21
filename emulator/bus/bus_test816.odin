@@ -28,27 +28,27 @@ test816_delete :: proc(bus: ^Bus) {
     return
 }
 
-test816_read :: proc(bus: ^Bus, size: emu.Request_Size, addr: u32) -> (val: u32) {
+test816_read :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32) {
     //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
     //log.debugf("%s read       from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
     switch addr {
-    case 0x00_00_0000 ..= 0x00_FF_FFFF:  val = bus.ram0->read(size, addr)
+    case 0x00_0000 ..= 0xFF_FFFF:  val = bus.ram0->read(size, 0x00_0000, addr)
     case                              :  test816_bus_error(bus, "read", size, addr)
     }
     return
 }
 
-test816_write :: proc(bus: ^Bus, size: emu.Request_Size, addr, val: u32) {
+test816_write :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
     //log.debugf("%s write%d %08x   to 0x %04X:%04X", bus.name, size, val, u16(addr >> 16), u16(addr & 0x0000_ffff))
     switch addr {
-    case 0x00_00_0000 ..= 0x00_FF_FFFF:  bus.ram0->write(size, addr, val)
+    case 0x00_0000 ..= 0xFF_FFFF:  bus.ram0->write(size, 0x00_0000, addr, val)
     case                              :  test816_bus_error(bus, "write", size, addr)
     }
     return
 }
 
-test816_bus_error :: proc(d: ^Bus, op: string, size: emu.Request_Size, addr: u32) {
+test816_bus_error :: proc(d: ^Bus, op: string, size: emu.Bitsize, addr: u32) {
     log.errorf("%s err %5s%d    at 0x %04X:%04X - test816 unknown segment", 
                 d.name, 
                 op, 
