@@ -55,7 +55,6 @@ PS2  :: struct {
     status:         u8,     // controller status
     CCB:            u8,     // controller configuration byte
     ccb_write_mode: bool,   // denotes that next write should go to CCB
-    fmx:            bool,   // if it is FMX one, then change addressess
 
     first_enabled:  bool,
     second_enabled: bool,
@@ -63,7 +62,7 @@ PS2  :: struct {
     debug:          bool,   // temporary
 }
 
-ps2_make :: proc(name: string, pic: ^pic.PIC, type: emu.Type) -> ^PS2 {
+ps2_make :: proc(name: string, pic: ^pic.PIC) -> ^PS2 {
     s         := new(PS2)
     s.pic      = pic
     s.read     = ps2_read
@@ -76,8 +75,7 @@ ps2_make :: proc(name: string, pic: ^pic.PIC, type: emu.Type) -> ^PS2 {
     s.debug    = true
     s.CCB      = 0
     s.name     = name
-    s.fmx      = type == .C256FMX  // only FMX has different port
-    
+
     return s
 }
 
