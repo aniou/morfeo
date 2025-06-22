@@ -135,6 +135,8 @@ new_renderer_and_texture :: proc() -> (ok: bool) {
     sdl2.SetTextureBlendMode(gui.texture_bm0, sdl2.BlendMode.NONE)
 
     sdl2.SetHint("SDL_HINT_RENDER_BATCHING", "1")
+
+    sdl2.ShowCursor(0)
     
     return true
 }
