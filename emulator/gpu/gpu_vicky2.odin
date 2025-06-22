@@ -145,7 +145,7 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) ->
     gpu       := new(GPU)
     gpu.name   = name
     gpu.id     = id
-    gpu.dip    = dip
+    gpu.dip    = dip ~ 0x20    // HIRES bit logic looks like inverted from physical (0: hi-res)
     gpu.pic    = pic
     gpu.read   = vicky2_read
     gpu.write  = vicky2_write
@@ -170,9 +170,9 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) ->
     g.BM1FB   = new([1024*768]u32)            // bitmap1 framebuffer  - for max size
     g.MOUSEFB = new([  16* 16]u32)            // mouse   framebuffer  - 16x16
 
-    g.screen_x_size  = 800                if dip & DIP_HIRES == DIP_HIRES else 640
-    g.screen_y_size  = 600                if dip & DIP_HIRES == DIP_HIRES else 480
-    g.resolution     = VKY2_MODE_800_600  if dip & DIP_HIRES == DIP_HIRES else VKY2_MODE_640_480
+    g.screen_x_size  = 800                if g.dip & DIP_HIRES == DIP_HIRES else 640
+    g.screen_y_size  = 600                if g.dip & DIP_HIRES == DIP_HIRES else 480
+    g.resolution     = VKY2_MODE_800_600  if g.dip & DIP_HIRES == DIP_HIRES else VKY2_MODE_640_480
     g.screen_resized = false
 
     g.pixel_size           = 1
