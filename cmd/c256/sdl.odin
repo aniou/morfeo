@@ -89,7 +89,7 @@ init_sdl :: proc(p: ^platform.Platform, config: ^emu.Config) -> (ok: bool) {
 
     // windows
     gui.window = sdl2.CreateWindow(
-                 fmt.ctprintf("morfeo: gpu%d", gui.current_gpu),
+                 fmt.ctprintf("morfeo (%s): gpu%d", emu.TARGET, gui.current_gpu),
                  sdl2.WINDOWPOS_UNDEFINED, 
                  sdl2.WINDOWPOS_UNDEFINED, 
                  gui.x_size * gui.scale_mult, 
