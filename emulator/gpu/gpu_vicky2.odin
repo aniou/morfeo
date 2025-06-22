@@ -145,7 +145,7 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) ->
     gpu       := new(GPU)
     gpu.name   = name
     gpu.id     = id
-    gpu.dip    = dip ~ 0x20    // HIRES bit logic looks like inverted from physical (0: hi-res)
+    gpu.dip    = dip
     gpu.pic    = pic
     gpu.read   = vicky2_read
     gpu.write  = vicky2_write
