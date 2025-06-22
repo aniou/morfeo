@@ -19,7 +19,7 @@ a2560x_make :: proc() -> ^Platform {
     p.bus.ata0  = ata.pata_make    ("pata0")          // XXX - update to PIC
     p.bus.gpu0  = gpu.vicky3_make  ("A", pic, 0, 0)        // XXX - no DIP switch support
     p.bus.gpu1  = gpu.vicky3_make  ("B", pic, 1, 0)        // XXX - no DIP switch support
-    p.bus.ps20  = ps2.ps2_make     ("ps20", pic, .C256FMX)    // XXX - change to proper id
+    p.bus.ps20  = ps2.ps2_make     ("ps20", pic)    // XXX - change to proper id
     p.bus.rtc0  = rtc.bq4802_make  ("rtc0", pic)
     p.bus.ram0  = ram.ram_make     ("ram0", 0x40_0000)
     p.cpu       = cpu.m68k_make    ("cpu0", p.bus)

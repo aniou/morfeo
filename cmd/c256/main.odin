@@ -2,6 +2,7 @@ package morfeo
 
 import "lib:emu"
 import "lib:getargs"
+import ini "lib:odin-ini-parser"
 
 import "emulator:platform"
 import "emulator:bus"
@@ -13,66 +14,138 @@ import "core:fmt"
 import "core:log"
 import "core:os"
 import "core:prof/spall"
+import "core:slice"
 import "core:strconv"
+import "core:strings"
 import "core:time"
 
 import "vendor:sdl2"
+
+DEFAULT_CFG :: emu.TARGET + ".ini"
+
+read_ini :: proc(file_path: string) -> Maybe(ini.INI) {
+    bytes, ok := os.read_entire_file_from_filename(file_path)
+    defer delete(bytes)
+
+    if !ok {
+        log.errorf("read_ini: could not read %q\n", file_path)
+        return nil
+    }
+
+    ini, res := ini.parse(bytes)
+    using res.pos
+    switch res.err {
+    case .EOF:              return ini
+    case .IllegalToken:     log.errorf("Illegal token encountered in %q at %d:%d", file_path, line+1, col+1)
+    case .KeyWithoutEquals: log.errorf("Key token found, but not assigned in %q at %d:%d", file_path, line+1, col+1)
+    case .ValueWithoutKey:  log.errorf("Value token found, but not preceeded by a key token in %q at %d:%d", file_path, line+1, col+1)
+    case .UnexpectedEquals: log.errorf("Equals sign found in an unexpected location in %q at %d:%d", file_path, line+1, col+1)
+    }
+
+    return nil
+}
+
+parse_ini :: proc(c: ^emu.Config, file_path: string) {
+    iniconf, ok := read_ini(file_path).?
+    defer ini.ini_delete(&iniconf)
+    if !ok {
+        return
+    }
+    
+    // ---------------------------------------------------------------------------------------------
+    if "platform" in iniconf {
+        keys := make([dynamic]string, 0)
+        for key in iniconf["platform"] {
+            append(&keys, key)
+        }
+        slice.sort(keys[:])
+        for key in keys {
+            switch strings.to_lower(key) {
+            case "dip1" : c.dip |= 0x01 if strings.to_lower(iniconf["platform"][key]) == "on" else 0
+            case "dip2" : c.dip |= 0x02 if strings.to_lower(iniconf["platform"][key]) == "on" else 0
+            case "dip3" : c.dip |= 0x04 if strings.to_lower(iniconf["platform"][key]) == "on" else 0
+            case "dip4" : c.dip |= 0x08 if strings.to_lower(iniconf["platform"][key]) == "on" else 0
+            case "dip5" : c.dip |= 0x10 if strings.to_lower(iniconf["platform"][key]) == "on" else 0
+            case "dip6" : c.dip |= 0x20 if strings.to_lower(iniconf["platform"][key]) == "on" else 0
+            case "dip7" : c.dip |= 0x40 if strings.to_lower(iniconf["platform"][key]) == "on" else 0
+            case "dip8" : c.dip |= 0x80 if strings.to_lower(iniconf["platform"][key]) == "on" else 0
+            case "disk0": c.disk0 = strings.clone(iniconf["platform"][key])
+            case "disk1": c.disk1 = strings.clone(iniconf["platform"][key])
+            case:
+                if strings.has_prefix(key, "file") {
+                    append(&c.files, strings.clone(iniconf["platform"][key]))
+                }
+            }
+        }
+        delete(keys)
+        log.debugf("CONFIG: DIP value is %02x", c.dip)
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    if "gui" in iniconf {
+        if "scale" in iniconf["gui"] {
+            c.gui_scale, ok = strconv.parse_int(iniconf["gui"]["scale"])
+        }
+        if !ok {
+            log.errorf("invalid gui/scale parameter: %s", iniconf["gui"]["scale"])
+            c.gui_scale = 0
+        }
+    }
+
+
+    return
+}
 
 read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
     payload: string
     ok:      bool
 
-    c = new(emu.Config)
+    c       = new(emu.Config)
+
     argp := getargs.make_getargs()
     getargs.add_arg(&argp, "d",     "disasm",  .None)
     getargs.add_arg(&argp, "b",     "busdump", .None)
-    getargs.add_arg(&argp, "dip",   "",        .Required)
+    getargs.add_arg(&argp, "cfg",   "",        .Required)
+    getargs.add_arg(&argp, "dip1",  "",        .Required)
+    getargs.add_arg(&argp, "dip2",  "",        .Required)
+    getargs.add_arg(&argp, "dip3",  "",        .Required)
+    getargs.add_arg(&argp, "dip4",  "",        .Required)
+    getargs.add_arg(&argp, "dip5",  "",        .Required)
+    getargs.add_arg(&argp, "dip6",  "",        .Required)
+    getargs.add_arg(&argp, "dip7",  "",        .Required)
+    getargs.add_arg(&argp, "dip8",  "",        .Required)
     getargs.add_arg(&argp, "disk0", "",        .Required)
-    getargs.add_arg(&argp, "gpu",   "",        .Required)
+    getargs.add_arg(&argp, "scale", "",        .Required)
     getargs.add_arg(&argp, "h",     "help",    .None)
 
     getargs.read_args(&argp, os.args)
 
-    if ((len(os.args) == 1) || (getargs.get_flag(&argp, "h"))) {
+    if getargs.get_flag(&argp, "h") {
         args_ok = false
-        fmt.printf("\nUsage: morfeo [-d] [-b] [--dip 123..8] [--gpu=0 or 1] [--disk0 path-to-image] file1.hex [file2.hex]\n")
+        fmt.printf("\nUsage: %s [-d] [-b] [--cfg filename.ini] file1.hex [file2.hex]\n", emu.TARGET)
         return
     }
 
-    c.disasm  = getargs.get_flag(&argp, "d") 
-    c.busdump = getargs.get_flag(&argp, "b")
-
-    // GPU number
-    payload      = getargs.get_payload(&argp, "gpu") or_else "0"
-    c.gpu_id, ok = strconv.parse_int(payload)
-    if !ok {
-        log.errorf("Invalid gpu number (should be 0 or 1)")
-        args_ok  = false
-        c.gpu_id = 0
+    // ini file is loaded at very beginning...
+    payload, ok = getargs.get_payload(&argp, "cfg")
+    if ok {
+        parse_ini(c, payload)
+    } else {
+        parse_ini(c, DEFAULT_CFG)
     }
+
+    // set GUI scaling to sane(?) default value
+    if c.gui_scale == 0 do c.gui_scale = 2
+
+    // ...and particular settings are overrided by cli switches
+    c.disasm  = getargs.get_flag(&argp, "d")    // XXX not in ini yet
+    c.busdump = getargs.get_flag(&argp, "b")    // XXX not in ini yer
 
     payload, ok = getargs.get_payload(&argp, "disk0")
     if ok {
         c.disk0 = payload
     }
 
-    payload, ok = getargs.get_payload(&argp, "dip")
-    if ok {
-        for character in payload {
-            switch character {
-                case '1': c.dip |= 0x01
-                case '2': c.dip |= 0x02
-                case '3': c.dip |= 0x04
-                case '4': c.dip |= 0x08
-                case '5': c.dip |= 0x10
-                case '6': c.dip |= 0x20
-                case '7': c.dip |= 0x40
-                case '8': c.dip |= 0x80
-                case    : log.errorf("DIP enable should be a number 1 to 8, got %v", character)
-                          args_ok = false
-            }
-        }
-    }
     // files to load (kernels, interpreters - loaded in order)
     for ; argp.arg_idx < len(os.args) ; argp.arg_idx += 1 {
         append(&c.files, os.args[argp.arg_idx])
@@ -198,7 +271,7 @@ main :: proc() {
     }
     
     // init graphics ----------------------------------------------------
-    init_sdl(p, config.gpu_id)
+    init_sdl(p, config)
     
     // running ----------------------------------------------------------
     main_loop(p, config)

@@ -22,5 +22,4 @@ Platform   :: struct {
     cpu:     ^cpu.CPU,
     bus:     ^bus.Bus,
 
-    model:   emu.Type,
 }

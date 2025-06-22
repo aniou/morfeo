@@ -10,3 +10,6 @@
 [submodule "external/tests-6502"]
 	path = external/tests-6502
 	url = https://github.com/SingleStepTests/65x02
+[submodule "lib/odin-ini-parser"]
+	path = lib/odin-ini-parser
+	url = https://github.com/laytan/odin-ini-parser

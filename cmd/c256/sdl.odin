@@ -9,7 +9,9 @@ import "vendor:sdl2"
 import "emulator:gpu"
 import "emulator:platform"
 
-WINDOW_NAME ::  "morfeo"
+import "lib:emu"
+
+WINDOW_NAME ::  "morfeo: " + emu.TARGET
 
 GUI :: struct {
     window:        ^sdl2.Window,
@@ -65,26 +67,19 @@ create_texture :: proc(x_size, y_size: i32) -> ^sdl2.Texture {
     return texture
 }
 
-init_sdl :: proc(p: ^platform.Platform, gpu_number: int = 1) -> (ok: bool) {
+init_sdl :: proc(p: ^platform.Platform, config: ^emu.Config) -> (ok: bool) {
     gui = GUI{}
 
-    // XXX: parametrize it and fetch default resolutions from current gpu
-    gui.x_size      = 800
-    gui.y_size      = 600
-    gui.scale_mult  = 2
+    gui.gpu0        = p.bus.gpu0  // first GPU
+    gui.g           = p.bus.gpu0  // current active GPU
+    gui.current_gpu = 0
+
+    gui.x_size      = gui.g.screen_x_size    // at this moment GPU is already initialised
+    gui.y_size      = gui.g.screen_y_size
+    gui.scale_mult  = i32(config.gui_scale)
     gui.fullscreen  = false
     gui.mouse_x     = 32 * gui.scale_mult
     gui.mouse_y     = 32 * gui.scale_mult
-
-    // set initial parameters and force refresh in render_gui() by switch_gpu = 1
-    // current_gpu number shuffle is a trick for switch_gpu routine at first run
-    gui.gpu0        = p.bus.gpu0
-    //gui.gpu1        = p.bus.gpu1
-    //gui.current_gpu = 1                if gpu_number == 0      else 0
-    gui.current_gpu = 0
-    gui.g           = p.bus.gpu0
-    //gui.g           = p.bus.gpu0       if gui.current_gpu == 0 else p.bus.gpu1
-    gui.switch_gpu  = true
 
     // init
     if sdl_res := sdl2.Init(sdl2.INIT_EVERYTHING); sdl_res < 0 {
@@ -285,7 +280,7 @@ render_gui :: proc(p: ^platform.Platform) -> (bool, bool) {
             //gui.g                  = gui.gpu0 if gui.current_gpu == 0 else gui.gpu1
             gui.switch_gpu         = false
             gui.g.screen_resized   = true
-            sdl2.SetWindowTitle(gui.window, fmt.ctprintf("morfeo: gpu%d", gui.current_gpu))
+            sdl2.SetWindowTitle(gui.window, fmt.ctprintf("morfeo (%s): gpu%d", emu.TARGET, gui.current_gpu))
         }
 
         // Step 3: handle screen resize
