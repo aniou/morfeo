@@ -21,7 +21,7 @@ import "core:time"
 
 import "vendor:sdl2"
 
-DEFAULT_CFG :: emu.TARGET + ".ini"
+DEFAULT_CFG :: "conf/" + emu.TARGET + ".ini"
 
 read_ini :: proc(file_path: string) -> Maybe(ini.INI) {
     bytes, ok := os.read_entire_file_from_filename(file_path)
