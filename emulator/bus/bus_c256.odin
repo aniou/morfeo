@@ -39,15 +39,16 @@ BUS_C256 :: struct {
     sdma:       DMA,
 }
 
-c256_make :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
-    d        := new(Bus)
-    d.name    = name
-    d.pic0    = pic
-    d.delete  = c256_delete
-    d.debug   = false
-    d.peek    = c256_read    // XXX: reconsider peek implementation
-    d.read    = c256_read
-    d.write   = c256_write
+c256_make :: proc(name: string, pic: ^pic.PIC, config: ^emu.Config) -> ^Bus {
+    d         := new(Bus)
+    d.name     = name
+    d.pic0     = pic
+    d.delete   = c256_delete
+    d.debug    = false
+    d.read     = c256_read
+    d.write    = c256_write
+    d.dip_boot = (config.dip & 0b1000_0011)       // only boot and hdd switches here
+    d.dip_user = (config.dip & 0b0001_1100) >> 2  // user: 3-5
 
     b            := BUS_C256{sdma = DMA{}, vdma = DMA{}}
     d.model       = b
@@ -100,7 +101,8 @@ c256_read :: proc(bus: ^Bus, size: BITS, addr: u32) -> (val: u32) {
     case 0xAF_A000 ..= 0xAF_BFFF:  val = bus.gpu0->read(size, 0xAF_A000, addr, .TEXT       )
     case 0xAF_C000 ..= 0xAF_DFFF:  val = bus.gpu0->read(size, 0xAF_C000, addr, .TEXT_COLOR )
     case 0xAF_E400 ..= 0xAF_E41f:  val = 0    // SID0 - silence it for a while
-    case 0xAF_E80E              :  val = 0x03 // hard-coded DIP: boot BASIC
+    case 0xAF_E80D              :  val = bus.dip_user
+    case 0xAF_E80E              :  val = bus.dip_boot
     case 0xAF_E830 ..= 0xAF_E839:  val = bus.ata0->read(size, 0xAF_E830, addr)
     case 0xAF_E887              :  val = PLATFORM_ID
     case 0xAF_E000 ..= 0xAF_FFFF:  emu.read_not_implemented(#procedure, "io",     size, addr)

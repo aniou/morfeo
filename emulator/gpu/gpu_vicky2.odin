@@ -139,7 +139,7 @@ VICKY2_SPRITE :: struct {
     y            : u32,  // u16 y position, first visible: 32
 }
 
-vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u8) -> ^GPU {
+vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u32) -> ^GPU {
     log.infof("vicky2: gpu%d initialization start, name %s", id, name)
 
     gpu       := new(GPU)

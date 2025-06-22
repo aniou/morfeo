@@ -32,7 +32,7 @@ else                                { SRAMSIZE    :: 1 * 1024*1024   // silly wo
 c256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
     p           = new(Platform)
     pic        := pic.pic_c256_make  ("pic0")
-    p.bus       = bus.c256_make      ("bus0", pic)
+    p.bus       = bus.c256_make      ("bus0", pic, config)
     p.bus.ram0  = ram.ram_make       ("ram0", SRAMSIZE)
     p.bus.gpu0  = gpu.vicky2_make    ("gpu0", pic, 0, VRAMSIZE, config.dip)
     p.bus.ps20  = ps2.ps2_make       ("ps2",  pic)

@@ -35,7 +35,10 @@ Bus :: struct {
     ram2:    ^ram.RAM,     // third...
     inu0:    ^inu.INU,
 
-    debug:   bool,          // enable/disable debug
+    dip_user: u32,          // switches 3 to 5
+    dip_boot: u32,          // switches 1, 2 and 8
+
+    debug:     bool,          // enable/disable debug
 
     model: union {BUS_C256, BUS_F256}
 }

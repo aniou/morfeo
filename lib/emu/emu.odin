@@ -60,7 +60,7 @@ Region :: enum {
 Config :: struct {
     disk0:     string,
     disk1:     string,             // XXX: not supported yet
-    dip:       u8,                 // XXX: bitfield or int? - this is the question
+    dip:       u32,                // XXX: bitfield or int? - this is the question
     gui_scale: int,                // gui scaling, by default: 2
     gpu_id:    int,
     disasm:    bool,

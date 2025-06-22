@@ -63,14 +63,14 @@ parse_ini :: proc(c: ^emu.Config, file_path: string) {
         slice.sort(keys[:])
         for key in keys {
             switch strings.to_lower(key) {
-            case "dip1" : c.dip |= 0x01 if strings.to_lower(iniconf["platform"][key]) == "off" else 0
-            case "dip2" : c.dip |= 0x02 if strings.to_lower(iniconf["platform"][key]) == "off" else 0
-            case "dip3" : c.dip |= 0x04 if strings.to_lower(iniconf["platform"][key]) == "off" else 0
-            case "dip4" : c.dip |= 0x08 if strings.to_lower(iniconf["platform"][key]) == "off" else 0
-            case "dip5" : c.dip |= 0x10 if strings.to_lower(iniconf["platform"][key]) == "off" else 0
-            case "dip6" : c.dip |= 0x20 if strings.to_lower(iniconf["platform"][key]) == "off" else 0
-            case "dip7" : c.dip |= 0x40 if strings.to_lower(iniconf["platform"][key]) == "off" else 0
-            case "dip8" : c.dip |= 0x80 if strings.to_lower(iniconf["platform"][key]) == "off" else 0
+            case "dip1" : c.dip &= 0xFE if strings.to_lower(iniconf["platform"][key]) == "on" else 0
+            case "dip2" : c.dip &= 0xFD if strings.to_lower(iniconf["platform"][key]) == "on" else 0
+            case "dip3" : c.dip &= 0xEF if strings.to_lower(iniconf["platform"][key]) == "on" else 0 // yes, in that order
+            case "dip4" : c.dip &= 0xF7 if strings.to_lower(iniconf["platform"][key]) == "on" else 0 // yes, in that order
+            case "dip5" : c.dip &= 0xFB if strings.to_lower(iniconf["platform"][key]) == "on" else 0 // yes, in that order
+            case "dip6" : c.dip &= 0xDF if strings.to_lower(iniconf["platform"][key]) == "on" else 0
+            case "dip7" : c.dip &= 0xBF if strings.to_lower(iniconf["platform"][key]) == "on" else 0
+            case "dip8" : c.dip &= 0x7F if strings.to_lower(iniconf["platform"][key]) == "on" else 0
             case "disk0": c.disk0 = strings.clone(iniconf["platform"][key])
             case "disk1": c.disk1 = strings.clone(iniconf["platform"][key])
             case:
@@ -103,6 +103,7 @@ read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
     ok:      bool
 
     c       = new(emu.Config)
+    c.dip   = 0xFF              // 'off' physical switch means 0 in logical bits
 
     argp := getargs.make_getargs()
     getargs.add_arg(&argp, "d",     "disasm",  .None)
