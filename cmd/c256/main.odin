@@ -24,6 +24,7 @@ import "vendor:sdl2"
 DEFAULT_CFG :: "conf/" + emu.TARGET + ".ini"
 
 read_ini :: proc(file_path: string) -> Maybe(ini.INI) {
+    log.infof("config: reading config file %s", file_path)
     bytes, ok := os.read_entire_file_from_filename(file_path)
     defer delete(bytes)
 
