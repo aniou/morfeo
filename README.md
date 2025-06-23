@@ -7,14 +7,10 @@ At this moment MORFE/O supports 32bit m68k CPU (Musashi Core) and
 provides native implementation of 16bit WDC 65C816 and 8bit 
 WDC W65C02S cores.
 
-> [!WARNING] 
-> The main goal of MORFEO is to create a universal emulator, 
-> capable of emulating different sets of hardware.
-> 
-> Not all assumptions for a2560x compatible system turned out to be correct for
-> C256 family systems, hence some code inconsistency, which will be gradually
-> removed.
- 
+> [!WARNING]
+> Currently only small subset of platform is supported and software
+> itself is in infancy.
+
 # Available targets
 
 ## a2560x
@@ -23,47 +19,18 @@ An emulator of m68k-based of [Foenix machines](https://c256foenix.com/).
 Currently only a kind of ``a2560x`` platform is supported, but morfeo
 is modular and extensible...
 
-**Warning:** current status should be considered as /pre-alpha/. Currently
-only smal subset of platform is supported and debug features, like in morfe
-are not implemented yet.
-
-**Warning:** both screens are set to hi-res and GUI is fixed to x2 scale,
-because of limitation of my eyes. Scaling and DIP-switches should be 
-implemented in near future, I hope - but in-code resolution change works
-well.
-
-## c256fmx
+## c256fmx, c256u, c256u+
 
 An emulator capable to run subset of features C256 FMX/U/U+ machines, but
-without sound: that part has - unfortunately - low priority. At this moment
-a functional FMX (boot screen, basic) is avaiable.
+without sound. At this moment has better quality than a2560-one. 
 
-> [!NOTE]
-> Currently a ``c256`` target builds only binary for c256fmx - it is a 
-> temporary limitation, introduced in favour of simplifying development.
-> Numerous differences between FMX and U/U+ versions makes me think about
-> different binaries and compile-time constraints and selections. Without
-> that code will be slower and unnecessary complicated by magnitude of
-> switches and passed-down parameters.
+> [!NOTICE]
+> If You have an SID-emulating library in C or wrapper around C++ reSID code
+> - let me know! 
 
-Still lack of EVID card (second monitor), SD nor HDD - but they are on my
-short TODO list.
+## test_65c816 and test_w65c02s
 
-# Some screenshots
-
-## a2560x with MCP kernel
-
-![splash screen](doc/morfeo-1.png)
-![running system](doc/morfeo-2.png)
-
-## c256 FMX with stock kernel
-
-![splash screen](doc/c256-fmx-1.png)
-![running system](doc/c256-fmx-2.png)
-
-## test_65c816
-
-It is a test suite for an 65C816 core emulation. 
+Test suites for particular cores. 
 
 *I found - in hard way - that unit tests are not capable for find many subtle
 CPU bugs. You've been warned.* 
@@ -73,26 +40,7 @@ Based on sets provided by [SingleStepTests](https://github.com/SingleStepTests)
 Notes:
 * STP and WAI require implementation
 
-* tests for MVN and MVP are invalid and disabled
-
-## test_w65c02s
-
-It is a test suite for an W65C02S core emulation. 
-
-*I found - in hard way - that unit tests are not capable for find many subtle
-CPU bugs. You've been warned.*
-
-Based on sets provided by [SingleStepTests](https://github.com/SingleStepTests)
-
-Notes:
-* STP and WAI require implementation
-
-* there are not tests for STP and WAI
-
-# Word about 65C816 and W65C02 versions
-
-Both 65C816 and W65C02S are built on common foundation and
-are subjects to further improvement.
+* tests for MVN and MVP are invalid and disabled (but opcodes works!)
 
 # Building
 
@@ -113,6 +61,7 @@ install SDL2-devel``.
 git clone https://github.com/aniou/morfeo
 cd morfeo
 git submodule init lib/getargs
+git submodule init lib/odin-ini-parser
 git submodule init external/Musashi
 git submodule update
 make
@@ -146,20 +95,35 @@ for unsupported functions and not-implemented-yet memory regions!
 F8       |Change active head in multi-head setups
 F12      |Exit emulator
 
-# Running c256fmx
+# Running c256*
 
-Run:
+Just use command (``c256fmx``, ``c256u``, ``c256u+``). Configuration will
+be loaded automagically from default file ``conf/[binaryname].ini``.
+
+Particular settings may be overrided by CLI switches. Following command
+will run emulator in low-res mode, even if ``.ini`` file has ``DIP6`` set
+to value ``on``.
 
 ```shell
-./c256fmx --disk0 data/test-fat32.img data/kernel_FMX.hex
+./c256fmx --dip6 off
 ```
+
+Additional ``hex`` files may be loaded by providing filename after command,
+there is no need to change ``ini`` file for every case:
+
+```shell
+./c256fmx data/tetris.hex
+```
+
+Configuration file may be selected by ``--cfg path_to/file.ini`` switch 
+or  bypassed at all by ``--nc`` flag.
 
 There are two additional switches available: ``-d`` and ``-b``. First one
 enables disassembler from the start - second one enables debug for writes
 and reads on internal bus. 
 
 ```shell
-./c256fmx -b data/kernel_FMX.hex
+./c256fmx -b
 ...
 [DEBUG] --- bus0 read8  0000005f from 0x 0039:0F7B
 [DEBUG] --- bus0 read8  0000000f from 0x 0039:0F7C
@@ -176,7 +140,6 @@ logs for unsupported functions and not-implemented-yet memory regions!
 
 |Key     |Effect
 ---------|---------------------------
-F8       |Change active head in multi-head setups
 F9       |Enable/disable bus operation dump
 F10      |Enable/disable rudimentary disassembler (to be improved)
 F12      |Exit emulator
@@ -213,11 +176,18 @@ Because a proper ID bits in GABE emulation part are not implemented yet.
 * Golang is more portable 
 * more memory leaks
 
-### What about feature XXX
+### What about feature XXX?
 
 In future. I have limited resources and morfe/morfeo were created as
 development platform for system software, thus lack of support in 
-graphics and sound
+graphics and sound.
+
+At this moment on my short TODO list are:
+
+[ ] better debug facilities for c256
+[ ] tiles for c256
+[ ] modernisation of a2560x to standard (config file etc.) of c256
+[ ] EVID 200 (second monitor) extension card
 
 # Hacking
 
@@ -236,6 +206,19 @@ and ``vicky3_read`` in ``emulator/gpu/gpu_vicky3.odin`` for samples.
 That project include:
 
 * [getargs](https://github.com/jasonKercher/getargs) module
+* [odin-ini-parser](https://github.com/laytan/odin-ini-parser) module
 * [Musashi](https://github.com/kstenerud/Musashi) core
 * a ``hex.odin`` file imported (and tweaked) from Odin core library 
+
+# Some screenshots
+
+## a2560x with MCP kernel
+
+![splash screen](doc/morfeo-1.png)
+![running system](doc/morfeo-2.png)
+
+## c256 FMX with stock kernel
+
+![splash screen](doc/c256-fmx-1.png)
+![running system](doc/c256-fmx-2.png)
 
