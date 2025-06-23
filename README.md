@@ -11,31 +11,29 @@ WDC W65C02S cores.
 > Currently only small subset of platform is supported and software
 > itself is in infancy.
 
+> [!NOTE]
+> If You have an SID-emulating library in C or wrapper around
+> C++ reSID code - let me know! 
+
 # Available targets
 
 ## a2560x
 
 An emulator of m68k-based of [Foenix machines](https://c256foenix.com/).
+
 Currently only a kind of ``a2560x`` platform is supported, but morfeo
 is modular and extensible...
 
 ## c256fmx, c256u, c256u+
 
 An emulator capable to run subset of features C256 FMX/U/U+ machines, but
-without sound. At this moment has better quality than a2560-one. 
+without sound. 
 
-> [!NOTICE]
-> If You have an SID-emulating library in C or wrapper around C++ reSID code
-> - let me know! 
+At this moment has better quality (config files, switches) than a2560-one. 
 
 ## test_65c816 and test_w65c02s
 
-Test suites for particular cores. 
-
-*I found - in hard way - that unit tests are not capable for find many subtle
-CPU bugs. You've been warned.* 
-
-Based on sets provided by [SingleStepTests](https://github.com/SingleStepTests)
+Test suites for cores, based on sets provided by [SingleStepTests](https://github.com/SingleStepTests)
 
 Notes:
 * STP and WAI require implementation
@@ -98,11 +96,12 @@ F12      |Exit emulator
 # Running c256*
 
 Just use command (``c256fmx``, ``c256u``, ``c256u+``). Configuration will
-be loaded automagically from default file ``conf/[binaryname].ini``.
+be loaded automagically from default file ``conf/[binaryname].ini``
 
-Particular settings may be overrided by CLI switches. Following command
-will run emulator in low-res mode, even if ``.ini`` file has ``DIP6`` set
-to value ``on``.
+Particular settings may be overrided by CLI switches. 
+
+Following command will run emulator in low-res mode, even if ``.ini`` file 
+has ``DIP6`` set to value ``on``.
 
 ```shell
 ./c256fmx --dip6 off
@@ -184,10 +183,10 @@ graphics and sound.
 
 At this moment on my short TODO list are:
 
-[ ] better debug facilities for c256
-[ ] tiles for c256
-[ ] modernisation of a2560x to standard (config file etc.) of c256
-[ ] EVID 200 (second monitor) extension card
+- [ ] better debug facilities for c256
+- [ ] tiles for c256
+- [ ] modernisation of a2560x to standard (config file etc.) of c256
+- [ ] EVID 200 (second monitor) extension card
 
 # Hacking
 
