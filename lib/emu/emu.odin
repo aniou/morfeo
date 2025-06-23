@@ -26,6 +26,28 @@ TARGET :: #config(TARGET, "none")
 //    GenX,       // 8 SRAM 16 SDRAM 8 VRAM  65816+32bit @ 14Mhz
 //}
 
+// C256 FMX    = $00
+// C256 U      = $01
+// F256JR      = $02
+// F256JRe     = $03
+// GenX        = $04  (8bit side)
+// C256 U+     = $05
+// Not Defined = $06
+// Not Defined = $07
+// A2560X      = $08 (GenX 32Bits SIde)
+// A2560U+     = $09 (there is no A2560U only in the field)
+// A2560M      = $0A (this is for the future)
+// A2560K      = $0B (Classic)
+// A2560K40    = $0C
+// A2560K60    = $0D
+// Not Defined = $0E
+// Not Defined = $0F
+// F256P       = $10 (future portable)
+// F256K2c     = $11
+// F256Kc      = $12
+// F256Ke      = $13
+// F256K2e     = $14
+
 // used by bus read to denote 8/16/32 bits operations
 // XXX: todo - expand to little and big endian ones
 Bitsize :: enum {
@@ -57,10 +79,12 @@ Region :: enum {
 }
 
 // general config structure for emulator
+DIP :: enum{DIP1, DIP2, DIP5, DIP4, DIP3, DIP6, DIP7, DIP8}
+
 Config :: struct {
     disk0:     string,
     disk1:     string,             // XXX: not supported yet
-    dip:       u32,                // XXX: bitfield or int? - this is the question
+    dipoff:    bit_set[DIP; u32],
     gui_scale: int,                // gui scaling, by default: 2
     gpu_id:    int,
     disasm:    bool,

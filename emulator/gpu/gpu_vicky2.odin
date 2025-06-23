@@ -119,6 +119,7 @@ GPU_Vicky2 :: struct {
 
     pointer_selected:    MOUSE_PTR, // pointer 0 or pointer 1 selected
 
+    gamma_dip_enable:    bool,      // true if DIP7 in enabled (0 i bitmap)
     gamma_dip_override:  bool,      // 0: obey dip switch,   1: software control
     gamma_applied:       bool,      // 0: gamma not applied  1: gamma applied
 }
@@ -139,13 +140,13 @@ VICKY2_SPRITE :: struct {
     y            : u32,  // u16 y position, first visible: 32
 }
 
-vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u32) -> ^GPU {
+vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, c: ^emu.Config) -> ^GPU {
     log.infof("vicky2: gpu%d initialization start, name %s", id, name)
 
     gpu       := new(GPU)
     gpu.name   = name
     gpu.id     = id
-    gpu.dip    = dip
+    gpu.dipoff = c.dipoff
     gpu.pic    = pic
     gpu.read   = vicky2_read
     gpu.write  = vicky2_write
@@ -170,20 +171,23 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, dip: u32) -
     g.BM1FB   = new([1024*768]u32)            // bitmap1 framebuffer  - for max size
     g.MOUSEFB = new([  16* 16]u32)            // mouse   framebuffer  - 16x16
 
-    g.screen_x_size  = 800                if g.dip & DIP_HIRES == DIP_HIRES else 640
-    g.screen_y_size  = 600                if g.dip & DIP_HIRES == DIP_HIRES else 480
-    g.resolution     = VKY2_MODE_800_600  if g.dip & DIP_HIRES == DIP_HIRES else VKY2_MODE_640_480
-    g.screen_resized = false
+    g.gamma_dip_override = false
+    g.gamma_dip_enable   = .DIP7 not_in c.dipoff
 
-    g.pixel_size           = 1
-    g.cursor_enabled       = true
-    g.cursor_visible       = true
-    g.bitmap_enabled       = true  // XXX: there is no way to change it in vicky2?
-    g.text_enabled         = true 
-    g.gamma_dip_override   = false
-    g.gamma_applied        = false
-    g.pointer_enabled      = true
-    g.pointer_selected     = .PTR0
+    g.screen_x_size      = 800                if .DIP6 not_in c.dipoff else 640
+    g.screen_y_size      = 600                if .DIP6 not_in c.dipoff else 480
+    g.resolution         = VKY2_MODE_800_600  if .DIP6 not_in c.dipoff else VKY2_MODE_640_480
+    g.screen_resized     = false
+
+    g.pixel_size         = 1
+    g.cursor_enabled     = true
+    g.cursor_visible     = true
+    g.bitmap_enabled     = true  // XXX: there is no way to change it in vicky2?
+    g.text_enabled       = true 
+    g.gamma_dip_override = false
+    g.gamma_applied      = false
+    g.pointer_enabled    = true
+    g.pointer_selected   = .PTR0
 
     g.border_color_b       = 0x20
     g.border_color_g       = 0x00
@@ -596,10 +600,10 @@ vicky2_read_register :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr: u32, mod
         // GAMMA_Ctrl_Soft         = $02 ; 0 = GAMMA Table is read_not Applied, 1 = GAMMA Table is Applied
         // GAMMA_DP_SW_VAL         = $08 ; READ ONLY - Actual DIP Switch Value
         // HIRES_DP_SW_VAL         = $10 ; READ ONLY - 0 = Hi-Res on BOOT ON, 1 = Hi-Res on BOOT OFF
-        val |= 0x01 if d.gamma_dip_override           else 0
-        val |= 0x02 if d.gamma_applied                else 0
-        val |= 0x08 if d.dip & DIP_GAMMA == DIP_GAMMA else 0
-        val |= 0x10 if d.dip & DIP_HIRES == DIP_HIRES else 0
+        val |= 0x01 if d.gamma_dip_override  else 0
+        val |= 0x02 if d.gamma_applied       else 0
+        val |= 0x08 if .DIP7 in d.dipoff     else 0
+        val |= 0x10 if .DIP6 in d.dipoff     else 0
 
     case .VKY2_BCR:
         val |= VKY2_BCR_ENABLE if d.border_enabled else 0

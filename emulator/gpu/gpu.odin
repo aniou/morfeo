@@ -70,12 +70,12 @@ GPU  :: struct {
     bm1_pointer:           u32,
     bm1_lut:               u32,
 
-    dip:               u32,                // copy of status of DIP switch
-    background:        [3]u8,              // r, g, b
-    frames:            u32,                // number of generated frames, for TIMER*
-    delay:             time.Duration,      // number of milliseconds to wait between frames
-                                           // 16 for 60Hz, 14 for 70Hz
-    last_tick:         time.Tick,          // when last tick was made
+    dipoff:      bit_set[emu.DIP; u32],  // copy of status of DIP switch
+    background:  [3]u8,                  // r, g, b
+    frames:      u32,                    // number of generated frames, for TIMER*
+    delay:       time.Duration,          // number of milliseconds to wait between frames
+                                         // 16 for 60Hz, 14 for 70Hz
+    last_tick:   time.Tick,              // when last tick was made
 
     model: union {GPU_Vicky2, GPU_Vicky3, GPU_tVicky}
 }

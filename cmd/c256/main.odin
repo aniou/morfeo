@@ -45,6 +45,38 @@ read_ini :: proc(file_path: string) -> Maybe(ini.INI) {
     return nil
 }
 
+// set dip value according to key/val 
+parse_dip :: proc(c: ^emu.Config, key, val: string) {
+
+    switch strings.to_lower(val) {
+    case "n", "0", "off", "no",  "false": 
+        switch key {
+        case "dip1": c.dipoff += {.DIP1}
+        case "dip2": c.dipoff += {.DIP2}
+        case "dip3": c.dipoff += {.DIP3}
+        case "dip4": c.dipoff += {.DIP4}
+        case "dip5": c.dipoff += {.DIP5}
+        case "dip6": c.dipoff += {.DIP6}
+        case "dip7": c.dipoff += {.DIP7}
+        case "dip8": c.dipoff += {.DIP8}
+        case       : log.errorf("config: unknown DIP: %s", key)
+        }
+    case "y", "1", "on",  "yes", "true" : 
+        switch key {
+        case "dip1": c.dipoff -= {.DIP1}
+        case "dip2": c.dipoff -= {.DIP2}
+        case "dip3": c.dipoff -= {.DIP3}
+        case "dip4": c.dipoff -= {.DIP4}
+        case "dip5": c.dipoff -= {.DIP5}
+        case "dip6": c.dipoff -= {.DIP6}
+        case "dip7": c.dipoff -= {.DIP7}
+        case "dip8": c.dipoff -= {.DIP8}
+        case       : log.errorf("config: unknown DIP: %s", key)
+        }
+    }
+
+}
+
 parse_ini :: proc(c: ^emu.Config, file_path: string) {
     iniconf, ok := read_ini(file_path).?
     defer ini.ini_delete(&iniconf)
@@ -61,26 +93,19 @@ parse_ini :: proc(c: ^emu.Config, file_path: string) {
             append(&keys, key)
         }
         slice.sort(keys[:])
-        for key in keys {
-            switch strings.to_lower(key) {
-            case "dip1" : c.dip &= 0xFE if strings.to_lower(iniconf["platform"][key]) == "on" else 0
-            case "dip2" : c.dip &= 0xFD if strings.to_lower(iniconf["platform"][key]) == "on" else 0
-            case "dip3" : c.dip &= 0xEF if strings.to_lower(iniconf["platform"][key]) == "on" else 0 // yes, in that order
-            case "dip4" : c.dip &= 0xF7 if strings.to_lower(iniconf["platform"][key]) == "on" else 0 // yes, in that order
-            case "dip5" : c.dip &= 0xFB if strings.to_lower(iniconf["platform"][key]) == "on" else 0 // yes, in that order
-            case "dip6" : c.dip &= 0xDF if strings.to_lower(iniconf["platform"][key]) == "on" else 0
-            case "dip7" : c.dip &= 0xBF if strings.to_lower(iniconf["platform"][key]) == "on" else 0
-            case "dip8" : c.dip &= 0x7F if strings.to_lower(iniconf["platform"][key]) == "on" else 0
-            case "disk0": c.disk0 = strings.clone(iniconf["platform"][key])
-            case "disk1": c.disk1 = strings.clone(iniconf["platform"][key])
-            case:
-                if strings.has_prefix(key, "file") {
-                    append(&c.files, strings.clone(iniconf["platform"][key]))
-                }
+        for k in keys {
+            val := strings.clone(iniconf["platform"][k])
+            key := strings.to_lower(k)
+
+            switch {
+            case strings.has_prefix(key, "file"): append(&c.files, val)
+            case strings.has_prefix(key, "dip") : parse_dip(c, key, val)
+            case key == "disk0"                 : c.disk0 = val
+            case key == "disk1"                 : c.disk0 = val
             }
         }
         delete(keys)
-        log.debugf("CONFIG: DIP value is %02x", c.dip)
+        log.debugf("config: DIP enabled is %v", ~c.dipoff)
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -94,7 +119,6 @@ parse_ini :: proc(c: ^emu.Config, file_path: string) {
         }
     }
 
-
     return
 }
 
@@ -102,12 +126,13 @@ read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
     payload: string
     ok:      bool
 
-    c       = new(emu.Config)
-    c.dip   = 0xFF              // 'off' physical switch means 0 in logical bits
+    c        = new(emu.Config)
+    c.dipoff = {.DIP1, .DIP2, .DIP3, .DIP4, .DIP5, .DIP6, .DIP7, .DIP8}
 
     argp := getargs.make_getargs()
     getargs.add_arg(&argp, "d",     "disasm",  .None)
     getargs.add_arg(&argp, "b",     "busdump", .None)
+    getargs.add_arg(&argp, "n",     "nocfg",   .None)
     getargs.add_arg(&argp, "cfg",   "",        .Required)
     getargs.add_arg(&argp, "dip1",  "",        .Required)
     getargs.add_arg(&argp, "dip2",  "",        .Required)
@@ -118,6 +143,7 @@ read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
     getargs.add_arg(&argp, "dip7",  "",        .Required)
     getargs.add_arg(&argp, "dip8",  "",        .Required)
     getargs.add_arg(&argp, "disk0", "",        .Required)
+    getargs.add_arg(&argp, "disk1", "",        .Required)
     getargs.add_arg(&argp, "scale", "",        .Required)
     getargs.add_arg(&argp, "h",     "help",    .None)
 
@@ -125,16 +151,19 @@ read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
 
     if getargs.get_flag(&argp, "h") {
         args_ok = false
-        fmt.printf("\nUsage: %s [-d] [-b] [--cfg filename.ini] file1.hex [file2.hex]\n", emu.TARGET)
+        fmt.printf("\nUsage: %s [-d] [-b] [-n] [--cfg filename.ini] [--dipX on] file1.hex [file2.hex]\n", emu.TARGET)
         return
     }
 
-    // ini file is loaded at very beginning...
-    payload, ok = getargs.get_payload(&argp, "cfg")
-    if ok {
-        parse_ini(c, payload)
-    } else {
-        parse_ini(c, DEFAULT_CFG)
+    // flag '-n' means 'no config'
+    if !getargs.get_flag(&argp, "n") {
+        // ini file is loaded at very beginning...
+        payload, ok = getargs.get_payload(&argp, "cfg")
+        if ok {
+            parse_ini(c, payload)
+        } else {
+            parse_ini(c, DEFAULT_CFG)
+        }
     }
 
     // set GUI scaling to sane(?) default value
@@ -144,10 +173,27 @@ read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
     c.disasm  = getargs.get_flag(&argp, "d")    // XXX not in ini yet
     c.busdump = getargs.get_flag(&argp, "b")    // XXX not in ini yer
 
+    // disks
     payload, ok = getargs.get_payload(&argp, "disk0")
     if ok {
         c.disk0 = payload
     }
+
+    payload, ok = getargs.get_payload(&argp, "disk1")
+    if ok {
+        c.disk1 = payload
+    }
+
+    dipnames :: [?]string{"dip1", "dip2", "dip3", "dip4", "dip5", "dip6", "dip7", "dip8"} 
+    // dest for dip-switches from CLI
+    for dip in dipnames {
+        payload, ok = getargs.get_payload(&argp, dip)
+        if !ok {
+            continue
+        }
+        parse_dip(c, dip, payload)   
+    }
+
 
     // files to load (kernels, interpreters - loaded in order)
     for ; argp.arg_idx < len(os.args) ; argp.arg_idx += 1 {

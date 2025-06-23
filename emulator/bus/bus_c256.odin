@@ -47,8 +47,8 @@ c256_make :: proc(name: string, pic: ^pic.PIC, config: ^emu.Config) -> ^Bus {
     d.debug    = false
     d.read     = c256_read
     d.write    = c256_write
-    d.dip_boot = (config.dip & 0b1000_0011)       // only boot and hdd switches here
-    d.dip_user = (config.dip & 0b0001_1100) >> 2  // user: 3-5
+    d.dip_boot = (transmute(u32)config.dipoff & 0b1000_0011)       // only boot and hdd switches here
+    d.dip_user = (transmute(u32)config.dipoff & 0b0001_1100) >> 2  // user: 3-5
 
     b            := BUS_C256{sdma = DMA{}, vdma = DMA{}}
     d.model       = b
