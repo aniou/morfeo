@@ -339,7 +339,11 @@ render_gui :: proc(p: ^platform.Platform) -> (bool, bool) {
             sdl2.RenderCopy(gui.renderer, gui.texture_txt, nil, nil)
         }
 
-        // Step 5d: mouse pointer
+        // Step 5d: border
+        //
+        if gui.g.border_enabled do draw_border(gui.g)
+
+        // Step 5e: mouse pointer (over border)
         if gui.g.pointer_enabled {
             if gui.g.pointer_updated {
                 sdl2.UpdateTexture(gui.texture_mouse, nil, gui.g.MOUSEFB, 16*4)
@@ -350,10 +354,6 @@ render_gui :: proc(p: ^platform.Platform) -> (bool, bool) {
             sdl2.RenderCopy(gui.renderer, gui.texture_mouse, nil, &gui.mouse_rectangle)
             //sdl2.RenderCopy(gui.renderer, gui.texture_mouse, nil, nil)
         }
-
-        // Step 5d: border
-        //
-        if gui.g.border_enabled do draw_border(gui.g)
 
         // Step  6: present to screen
         sdl2.RenderPresent(gui.renderer)
