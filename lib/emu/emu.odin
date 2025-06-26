@@ -76,6 +76,8 @@ Region :: enum {
     VRAM0,
     MOUSEPTR0,  // mouse pointer memory in vicky
     MOUSEPTR1,  // mouse pointer memory in vicky
+    TILEMAP,
+    TILESET,
 }
 
 // general config structure for emulator

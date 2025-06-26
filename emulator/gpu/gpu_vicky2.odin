@@ -43,46 +43,123 @@ MOUSE_PTR :: enum {
     PTR1,
 }
 
+Vicky2_Tilemap_Ctrl :: bit_field u8 {
+    enable: bool | 1,
+         _: bool | 3,
+         _: bool | 2,
+   coll_on: bool | 1,
+         _: bool | 1,
+}
+
+Vicky2_Tilemap_Addr :: bit_field u32 {  // 0 - 0x3F_FFFF
+          l: u32 | 8,
+          m: u32 | 8,
+          h: u32 | 6,
+}
+
+Vicky2_Tilemap_Size :: bit_field u32 {  // 0 - 1023
+          l: u32 | 8,
+          h: u32 | 2,
+}
+
+Vicky2_Tilemap_Position :: bit_field [2]u8 { 
+       val:  u32 | 10,
+    scroll:  u32 |  4,
+ direction: bool |  1,
+}
+
+Vicky2_Tilemap :: struct {
+    reg:      Vicky2_Tilemap_Ctrl,
+    addr:     Vicky2_Tilemap_Addr,
+    x_size:   Vicky2_Tilemap_Size,
+    y_size:   Vicky2_Tilemap_Size,
+    x_pos:    Vicky2_Tilemap_Position,
+    y_pos:    Vicky2_Tilemap_Position,
+}
+
+Vicky2_Tileset_Addr :: bit_field u32 {  // 0 - 0x3F_FFFF
+          l: u32 | 8,
+          m: u32 | 8,
+          h: u32 | 6,
+}
+
+Vicky2_Tileset_Cfg :: bit_field u32 {  // 0 - 0x3F_FFFF
+          _: u8   | 3,
+  stride256: bool | 1,
+}
+
+Vicky2_Tileset :: struct {
+    addr:   Vicky2_Tileset_Addr,
+     cfg:   Vicky2_Tileset_Cfg,
+}
+
+Vicky2_Tile :: bit_field u8 {
+    set: u8  | 3,
+    lut: u8  | 3,
+      _: u8  | 2,
+}
+
 Register_vicky2 :: enum u32 {
-    VKY2_MCR_L        = 0x_00_00,     // A   - master control register
-    VKY2_MCR_H        = 0x_00_01,     // A   - master control register
-    VKY2_GAMMA_CR     = 0x_00_02,     //     - gamma control register
+    VKY2_MCR_L         = 0x_00_00,    // A   - master control register
+    VKY2_MCR_H         = 0x_00_01,    // A   - master control register
+    VKY2_GAMMA_CR      = 0x_00_02,    //     - gamma control register
                                       //     - reserved
-    VKY2_BCR          = 0x_00_04,     // A   - border control register
-    VKY2_BRD_COL_B    = 0x_00_05,     // A   - border color Blue
-    VKY2_BRD_COL_G    = 0x_00_06,     // A   - border color Green
-    VKY2_BRD_COL_R    = 0x_00_07,     // A   - border color Red
-    VKY2_BRD_XSIZE    = 0x_00_08,     // A   - border X size, 0-32 (32)
-    VKY2_BRD_YSIZE    = 0x_00_09,     // A   - border X size, 0-32 (32)
+    VKY2_BCR           = 0x_00_04,    // A   - border control register
+    VKY2_BRD_COL_B     = 0x_00_05,    // A   - border color Blue
+    VKY2_BRD_COL_G     = 0x_00_06,    // A   - border color Green
+    VKY2_BRD_COL_R     = 0x_00_07,    // A   - border color Red
+    VKY2_BRD_XSIZE     = 0x_00_08,    // A   - border X size, 0-32 (32)
+    VKY2_BRD_YSIZE     = 0x_00_09,    // A   - border X size, 0-32 (32)
                                       //     - unknown
                                       //     - unknown
                                       //     - unknown
-    VKY2_BGR_COL_B    = 0x_00_0D,     // A   - background color Blue
-    VKY2_BGR_COL_G    = 0x_00_0E,     // A   - background color Green
-    VKY2_BGR_COL_R    = 0x_00_0F,     // A   - background color Red
-    VKY2_CCR          = 0x_00_10,     // A   - cursor control register
-    VKY2_TXT_SAPTR    = 0x_00_11,     // A   - offset to change the Starting address of the Text Mode Buffer (in x)
-    VKY2_TXT_CUR_CHAR = 0x_00_12,     // A   - text cursor character
-    VKY2_TXT_CUR_CLR  = 0x_00_13,     // A   - text cursor color
-    VKY2_TXT_CUR_XL   = 0x_00_14,     // A   - text cursor X position (low)
-    VKY2_TXT_CUR_XH   = 0x_00_15,     // A   - text cursor X position (high)
-    VKY2_TXT_CUR_YL   = 0x_00_16,     // A   - text cursor Y position (low)
-    VKY2_TXT_CUR_YH   = 0x_00_17,     // A   - text cursor Y position (high)
+    VKY2_BGR_COL_B     = 0x_00_0D,    // A   - background color Blue
+    VKY2_BGR_COL_G     = 0x_00_0E,    // A   - background color Green
+    VKY2_BGR_COL_R     = 0x_00_0F,    // A   - background color Red
+    VKY2_CCR           = 0x_00_10,    // A   - cursor control register
+    VKY2_TXT_SAPTR     = 0x_00_11,    // A   - offset to change the Starting address of the Text Mode Buffer (in x)
+    VKY2_TXT_CUR_CHAR  = 0x_00_12,    // A   - text cursor character
+    VKY2_TXT_CUR_CLR   = 0x_00_13,    // A   - text cursor color
+    VKY2_TXT_CUR_XL    = 0x_00_14,    // A   - text cursor X position (low)
+    VKY2_TXT_CUR_XH    = 0x_00_15,    // A   - text cursor X position (high)
+    VKY2_TXT_CUR_YL    = 0x_00_16,    // A   - text cursor Y position (low)
+    VKY2_TXT_CUR_YH    = 0x_00_17,    // A   - text cursor Y position (high)
 
-    BM0_CONTROL_REG   = 0x_01_00,     // A   - BM0 control
-    BM0_START_ADDY_L  = 0x_01_01,     // A   - Start Address Within the Video Memory (offset by $B0:0000) 
-    BM0_START_ADDY_M  = 0x_01_02,     // A
-    BM0_START_ADDY_H  = 0x_01_03,     // A
-    BM0_X_OFFSET      = 0x_01_04,     // A   - not implemented
-    BM0_Y_OFFSET      = 0x_01_05,     // A
+    BM0_CONTROL_REG    = 0x_01_00,    // A   - BM0 control
+    BM0_START_ADDY_L   = 0x_01_01,    // A   - Start Address Within the Video Memory (offset by $B0:0000) 
+    BM0_START_ADDY_M   = 0x_01_02,    // A
+    BM0_START_ADDY_H   = 0x_01_03,    // A
+    BM0_X_OFFSET       = 0x_01_04,    // A   - not implemented
+    BM0_Y_OFFSET       = 0x_01_05,    // A
 
-    BM1_CONTROL_REG   = 0x_01_08,     // A   - BM1 control
-    BM1_START_ADDY_L  = 0x_01_09,     // A   - Start Address Within the Video Memory (offset by $B0:0000) 
-    BM1_START_ADDY_M  = 0x_01_0A,     // A
-    BM1_START_ADDY_H  = 0x_01_0B,     // A
-    BM1_X_OFFSET      = 0x_01_0C,     // A   - not implemented
-    BM1_Y_OFFSET      = 0x_01_0D,     // A
+    BM1_CONTROL_REG    = 0x_01_08,    // A   - BM1 control
+    BM1_START_ADDY_L   = 0x_01_09,    // A   - Start Address Within the Video Memory (offset by $B0:0000) 
+    BM1_START_ADDY_M   = 0x_01_0A,    // A
+    BM1_START_ADDY_H   = 0x_01_0B,    // A
+    BM1_X_OFFSET       = 0x_01_0C,    // A   - not implemented
+    BM1_Y_OFFSET       = 0x_01_0D,    // A
+}
 
+Vicky2_Tilemap_Reg :: enum u32 {
+	TL_CONTROL_REG    = 0x00,    //  Bit[0] - Enable
+	TL_START_ADDY_L   = 0x01,    //  Starting Address to where is the MAP
+	TL_START_ADDY_M   = 0x02,
+	TL_START_ADDY_H   = 0x03,
+	TL_TOTAL_X_SIZE_L = 0x04,    //  Size of the Map in X Tile Count [9:0] (1024 Max)
+	TL_TOTAL_X_SIZE_H = 0x05,
+	TL_TOTAL_Y_SIZE_L = 0x06,    //  Size of the Map in Y Tile Count [9:0]
+	TL_TOTAL_Y_SIZE_H = 0x07,
+	TL_WINDOW_X_POS_L = 0x08,    //  Top Left Corner Position of the TileMAp Window in X + Scroll
+	TL_WINDOW_X_POS_H = 0x09,    //  Direction: [14] Scroll: [13:10] Pos: [9:0] in X
+	TL_WINDOW_Y_POS_L = 0x0A,    //  Top Left Corner Position of the TileMAp Window in Y
+	TL_WINDOW_Y_POS_H = 0x0B,    //  Direction: [14] Scroll: [13:10] Pos:
+}
+
+Vicky2_Tileset_Reg :: enum {
+    TILESET_ADDY_L 	  = 0,
+    TILESET_ADDY_M 	  = 1,
+    TILESET_ADDY_H 	  = 2,
+    TILESET_ADDY_CFG  = 3,
 }
 
 VKY2_CURSOR_BLINK_RATE           :: [4]i32{1000, 500, 250, 200}
@@ -122,6 +199,9 @@ GPU_Vicky2 :: struct {
     gamma_dip_enable:    bool,      // true if DIP7 in enabled (0 i bitmap)
     gamma_dip_override:  bool,      // 0: obey dip switch,   1: software control
     gamma_applied:       bool,      // 0: gamma not applied  1: gamma applied
+
+    tilemap:   [4]Vicky2_Tilemap,
+    tileset:  [12]Vicky2_Tileset,
 }
 
 // --------------------------------------------------------------------
@@ -203,18 +283,20 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, c: ^emu.Con
 
     g.delay                = 16 * time.Millisecond  // 16 milliseconds for ~60Hz XXX - to be checked
 
-    // fake init
+    // fake init just for showin something right after up
     for _, i in g.text {
         g.text[i] = 35   // u32('#')
         g.fg[i]   = 2    // green in FoenixMCP
         g.bg[i]   = 0    // black in FoenixMCP
     }
 
+    // grayscale LUT for mouse pointer, like in Foenix IDE emulator
     g.mouse_lut[0] = {0,0,0,0}              // 0 is fully transparent 
     for i in u8(1) ..= 0xFF {
         g.mouse_lut[i] = {i, i, i, 0xFF}
     }
 
+    // initial character (text) foreground LUT
     g.fg_clut = [16][4]u8 {
                 {0x00, 0x00, 0x00, 0xFF},
                 {0x00, 0x00, 0x80, 0xFF},
@@ -234,6 +316,7 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, c: ^emu.Con
                 {0xFF, 0xFF, 0xFF, 0xFF},
         }
 
+    // initial character (text) background LUT
     g.bg_clut = [16][4]u8 {
                 {0x00, 0x00, 0x00, 0xFF},
                 {0x00, 0x00, 0x80, 0xFF},
@@ -253,6 +336,7 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, c: ^emu.Con
                 {0xFF, 0xFF, 0xFF, 0xFF},
         }
 
+    // debug
     for _, color in g.bg_clut {
         log.debugf("BASE BG LUT: %2d %d %3d : %3d %3d %3d %3d %08x",
                    color, 0, 0,
@@ -263,6 +347,8 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, c: ^emu.Con
                    (transmute(^u32) &g.bg_clut[color])^
         )
     }
+
+    // debug
     for _, color in g.fg_clut {
         log.debugf("BASE FG LUT: %2d %d %3d : %3d %3d %3d %3d %08x",
                    color, 0, 0,
@@ -274,6 +360,7 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, c: ^emu.Con
         )
     }
 
+    // final steps
     gpu.model  = g
     vicky2_recalculate_screen(g)
     return gpu
@@ -310,30 +397,28 @@ vicky2_read :: proc(gpu: ^GPU, size: BITS, base, busaddr: u32, mode: emu.Region 
         emu.unsupported_read_size(#procedure, d.name, d.id, size, busaddr)
     }
 
-
     #partial switch mode {
-    case .MAIN_A: 
-        val = vicky2_read_register(d, size, busaddr, addr, mode)
-    case .MAIN_B: 
-        val = vicky2_read_register(d, size, busaddr, addr, mode)
-    case .TEXT:
-        val = d.text[addr]
-    case .TEXT_COLOR:
-        val = d.tc[addr]
-    case .TEXT_FG_LUT:
-        color := addr >> 2 // every color ARGB bytes, assume 4-byte align
-        pos   := addr  & 3 // position in 32-bit variable
-        val = u32(d.fg_clut[color][pos])
-    case .TEXT_BG_LUT:
-        color := addr >> 2 // every color ARGB bytes, assume 4-byte align
-        pos   := addr  & 3 // position in 32-bit variable
-        val = u32(d.bg_clut[color][pos])
-
+    case .MAIN_A:     val = vicky2_read_register(d, size, busaddr, addr, mode)
+    case .MAIN_B:     val = vicky2_read_register(d, size, busaddr, addr, mode)
+    case .TEXT:       val = d.text[addr]
+    case .TEXT_COLOR: val = d.tc[addr]
     case .LUT:        val = cast(u32) d.lut[addr]
     case .VRAM0:      val = d.vram0[addr]
     case .FONT_BANK0: val = d.fontmem[addr]
     case .MOUSEPTR0:  val = d.mouseptr0[addr]
     case .MOUSEPTR1:  val = d.mouseptr1[addr]
+    case .TILEMAP:    val = vicky2_read_tilemap(d, size, busaddr, addr, mode)
+    case .TILESET:    val = vicky2_read_tileset(d, size, busaddr, addr, mode)
+
+    case .TEXT_FG_LUT:
+        color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+        pos   := addr  & 3 // position in 32-bit variable
+        val = u32(d.fg_clut[color][pos])
+
+    case .TEXT_BG_LUT:
+        color := addr >> 2 // every color ARGB bytes, assume 4-byte align
+        pos   := addr  & 3 // position in 32-bit variable
+        val = u32(d.bg_clut[color][pos])
 
     case: 
         emu.read_not_implemented(#procedure, d.name, size, busaddr)
@@ -351,15 +436,11 @@ vicky2_write :: proc(gpu: ^GPU, size: BITS, base, busaddr, val: u32, mode: emu.R
     } 
 
     #partial switch mode {
-    case .MAIN_A: 
-        vicky2_write_register(&d.model.(GPU_Vicky2), size, busaddr, addr, val, mode)
-
-    case .MAIN_B: 
-        vicky2_write_register(&d.model.(GPU_Vicky2), size, busaddr, addr, val, mode)
-
-    case .TEXT:
-        d.text[addr] = val & 0x00_00_00_ff
-        //log.debugf("vicky2: %s text memory  addr %d value %d", d.name, busaddr, val)
+    case .MAIN_A:  vicky2_write_register(&d.model.(GPU_Vicky2), size, busaddr, addr, val, mode)
+    case .MAIN_B:  vicky2_write_register(&d.model.(GPU_Vicky2), size, busaddr, addr, val, mode)
+    case .TEXT:    d.text[addr] = val & 0x00_00_00_ff
+    case .TILEMAP: vicky2_write_register(d, size, busaddr, addr, val, mode)
+    case .TILESET: vicky2_write_register(d, size, busaddr, addr, val, mode)
 
     case .TEXT_COLOR:
         d.fg[addr] = (val & 0xf0) >> 4
@@ -450,6 +531,74 @@ vicky2_write :: proc(gpu: ^GPU, size: BITS, base, busaddr, val: u32, mode: emu.R
     return
 }
 
+
+@private
+vicky2_write_tileset  :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr, val: u32, mode: emu.Region) {
+    number   := addr >> 2
+    register := addr  & 0x03
+    switch Vicky2_Tileset_Reg(register) {
+    case .TILESET_ADDY_L  : d.tileset[number].addr.l = val
+    case .TILESET_ADDY_M  :	d.tileset[number].addr.m = val
+    case .TILESET_ADDY_H  :	d.tileset[number].addr.h = val
+    case .TILESET_ADDY_CFG: d.tileset[number].cfg    = Vicky2_Tileset_Cfg(val)
+    }
+}
+
+@private
+vicky2_read_tileset :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr: u32, mode: emu.Region) -> (val: u32) {
+    number   := addr >> 2
+    register := addr  & 0x03
+    switch Vicky2_Tileset_Reg(register) {
+    case .TILESET_ADDY_L  : val = d.tileset[number].addr.l
+    case .TILESET_ADDY_M  :	val = d.tileset[number].addr.m
+    case .TILESET_ADDY_H  :	val = d.tileset[number].addr.h
+    case .TILESET_ADDY_CFG: val = cast(u32) d.tileset[number].cfg
+    }
+    return
+}
+
+// there are two ways to use bit_fields: without and with- transmute
+// I'm not sure which is better, but transmute is needed for x/y pos
+@private
+vicky2_write_tilemap  :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr, val: u32, mode: emu.Region) {
+    number   := addr  / 12
+    register := addr  % 12
+	switch Vicky2_Tilemap_Reg(register) {
+	case .TL_CONTROL_REG   : d.tilemap[number].reg      = Vicky2_Tilemap_Ctrl(val)
+	case .TL_START_ADDY_L  : d.tilemap[number].addr.l   = val
+	case .TL_START_ADDY_M  : d.tilemap[number].addr.m   = val
+	case .TL_START_ADDY_H  : d.tilemap[number].addr.h   = val
+	case .TL_TOTAL_X_SIZE_L: d.tilemap[number].x_size.l = val
+	case .TL_TOTAL_X_SIZE_H: d.tilemap[number].x_size.h = val
+	case .TL_TOTAL_Y_SIZE_L: d.tilemap[number].y_size.l = val
+	case .TL_TOTAL_Y_SIZE_H: d.tilemap[number].y_size.h = val
+	case .TL_WINDOW_X_POS_L: (transmute(^[2]u8) &d.tilemap[number].x_pos)^[0] = u8(val)
+	case .TL_WINDOW_X_POS_H: (transmute(^[2]u8) &d.tilemap[number].x_pos)^[1] = u8(val)
+	case .TL_WINDOW_Y_POS_L: (transmute(^[2]u8) &d.tilemap[number].y_pos)^[0] = u8(val)
+	case .TL_WINDOW_Y_POS_H: (transmute(^[2]u8) &d.tilemap[number].y_pos)^[1] = u8(val)
+	}
+}
+
+@private
+vicky2_read_tilemap :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr: u32, mode: emu.Region) -> (val: u32) {
+    number   := addr  / 12
+    register := addr  % 12
+	switch Vicky2_Tilemap_Reg(addr) {
+	case .TL_CONTROL_REG   : val = cast(u32) d.tilemap[number].reg
+	case .TL_START_ADDY_L  : val = d.tilemap[number].addr.l
+	case .TL_START_ADDY_M  : val = d.tilemap[number].addr.m
+	case .TL_START_ADDY_H  : val = d.tilemap[number].addr.h
+	case .TL_TOTAL_X_SIZE_L: val = d.tilemap[number].x_size.l
+	case .TL_TOTAL_X_SIZE_H: val = d.tilemap[number].x_size.h
+	case .TL_TOTAL_Y_SIZE_L: val = d.tilemap[number].y_size.l
+	case .TL_TOTAL_Y_SIZE_H: val = d.tilemap[number].y_size.h
+	case .TL_WINDOW_X_POS_L: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].x_pos)^[0]
+	case .TL_WINDOW_X_POS_H: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].x_pos)^[1]
+	case .TL_WINDOW_Y_POS_L: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].y_pos)^[0]
+	case .TL_WINDOW_Y_POS_H: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].y_pos)^[1]
+	}
+    return
+}
 
 @private
 vicky2_write_register :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr, val: u32, mode: emu.Region) {
@@ -788,10 +937,6 @@ vicky2_render_text :: proc(gpu: ^GPU) {
         bgctmp: [128]u32    // background color cache (rgba) for one line
         dsttmp: [128]u32    // position in destination memory array
 
-        // XXX: it should be rather updated on register write?
-        // cursor_x       = u32(g.mem[ CURSOR_X_H ]) << 16 | u32(g.mem[ CURSOR_X_L ])
-        // cursor_y       = u32(g.mem[ CURSOR_Y_H ]) << 16 | u32(g.mem[ CURSOR_Y_L ])
-        // XXX: fix it to g.cursor_x/y in code
         cursor_x = g.cursor_x
         cursor_y = g.cursor_y
 
@@ -799,19 +944,18 @@ vicky2_render_text :: proc(gpu: ^GPU) {
         // I prefer to keep it because it allow to simply re-drawing single line in future,
         // by manupipulating starting point (now 0) and end clause (now <g.text_rows)
         // xxx - bad workaround
-            if g.border_enabled {
+        if g.border_enabled {
             g.starting_fb_row_pos = u32(g.screen_x_size) * u32(g.border_y_size) + u32(g.border_x_size)
-    } else {
+        } else {
             g.starting_fb_row_pos = 0
-    }
+        }
         fb_row_pos = g.starting_fb_row_pos
-        //fb_row_pos = 0
         //fmt.printf("border %v text_rows %d text_cols %d\n", g.border_enabled, g.text_rows, g.text_cols)
         for text_y in u32(0) ..< g.text_rows { // over lines of text
                 text_row_pos = text_y * g.text_cols
                 for text_x in u32(0) ..< g.text_cols { // pre-calculate data for x-axis
                         fnttmp[text_x] = g.text[text_row_pos+text_x] * 64 // position in font array
-                        dsttmp[text_x] = text_x * 8                     // position of char in dest FB
+                        dsttmp[text_x] = text_x * 8                       // position of char in dest FB
 
                         f := g.fg[text_row_pos+text_x] // fg and bg colors
                         b := g.bg[text_row_pos+text_x]
@@ -822,13 +966,11 @@ vicky2_render_text :: proc(gpu: ^GPU) {
                                 fnttmp[text_x] = g.cursor_character * 64 // XXX precalculate?
                         }
 
-                        //fgctmp[text_x] = g.fg_clut[f]
                         fgctmp[text_x] = (transmute(^u32) &g.fg_clut[f])^
                         if g.overlay_enabled == false {
-                                //bgctmp[text_x] = g.bg_clut[b]
                                 bgctmp[text_x] = (transmute(^u32) &g.bg_clut[b])^
                         } else {
-                                bgctmp[text_x] = 0x000000FF                    // full alph
+                                bgctmp[text_x] = 0x000000FF                    // full alpha
                         }
                 }
                 for font_line in u32(0)..<8 { // for every line of text - over 8 lines of font
@@ -838,10 +980,6 @@ vicky2_render_text :: proc(gpu: ^GPU) {
                                 fb_pos   = dsttmp[text_x] + fb_row_pos
                                 for i in u32(0)..<8 { // for every font iterate over 8 pixels of font
                                         if g.font[font_pos+i] == 0 {
-                                                /*
-                                                if g.text_cols == 128 {
-//                                                    fmt.printf("fb_row_pos %d pos %d text_x %d i %d\n", fb_row_pos, fb_pos+i, text_x, i)
-                                                }*/
                                                 g.TFB[fb_pos+i] = bgctmp[text_x]
                                         } else {
                                                 g.TFB[fb_pos+i] = fgctmp[text_x]
