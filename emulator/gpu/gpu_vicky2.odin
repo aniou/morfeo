@@ -44,7 +44,7 @@ MOUSE_PTR :: enum {
 }
 
 Vicky2_Tilemap_Ctrl :: bit_field u8 {
-    enable: bool | 1,
+   enabled: bool | 1,
          _: bool | 3,
          _: bool | 2,
    coll_on: bool | 1,
@@ -866,15 +866,19 @@ vicky2_recalculate_screen :: proc(gpu: ^GPU) {
     return
 }
 
+// ----------------------------------------------------------------------------------------------------------
+
 vicky2_render :: proc(gpu: ^GPU) {
     if gpu.id == 0 {
         gpu.pic->trigger(.VICKY_A_SOF)
     } else {
         gpu.pic->trigger(.VICKY_B_SOF)
     }
+
     if gpu.text_enabled do vicky2_render_text(gpu)
     if gpu.bm0_enabled  do vicky2_render_bm0(gpu)
     if gpu.bm1_enabled  do vicky2_render_bm1(gpu)
+
     return
 }
 
