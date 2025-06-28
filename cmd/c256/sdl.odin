@@ -41,7 +41,7 @@ GUI :: struct {
     current_gpu:   int,
     g:            ^gpu.GPU,             // currently active GPU
     gpu0:         ^gpu.GPU,             // first GPU
-    //gpu1:         ^gpu.GPU,             // second GPU
+    gpu1:         ^gpu.GPU,             // second GPU
 }
 
 gui: GUI
@@ -71,6 +71,7 @@ init_sdl :: proc(p: ^platform.Platform, config: ^emu.Config) -> (ok: bool) {
     gui = GUI{}
 
     gui.gpu0        = p.bus.gpu0  // first GPU
+    gui.gpu1        = p.bus.gpu1  // second
     gui.g           = p.bus.gpu0  // current active GPU
     gui.current_gpu = 0
 
@@ -277,12 +278,12 @@ render_gui :: proc(p: ^platform.Platform) -> (bool, bool) {
 
         // Step 2: handle GPU switching
         if gui.switch_gpu {
-            //gui.current_gpu        = 1        if gui.current_gpu == 0 else 0
+            gui.current_gpu        = 1        if gui.current_gpu == 0 else 0
             gui.g                  = gui.gpu0 
-            //gui.g                  = gui.gpu0 if gui.current_gpu == 0 else gui.gpu1
+            gui.g                  = gui.gpu0 if gui.current_gpu == 0 else gui.gpu1
             gui.switch_gpu         = false
             gui.g.screen_resized   = true
-            sdl2.SetWindowTitle(gui.window, fmt.ctprintf("morfeo (%s): gpu%d", emu.TARGET, gui.current_gpu))
+            sdl2.SetWindowTitle(gui.window, fmt.ctprintf("morfeo : %s : gpu%d", emu.TARGET, gui.current_gpu))
         }
 
         // Step 3: handle screen resize
@@ -302,13 +303,11 @@ render_gui :: proc(p: ^platform.Platform) -> (bool, bool) {
             gui.gpu0.last_tick    = time.tick_now()
         }
 
-        /*
         if time.tick_since(gui.gpu1.last_tick) >= gui.gpu1.delay {
             if gui.current_gpu   == 1 do gui.g->render()
             gui.gpu1.frames      += 1
             gui.gpu1.last_tick    = time.tick_now()
         }
-        */
 
         // Step 5 : draw to screen
         // Step 5a: background

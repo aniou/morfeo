@@ -77,7 +77,7 @@ GPU  :: struct {
                                          // 16 for 60Hz, 14 for 70Hz
     last_tick:   time.Tick,              // when last tick was made
 
-    model: union {GPU_Vicky2, GPU_Vicky3, GPU_tVicky}
+    model: union {GPU_Vicky2, GPU_Vicky3, GPU_C200, GPU_tVicky}
 }
 
 // not used - it is a separated approach, alternative to vtable

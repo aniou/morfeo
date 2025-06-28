@@ -78,6 +78,7 @@ Region :: enum {
     MOUSEPTR1,  // mouse pointer memory in vicky
     TILEMAP,
     TILESET,
+    ID_CARD,    // id block of extension card
 }
 
 // general config structure for emulator

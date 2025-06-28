@@ -34,9 +34,10 @@ else                                { PLATFORM_ID :: 0xFF             // silly w
                                       PS2_END     :: 0x04 }
 
 BUS_C256 :: struct {
-    using bus:  ^Bus,
+    using bus: ^Bus,
     vdma:       DMA,
     sdma:       DMA,
+    sys_stat:   u32,   // GABE_SYS_STAT
 }
 
 c256_make :: proc(name: string, pic: ^pic.PIC, config: ^emu.Config) -> ^Bus {
@@ -51,6 +52,8 @@ c256_make :: proc(name: string, pic: ^pic.PIC, config: ^emu.Config) -> ^Bus {
     d.dip_user = (transmute(u32)config.dipoff & 0b0001_1100) >> 2  // user: 3-5
 
     b            := BUS_C256{sdma = DMA{}, vdma = DMA{}}
+    b.sys_stat    = PLATFORM_ID | 0x10 // 0x10 for expansion card present - XXX - parametrize that
+
     d.model       = b
     return d
 }
@@ -81,6 +84,8 @@ c256_delete :: proc(bus: ^Bus) {
 // $f8:0000 - $ff:ffff - 512KB User Flash (if populated)
 
 c256_read :: proc(bus: ^Bus, size: BITS, addr: u32) -> (val: u32) {
+    b  := &bus.model.(BUS_C256) // silly workaround
+
     //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
     //log.debugf("%s read     from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
 
@@ -89,6 +94,15 @@ c256_read :: proc(bus: ^Bus, size: BITS, addr: u32) -> (val: u32) {
     case 0x00_0140 ..= 0x00_014F:  val = bus.pic0->read(size, 0x00_0140, addr)
     case 0x00_0000 ..= SRAM_END :  val = bus.ram0->read(size, 0x00_0000, addr)  // 2 or 4 MB
     case PS2_START ..= PS2_END  :  val = bus.ps20->read(size, PS2_START, addr)  // AF_1803-7 or AF_1060-4
+
+    case 0xAE_0000 ..= 0xAE_001F:  val = bus.gpu1->read(size, 0xAE_0000, addr, .ID_CARD    )
+    case 0xAE_1000 ..= 0xAE_17FF:  val = bus.gpu1->read(size, 0xAE_1000, addr, .FONT_BANK0 )
+    case 0xAE_1B00 ..= 0xAE_1B3F:  val = bus.gpu1->read(size, 0xAE_1B00, addr, .TEXT_FG_LUT)
+    case 0xAE_1B40 ..= 0xAE_1B7F:  val = bus.gpu1->read(size, 0xAE_1B40, addr, .TEXT_BG_LUT)
+    case 0xAE_1E00 ..= 0xAE_1E1F:  val = bus.gpu1->read(size, 0xAE_1E00, addr, .MAIN       )
+    case 0xAE_2000 ..= 0xAE_3FFF:  val = bus.gpu1->read(size, 0xAE_2000, addr, .TEXT       )
+    case 0xAE_4000 ..= 0xAE_5FFF:  val = bus.gpu1->read(size, 0xAE_4000, addr, .TEXT_COLOR )
+
     case 0xAF_0200 ..= 0xAF_022F:  val = bus.gpu0->read(size, 0xAF_0200, addr, .TILEMAP    )
     case 0xAF_0280 ..= 0xAF_029F:  val = bus.gpu0->read(size, 0xAF_0280, addr, .TILESET    )
     case 0xAF_0400 ..= 0xAF_040F:  val =  c256_dma_read(bus, size, addr)
@@ -106,7 +120,7 @@ c256_read :: proc(bus: ^Bus, size: BITS, addr: u32) -> (val: u32) {
     case 0xAF_E80D              :  val = bus.dip_user
     case 0xAF_E80E              :  val = bus.dip_boot
     case 0xAF_E830 ..= 0xAF_E839:  val = bus.ata0->read(size, 0xAF_E830, addr)
-    case 0xAF_E887              :  val = PLATFORM_ID
+    case 0xAF_E887              :  val = b.sys_stat
     case 0xAF_E000 ..= 0xAF_FFFF:  emu.read_not_implemented(#procedure, "io",     size, addr)
     case 0xB0_0000 ..= VRAM_END :  val = bus.gpu0->read(size, 0xB0_0000, addr, .VRAM0      ) // 2 or 4MB
     case 0xF0_0000 ..= 0xF7_FFFF:  emu.read_not_implemented(#procedure, "flash0", size, addr)
@@ -131,6 +145,14 @@ c256_write :: proc(bus: ^Bus, size: BITS, addr, val: u32) {
     case 0x00_0140 ..= 0x00_014F:  bus.pic0->write(size, 0x00_0140, addr, val)
     case 0x00_0000 ..= SRAM_END :  bus.ram0->write(size, 0x00_0000, addr, val)
     case PS2_START ..= PS2_END  :  bus.ps20->write(size, PS2_START, addr, val)
+
+    case 0xAE_1000 ..= 0xAE_17FF:  bus.gpu1->write(size, 0xAE_1000, addr, val, .FONT_BANK0 )
+    case 0xAE_1B00 ..= 0xAE_1B3F:  bus.gpu1->write(size, 0xAE_1B00, addr, val, .TEXT_FG_LUT)
+    case 0xAE_1B40 ..= 0xAE_1B7F:  bus.gpu1->write(size, 0xAE_1B40, addr, val, .TEXT_BG_LUT)
+    case 0xAE_1E00 ..= 0xAE_1E1F:  bus.gpu1->write(size, 0xAE_1E00, addr, val, .MAIN       )
+    case 0xAE_2000 ..= 0xAE_3FFF:  bus.gpu1->write(size, 0xAE_2000, addr, val, .TEXT       )
+    case 0xAE_4000 ..= 0xAE_5FFF:  bus.gpu1->write(size, 0xAE_4000, addr, val, .TEXT_COLOR )
+
     case 0xAF_0200 ..= 0xAF_022F:  bus.gpu0->write(size, 0xAF_0200, addr, val, .TILEMAP    )
     case 0xAF_0280 ..= 0xAF_029F:  bus.gpu0->write(size, 0xAF_0280, addr, val, .TILESET    )
     case 0xAF_0400 ..= 0xAF_040F:  c256_dma_write(bus, size, addr, val)
