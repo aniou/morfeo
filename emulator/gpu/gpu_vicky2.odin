@@ -57,11 +57,16 @@ Vicky2_Tilemap_Addr :: bit_field u32 {  // 0 - 0x3F_FFFF
           h: u32 | 6,
 }
 
+/*
 Vicky2_Tilemap_Size :: bit_field u32 {  // 0 - 1023
           l: u32 | 8,
           h: u32 | 2,
 }
+*/
 
+Vicky2_Tilemap_Size :: bit_field [2]u8 {  // 0 - 1023
+        val: u32 | 10,
+}
 Vicky2_Tilemap_Position :: bit_field [2]u8 { 
        val:  u32 | 10,
     scroll:  u32 |  4,
@@ -202,6 +207,8 @@ GPU_Vicky2 :: struct {
 
     tilemap:   [4]Vicky2_Tilemap,
     tileset:  [12]Vicky2_Tileset,
+
+    mdump:  [4]bool, // temporary
 }
 
 // --------------------------------------------------------------------
@@ -268,6 +275,10 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, c: ^emu.Con
     g.gamma_applied      = false
     g.pointer_enabled    = true
     g.pointer_selected   = .PTR0
+    g.mdump[0]           = true
+    g.mdump[1]           = true
+    g.mdump[2]           = false
+    g.mdump[3]           = false
 
     g.border_color_b       = 0x20
     g.border_color_g       = 0x00
@@ -439,8 +450,8 @@ vicky2_write :: proc(gpu: ^GPU, size: BITS, base, busaddr, val: u32, mode: emu.R
     case .MAIN_A:  vicky2_write_register(&d.model.(GPU_Vicky2), size, busaddr, addr, val, mode)
     case .MAIN_B:  vicky2_write_register(&d.model.(GPU_Vicky2), size, busaddr, addr, val, mode)
     case .TEXT:    d.text[addr] = val & 0x00_00_00_ff
-    case .TILEMAP: vicky2_write_register(d, size, busaddr, addr, val, mode)
-    case .TILESET: vicky2_write_register(d, size, busaddr, addr, val, mode)
+    case .TILEMAP: vicky2_write_tilemap(d, size, busaddr, addr, val, mode)
+    case .TILESET: vicky2_write_tileset(d, size, busaddr, addr, val, mode)
 
     case .TEXT_COLOR:
         d.fg[addr] = (val & 0xf0) >> 4
@@ -563,19 +574,20 @@ vicky2_read_tileset :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr: u32, mode
 vicky2_write_tilemap  :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr, val: u32, mode: emu.Region) {
     number   := addr  / 12
     register := addr  % 12
+    log.debugf("vicky2: %s number %d register %02x val %d", #procedure, number, register, val)
 	switch Vicky2_Tilemap_Reg(register) {
 	case .TL_CONTROL_REG   : d.tilemap[number].reg      = Vicky2_Tilemap_Ctrl(val)
 	case .TL_START_ADDY_L  : d.tilemap[number].addr.l   = val
 	case .TL_START_ADDY_M  : d.tilemap[number].addr.m   = val
 	case .TL_START_ADDY_H  : d.tilemap[number].addr.h   = val
-	case .TL_TOTAL_X_SIZE_L: d.tilemap[number].x_size.l = val
-	case .TL_TOTAL_X_SIZE_H: d.tilemap[number].x_size.h = val
-	case .TL_TOTAL_Y_SIZE_L: d.tilemap[number].y_size.l = val
-	case .TL_TOTAL_Y_SIZE_H: d.tilemap[number].y_size.h = val
-	case .TL_WINDOW_X_POS_L: (transmute(^[2]u8) &d.tilemap[number].x_pos)^[0] = u8(val)
-	case .TL_WINDOW_X_POS_H: (transmute(^[2]u8) &d.tilemap[number].x_pos)^[1] = u8(val)
-	case .TL_WINDOW_Y_POS_L: (transmute(^[2]u8) &d.tilemap[number].y_pos)^[0] = u8(val)
-	case .TL_WINDOW_Y_POS_H: (transmute(^[2]u8) &d.tilemap[number].y_pos)^[1] = u8(val)
+	case .TL_TOTAL_X_SIZE_L: (transmute(^[2]u8) &d.tilemap[number].x_size)^[0] = u8(val)
+	case .TL_TOTAL_X_SIZE_H: (transmute(^[2]u8) &d.tilemap[number].x_size)^[1] = u8(val)
+	case .TL_TOTAL_Y_SIZE_L: (transmute(^[2]u8) &d.tilemap[number].y_size)^[0] = u8(val)
+	case .TL_TOTAL_Y_SIZE_H: (transmute(^[2]u8) &d.tilemap[number].y_size)^[1] = u8(val)
+	case .TL_WINDOW_X_POS_L: (transmute(^[2]u8) &d.tilemap[number].x_pos )^[0] = u8(val)
+	case .TL_WINDOW_X_POS_H: (transmute(^[2]u8) &d.tilemap[number].x_pos )^[1] = u8(val)
+	case .TL_WINDOW_Y_POS_L: (transmute(^[2]u8) &d.tilemap[number].y_pos )^[0] = u8(val)
+	case .TL_WINDOW_Y_POS_H: (transmute(^[2]u8) &d.tilemap[number].y_pos )^[1] = u8(val)
 	}
 }
 
@@ -585,17 +597,17 @@ vicky2_read_tilemap :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr: u32, mode
     register := addr  % 12
 	switch Vicky2_Tilemap_Reg(addr) {
 	case .TL_CONTROL_REG   : val = cast(u32) d.tilemap[number].reg
-	case .TL_START_ADDY_L  : val = d.tilemap[number].addr.l
-	case .TL_START_ADDY_M  : val = d.tilemap[number].addr.m
-	case .TL_START_ADDY_H  : val = d.tilemap[number].addr.h
-	case .TL_TOTAL_X_SIZE_L: val = d.tilemap[number].x_size.l
-	case .TL_TOTAL_X_SIZE_H: val = d.tilemap[number].x_size.h
-	case .TL_TOTAL_Y_SIZE_L: val = d.tilemap[number].y_size.l
-	case .TL_TOTAL_Y_SIZE_H: val = d.tilemap[number].y_size.h
-	case .TL_WINDOW_X_POS_L: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].x_pos)^[0]
-	case .TL_WINDOW_X_POS_H: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].x_pos)^[1]
-	case .TL_WINDOW_Y_POS_L: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].y_pos)^[0]
-	case .TL_WINDOW_Y_POS_H: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].y_pos)^[1]
+	case .TL_START_ADDY_L  : val = cast(u32) (transmute(^[3]u8) &d.tilemap[number].addr  )^[0]
+	case .TL_START_ADDY_M  : val = cast(u32) (transmute(^[3]u8) &d.tilemap[number].addr  )^[1]
+	case .TL_START_ADDY_H  : val = cast(u32) (transmute(^[3]u8) &d.tilemap[number].addr  )^[2]
+	case .TL_TOTAL_X_SIZE_L: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].x_size)^[0]
+	case .TL_TOTAL_X_SIZE_H: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].x_size)^[1]
+	case .TL_TOTAL_Y_SIZE_L: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].y_size)^[0]
+	case .TL_TOTAL_Y_SIZE_H: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].y_size)^[1]
+	case .TL_WINDOW_X_POS_L: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].x_pos )^[0]
+	case .TL_WINDOW_X_POS_H: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].x_pos )^[1]
+	case .TL_WINDOW_Y_POS_L: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].y_pos )^[0]
+	case .TL_WINDOW_Y_POS_H: val = cast(u32) (transmute(^[2]u8) &d.tilemap[number].y_pos )^[1]
 	}
     return
 }
@@ -879,8 +891,122 @@ vicky2_render :: proc(gpu: ^GPU) {
     if gpu.bm0_enabled  do vicky2_render_bm0(gpu)
     if gpu.bm1_enabled  do vicky2_render_bm1(gpu)
 
+    // XXX just for debug
+    vicky2_render_tiles(gpu, 0)
+    vicky2_render_tiles(gpu, 1)
+    vicky2_render_tiles(gpu, 2)
+    vicky2_render_tiles(gpu, 3)
+
     return
 }
+
+
+// just for start - render white box in place of tilemap
+vicky2_render_tiles :: proc(gpu: ^GPU, layer: int) {
+    g         := &gpu.model.(GPU_Vicky2)
+
+    if ! g.tilemap[layer].reg.enabled {
+        return
+    }
+
+    tm := g.tilemap[layer]
+
+    /*
+    log.debugf("render tile %d: line_count %d pos: %v %v size %v %v", 
+                layer,
+                line_count,
+                g.tilemap[layer].x_pos.val,
+                g.tilemap[layer].y_pos.val,
+                g.tilemap[layer].x_size,
+                g.tilemap[layer].y_size
+    )
+    */
+    
+    color : u32
+
+    tmap_addr := cast(u32) tm.addr
+
+    if g.mdump[layer] {
+        fmt.printf("c200: tilemap %d addr %04x\n", layer, tmap_addr)
+
+        for y in u32(0) ..< tm.y_size.val {
+            fmt.printf("c200: %04x ", tmap_addr + 16*y)
+            for x : u32 = 0; x < tm.x_size.val*2; x+=2 {
+                fmt.printf("%02x%02x ", 
+                   g.vram0[tmap_addr + tm.y_size.val*y + x  ],
+                   g.vram0[tmap_addr + tm.y_size.val*y + x+1]
+               )
+            }
+            fmt.printf("\n")
+        }
+        g.mdump[layer] = false
+    }
+
+    // The pixel index value $00 is always transparent, regardless if it's
+    // bitmap, tile or sprite. The respective values of the first 4 bytes
+    // represented in the LUT are thus always ignored.  
+
+    tsetrowsize: u32
+    tsetcolsize: u32
+    tsetaddr : u32
+
+    i := (u32(g.screen_x_size) * g.tilemap[layer].y_pos.val) + tm.x_pos.val - u32(g.border_x_size)
+
+    yloop: for y in u32(0) ..< tm.y_size.val {
+        for yline in u32(0) ..< 16 {
+
+            xloop: for x in 0 ..< tm.x_size.val {
+                tnum :=  g.vram0[tmap_addr + y*tm.x_size.val*2 + x*2    ] 
+                tset :=  g.vram0[tmap_addr + y*tm.x_size.val*2 + x*2 +1   ]       & 0x03
+                tlut := (g.vram0[tmap_addr + y*tm.x_size.val*2 + x*2 +1   ] >> 3) & 0x03
+
+                if x*16 >= u32(g.screen_x_size) - u32(2*g.border_x_size) {
+                    break
+                }
+
+                 if g.tileset[tset].cfg.stride256 {
+                     row := tnum / 16
+                     col := tnum % 16
+
+                    tsetcolsize = 16
+                    tsetrowsize = 256
+                    tsetaddr    = u32(g.tileset[tset].addr) + 4096*row + 16*col
+                 } else {
+                    tsetcolsize = 1
+                    tsetrowsize = 16
+                    tsetaddr    = u32(g.tileset[tset].addr) + 256*tnum
+                 }
+
+
+                //log.debugf("c200: layer %d xsize: %d ysize %d x: %d tset %d lut %d tnum %d s256 %v addr %06x", 
+                //    layer, tm.x_size.val, tm.y_size.val, x, tset, tlut, tnum, g.tileset[tset].cfg.stride256, tsetaddr)
+
+                lutaddr  := tlut*256
+
+                for xpos in u32(0) ..< 16 {
+                    //if x*16+xpos >= u32(g.screen_x_size) - u32(2*g.border_x_size) {
+                    //    break xloop
+                    //}
+
+                    byte := g.vram0[tsetaddr + yline*tsetrowsize + xpos]
+                    if byte == 0 {
+                        continue
+                    }
+                    color = (transmute(^u32) &g.lut[lutaddr + 4*byte])^
+                    g.BM1FB[i + (x*16) + xpos] = color
+                }
+
+            }
+            i += u32(g.screen_x_size)
+        }
+        //tmap_addr += tm.x_size.val
+    }
+
+
+}
+
+
+
 
 vicky2_render_mouse :: proc(d: ^GPU_Vicky2) {
     source  := d.mouseptr0 if d.pointer_selected == .PTR0 else d.mouseptr1

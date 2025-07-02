@@ -167,27 +167,34 @@ show_cpu_speed :: proc(cycles: u32) -> (u32, string) {
 
 // helper routines
 // assign 8-bit part to corresponding byte in 32-bit value
-assign_byte1  :: #force_inline proc(dst, arg: u32) -> (val: u32) {
-    val  = dst & 0xFFFF_FF00
-    val |= arg 
+
+U32MAX :: 0xFFFF_FFFF
+
+assign_byte1  :: #force_inline proc(dst, arg: u32, mask: u32 = 32) -> (val: u32) {
+    val   = dst  & 0xFFFF_FF00
+    val  |= arg 
+    val &~= (U32MAX << mask) & U32MAX
     return
 }
 
-assign_byte2  :: #force_inline proc(dst, arg: u32) -> (val: u32) {
-    val  = dst  & 0xFFFF_00FF
-    val |= arg << 8
+assign_byte2  :: #force_inline proc(dst, arg: u32, mask: u32 = 32) -> (val: u32) {
+    val   = dst  & 0xFFFF_00FF
+    val  |= arg << 8
+    val &~= (U32MAX << mask) & U32MAX
     return
 }
 
-assign_byte3  :: #force_inline proc(dst, arg: u32) -> (val: u32) {
-    val  = dst  & 0xFF00_FFFF
-    val |= arg << 16
+assign_byte3  :: #force_inline proc(dst, arg: u32, mask: u32 = 32) -> (val: u32) {
+    val   = dst  & 0xFF00_FFFF
+    val  |= arg << 16
+    val &~= (U32MAX << mask) & U32MAX
     return
 }
 
-assign_byte4  :: #force_inline proc(dst, arg: u32) -> (val: u32) {
-    val  = dst  & 0x00FF_FFFF
-    val |= arg << 24
+assign_byte4  :: #force_inline proc(dst, arg: u32, mask: u32 = 32) -> (val: u32) {
+    val   = dst  & 0x00FF_FFFF
+    val  |= arg << 24
+    val &~= (U32MAX << mask) & U32MAX
     return
 }
 
