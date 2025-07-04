@@ -51,8 +51,10 @@ get_extended_linear_address :: proc(data: []u8) -> (addr: u32, ok: bool) {
     return addr, true
 }
 
-
-read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string) -> (ok: bool) {
+// move_segment - a base value used to mimic FoenixIDE behaviour, when
+// a hex file with data segments located at $18:0000 or $38:0000 are
+// mirrored to bank $00
+read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string, move_segment: u32 = 0) -> (ok: bool) {
     record_address : u32 // address (offset) of particular record (line)
     record_len     : u32 // bytes in single record (line)
     byte_count     : u32 // bytes in particular block (sum of records)
@@ -64,6 +66,7 @@ read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string) -> (ok: b
     content        : []byte       // hex file content (raw bytes)
     finished       : bool = false // set by record 01
     in_segment     : bool = false // there is a segment procesing?
+    mirrored      : bool = false // is segment re-routed from $18: or $38: to $00:
 
 	defer delete(content, context.allocator)
 
@@ -107,18 +110,25 @@ read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string) -> (ok: b
                 // is there a new data block ahead?
                 if initial_address + byte_count != base_address + record_address {
                     if in_segment {
-                        log.infof("segment %08x bytes %d", initial_address, byte_count)
+                        if mirrored {
+                            log.infof("code 00 segment %08x bytes %d mirrored to %08x", 
+                                       initial_address, byte_count, initial_address - move_segment)
+                        } else {
+                            log.infof("code 00 segment %08x bytes %d", initial_address, byte_count)
+                        }
                     }
 
                     initial_address = base_address + record_address
                     byte_count      = 0
+                    mirrored        = (initial_address >= move_segment) && (initial_address <= move_segment + 0xffff)
                 }
 
                 // just write to mem
                 for val, index in data[4:4+record_len] {
-                   // write base_address + record_address + index, b
-                   // write initial_address + byte_count
-                   bus->write(.bits_8, initial_address + byte_count + u32(index), u32(val))
+                    if mirrored {
+                        bus->write(.bits_8, initial_address + byte_count + u32(index) - move_segment, u32(val))
+                    }
+                    bus->write(.bits_8, initial_address + byte_count + u32(index), u32(val))
                 }
                 byte_count   += record_len
                 in_segment    = true
@@ -126,7 +136,7 @@ read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string) -> (ok: b
             case 0x01:
                 finished = true
                 if in_segment {
-                    log.infof("segment %08x bytes %d", initial_address, byte_count)
+                    log.infof("code 01 segment %08x bytes %d", initial_address, byte_count)
                 }
                 break loop
 
@@ -140,7 +150,7 @@ read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string) -> (ok: b
                                 | u32(data[7])
 
                 if in_segment {
-                    log.infof("segment %08x bytes %d", initial_address, byte_count)
+                    log.infof("code 05 segment %08x bytes %d", initial_address, byte_count)
                     in_segment = false
                 }
                 log.infof("set PC to address %08x", start_address)
