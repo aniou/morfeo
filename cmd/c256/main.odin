@@ -256,6 +256,11 @@ main_loop :: proc(p: ^platform.Platform, config: ^emu.Config,) {
             gui.switch_busdump = false
         }
 
+        if gui.reset {
+            p.cpu->reset()
+            gui.reset = false
+        }
+
         // Step  3: print some information
         loops += 1
         if time.tick_since(debug_ticks) > time.Second {
@@ -309,9 +314,11 @@ main :: proc() {
     }
 
     // ...program files to load 
+    // last parameter denotes where is a "flash" code located, in
+    // FoenixIDE that bank ($18:0000 or $38:) is moved to $00:0000
     for f in config.files {
         log.info(f)
-        ok = platform.read_intel_hex(p.bus, p.cpu, f)
+        ok = platform.read_intel_hex(p.bus, p.cpu, f, emu.FLASHSRC)
         if !ok {
             log.errorf("Cannot load hex file %s", f)
             p->delete()

@@ -9,6 +9,19 @@ TARGET :: #config(TARGET, "none")
 // now compile-type static TARGET is used in place of dynamic Type one
 // following is kept for archival purposes
 
+when        TARGET == "c256fmx" { SRAMSIZE    :: 4 * 1024*1024                                                          
+                                  VRAMSIZE    :: 4 * 1024*1024
+                                  FLASHSRC    :: 0x38_0000     }
+else when   TARGET == "c256u"   { SRAMSIZE    :: 2 * 1024*1024
+                                  VRAMSIZE    :: 2 * 1024*1024
+                                  FLASHSRC    :: 0x18_0000     }
+else when   TARGET == "c256u+"  { SRAMSIZE    :: 4 * 1024*1024
+                                  VRAMSIZE    :: 2 * 1024*1024
+                                  FLASHSRC    :: 0x38_0000     }
+else                            { SRAMSIZE    :: 1 * 1024*1024   // silly workaround for compiler deficiencies
+                                  VRAMSIZE    :: 1 * 1024*1024
+                                  FLASHSRC    :: 0x00_0000     }
+
 // used to determine minor differences between platforms, XXX: add m68k
 //Type :: enum {
 //    C256FMX,    // 4 SRAM  4 VRAM          65816       @ 14Mhz (FMX) - OPL3, OPN2, OPM and SN76489

@@ -139,8 +139,10 @@ logs for unsupported functions and not-implemented-yet memory regions!
 
 |Key     |Effect
 ---------|---------------------------
+F8       |Switch between main and EVID-200 GPU
 F9       |Enable/disable bus operation dump
 F10      |Enable/disable rudimentary disassembler (to be improved)
+F11      |Reset NMI
 F12      |Exit emulator
 
 # FQA

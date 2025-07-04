@@ -474,10 +474,11 @@ pic_c256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_C256)  {
     d         := &pic.model.(PIC_C256)
 
     d.pending[irq] = true
-    //log.debugf("IRQ: %v", irq)
 
     // there is a problem with handling SOF with rate 60Hz - maybe emulator is too slow?
-    if d.mask[irq] == false && irq != .FNX0_INT00_SOF {
+    //if d.mask[irq] == false && irq != .FNX0_INT00_SOF {
+    if d.mask[irq] == false {
+        log.debugf("IRQ: %v", irq)
         d.irq_active   = true
     } 
     
@@ -490,6 +491,9 @@ pic_c256_trigger :: proc(pic: ^PIC, irq: IRQ)  {
     case  .VICKY_A_SOF: pic_c256_internal_trigger(pic, .FNX0_INT00_SOF)
     case   .RESERVED_5: pic_c256_internal_trigger(pic, .FNX2_INT03_SDMA)    // too bad, too bad we
     case   .RESERVED_6: pic_c256_internal_trigger(pic, .FNX2_INT04_VDMA)    // need abstract irq names
+    case       .TIMER0: pic_c256_internal_trigger(pic, .FNX0_INT02_TMR0)
+    case       .TIMER1: pic_c256_internal_trigger(pic, .FNX0_INT03_TMR1)
+    case       .TIMER2: pic_c256_internal_trigger(pic, .FNX0_INT04_TMR2)
     case          : emu.call_not_implemented(#procedure, fmt.aprintf("%s", irq))
     }
 }

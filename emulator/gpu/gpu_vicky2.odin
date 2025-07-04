@@ -267,6 +267,7 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, c: ^emu.Con
     g.screen_resized     = false
 
     g.pixel_size         = 1
+    //g.gpu_enabled        = true
     g.cursor_enabled     = true
     g.cursor_visible     = true
     g.bitmap_enabled     = true  // XXX: there is no way to change it in vicky2?
@@ -926,6 +927,7 @@ vicky2_render_tiles :: proc(gpu: ^GPU, layer: int) {
 
     tmap_addr := cast(u32) tm.addr
 
+    /*
     if g.mdump[layer] {
         fmt.printf("c200: tilemap %d addr %04x\n", layer, tmap_addr)
 
@@ -941,6 +943,7 @@ vicky2_render_tiles :: proc(gpu: ^GPU, layer: int) {
         }
         g.mdump[layer] = false
     }
+    */
 
     // The pixel index value $00 is always transparent, regardless if it's
     // bitmap, tile or sprite. The respective values of the first 4 bytes
@@ -950,7 +953,7 @@ vicky2_render_tiles :: proc(gpu: ^GPU, layer: int) {
     tsetcolsize: u32
     tsetaddr : u32
 
-    i := (u32(g.screen_x_size) * g.tilemap[layer].y_pos.val) + tm.x_pos.val - u32(g.border_x_size)
+    i := (u32(g.screen_x_size) * g.tilemap[layer].y_pos.val) + tm.x_pos.val - u32(g.border_x_size / 2)
 
     yloop: for y in u32(0) ..< tm.y_size.val {
         for yline in u32(0) ..< 16 {

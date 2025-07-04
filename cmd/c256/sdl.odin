@@ -34,14 +34,15 @@ GUI :: struct {
 
     active_gpu:  u8,                    // GPU number
 
-    switch_disasm: bool,
+    switch_disasm:  bool,
     switch_busdump: bool,
-    should_close:  bool,
-    switch_gpu:    bool,
-    current_gpu:   int,
-    g:            ^gpu.GPU,             // currently active GPU
-    gpu0:         ^gpu.GPU,             // first GPU
-    gpu1:         ^gpu.GPU,             // second GPU
+    should_close:   bool,
+    switch_gpu:     bool,
+    reset:          bool,
+    current_gpu:    int,
+    g:             ^gpu.GPU,             // currently active GPU
+    gpu0:          ^gpu.GPU,             // first GPU
+    gpu1:          ^gpu.GPU,             // second GPU
 }
 
 gui: GUI
@@ -251,6 +252,8 @@ process_input :: proc(p: ^platform.Platform) {
             #partial switch(e.key.keysym.sym) {
             case .F12:
                 gui.should_close = true
+            case .F11:
+                gui.reset = true
             case .F10:
                 gui.switch_disasm = true
             case .F9:
@@ -263,6 +266,9 @@ process_input :: proc(p: ^platform.Platform) {
         case .KEYUP:
             #partial switch(e.key.keysym.sym) {
             case .F12: // mask key
+            case .F11: // mask key
+            case .F10: // mask key
+            case .F9:  // mask key
             case .F8:  // mask key
             case: 
                 send_key_to_ps2(p, e.key.keysym.scancode, e.type)
@@ -301,6 +307,7 @@ render_gui :: proc(p: ^platform.Platform) -> (bool, bool) {
             if gui.current_gpu   == 0 do gui.g->render()
             gui.gpu0.frames      += 1
             gui.gpu0.last_tick    = time.tick_now()
+            p.bus.timer2->tick()
         }
 
         if time.tick_since(gui.gpu1.last_tick) >= gui.gpu1.delay {
