@@ -139,10 +139,11 @@ logs for unsupported functions and not-implemented-yet memory regions!
 
 |Key     |Effect
 ---------|---------------------------
+F7       |Load and run Daniel's Tremblay Tetris
 F8       |Switch between main and EVID-200 GPU
 F9       |Enable/disable bus operation dump
 F10      |Enable/disable rudimentary disassembler (to be improved)
-F11      |Reset NMI
+F11      |Reset 
 F12      |Exit emulator
 
 # FQA
@@ -210,6 +211,8 @@ That project include:
 * [odin-ini-parser](https://github.com/laytan/odin-ini-parser) module
 * [Musashi](https://github.com/kstenerud/Musashi) core
 * a ``hex.odin`` file imported (and tweaked) from Odin core library 
+* [C256 Tetris](https://github.com/dtremblay/c256-tetris) binary by Daniel Tremblay
+* copy of [official MFX/U/U+ kernel](https://github.com/Trinity-11/Kernel_FMX)
 
 # Some screenshots
 
