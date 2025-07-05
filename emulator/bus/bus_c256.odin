@@ -125,6 +125,7 @@ c256_read :: proc(bus: ^Bus, size: BITS, addr: u32) -> (val: u32) {
     case 0xAF_E80D              :  val =   bus.dip_user
     case 0xAF_E80E              :  val =   bus.dip_boot
     case 0xAF_E830 ..= 0xAF_E839:  val =   bus.ata0->read(size, 0xAF_E830, addr)
+    case 0xAF_E884 ..= 0xAF_E885:  val =    bus.rng->read(size, 0xAF_E884, addr)
     case 0xAF_E887              :  val =   b.sys_stat
     case 0xAF_E000 ..= 0xAF_FFFF:  emu.read_not_implemented(#procedure, "io",     size, addr)
     case 0xB0_0000 ..= VRAM_END :  val =   bus.gpu0->read(size, 0xB0_0000, addr, .VRAM0      ) // 2 or 4MB

@@ -4,13 +4,14 @@ import "emulator:ata"
 import "emulator:bus"
 import "emulator:cpu"
 import "emulator:inu"
+import "emulator:joy"
 import "emulator:gpu"
 import "emulator:pic"
 import "emulator:ps2"
 import "emulator:rtc"
 import "emulator:ram"
+import "emulator:rng"
 import "emulator:timer"
-import "emulator:joy"
 
 import "core:fmt"
 import "core:log"
@@ -32,6 +33,7 @@ c256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
     p.bus.timer1 = timer.timer_c256_make("timer1", pic, 1)
     p.bus.timer2 = timer.timer_c256_make("timer2", pic, 2)
     p.bus.joy0   =   joy.joy_c256_make  ("joy0")
+    p.bus.rng    =   rng.rng_c256_make  ("rng0")
     p.cpu        =   cpu.make_w65c816   ("cpu0", p.bus)
 
     p.delete     = c256_delete
@@ -54,6 +56,7 @@ c256_delete :: proc(p: ^Platform) {
     p.bus.inu0->delete()
     p.bus.pic0->delete()
     p.bus.joy0->delete()
+     p.bus.rng->delete()
          p.bus->delete()
 
     free(p);

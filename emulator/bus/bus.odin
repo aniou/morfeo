@@ -5,12 +5,13 @@ import "lib:emu"
 import "emulator:ata"
 import "emulator:gpu"
 import "emulator:inu"
+import "emulator:joy"
 import "emulator:pic"
 import "emulator:ps2"
 import "emulator:rtc"
 import "emulator:ram"
+import "emulator:rng"
 import "emulator:timer"
-import "emulator:joy"
 
 import "core:prof/spall"
 
@@ -44,6 +45,7 @@ Bus :: struct {
     joy1:     ^joy.JOY,     // not supported yet
     joy2:     ^joy.JOY,     // not supported yet
     joy3:     ^joy.JOY,     // not supported yet
+    rng:      ^rng.RNG,
 
     dip_user: u32,          // switches 3 to 5
     dip_boot: u32,          // switches 1, 2 and 8
