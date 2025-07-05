@@ -263,7 +263,7 @@ step_w65c816 :: proc(cpu: ^CPU_65xxx) {
     // that is triggered early and causes command to be no-op with the same cycles
     // as original - but ABORT is not implemented propelry in that variant of exec
     if cpu.bus.pic0.irq_active {
-        log.debugf("cpu0: irq/nmi line active")
+        //log.debugf("cpu0: irq/nmi line active")
         cpu.bus.pic0.irq_active = false
         cpu.irq += {.IRQB}
     }

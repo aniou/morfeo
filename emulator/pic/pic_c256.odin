@@ -478,7 +478,7 @@ pic_c256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_C256)  {
     // there is a problem with handling SOF with rate 60Hz - maybe emulator is too slow?
     //if d.mask[irq] == false && irq != .FNX0_INT00_SOF {
     if d.mask[irq] == false {
-        log.debugf("IRQ: %v", irq)
+        //log.debugf("IRQ: %v", irq)
         d.irq_active   = true
     } 
     

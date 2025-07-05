@@ -121,6 +121,7 @@ c256_read :: proc(bus: ^Bus, size: BITS, addr: u32) -> (val: u32) {
     case 0xAF_A000 ..= 0xAF_BFFF:  val =   bus.gpu0->read(size, 0xAF_A000, addr, .TEXT       )
     case 0xAF_C000 ..= 0xAF_DFFF:  val =   bus.gpu0->read(size, 0xAF_C000, addr, .TEXT_COLOR )
     case 0xAF_E400 ..= 0xAF_E41f:  val =   0    // SID0 - silence it for a while
+    case 0xAF_E800              :  val =   bus.joy0->read(size, 0xAF_E800, addr)
     case 0xAF_E80D              :  val =   bus.dip_user
     case 0xAF_E80E              :  val =   bus.dip_boot
     case 0xAF_E830 ..= 0xAF_E839:  val =   bus.ata0->read(size, 0xAF_E830, addr)

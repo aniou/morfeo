@@ -10,6 +10,7 @@ import "emulator:ps2"
 import "emulator:rtc"
 import "emulator:ram"
 import "emulator:timer"
+import "emulator:joy"
 
 import "core:prof/spall"
 
@@ -39,6 +40,10 @@ Bus :: struct {
     timer0: ^timer.TIMER,
     timer1: ^timer.TIMER,
     timer2: ^timer.TIMER,
+    joy0:     ^joy.JOY,
+    joy1:     ^joy.JOY,     // not supported yet
+    joy2:     ^joy.JOY,     // not supported yet
+    joy3:     ^joy.JOY,     // not supported yet
 
     dip_user: u32,          // switches 3 to 5
     dip_boot: u32,          // switches 1, 2 and 8

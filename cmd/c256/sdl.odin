@@ -8,6 +8,7 @@ import "core:time"
 import "vendor:sdl2"
 import "emulator:gpu"
 import "emulator:platform"
+import "emulator:joy"
 
 import "lib:emu"
 
@@ -263,6 +264,26 @@ process_input :: proc(p: ^platform.Platform) {
             case .F7:
                 platform.read_intel_hex(p.bus, p.cpu, "data/tetris.hex", emu.FLASHSRC)
                 p.cpu->reset()
+            case .KP_1:
+                p.bus.joy0.state += {.DOWN, .LEFT}
+            case .KP_2:
+                p.bus.joy0.state += {.DOWN}
+            case .KP_3:
+                p.bus.joy0.state += {.DOWN, .RIGHT}
+            case .KP_4:
+                p.bus.joy0.state += {.LEFT}
+            case .KP_5:
+                p.bus.joy0.state += {.BUTTON0}
+            case .KP_6:
+                p.bus.joy0.state += {.RIGHT}
+            case .KP_7:
+                p.bus.joy0.state += {.LEFT, .UP}
+            case .KP_8:
+                p.bus.joy0.state += {.UP}
+            case .KP_9:
+                p.bus.joy0.state += {.RIGHT, .UP}
+            case .KP_0:
+                p.bus.joy0.state += {.BUTTON1}
             case:
                 send_key_to_ps2(p, e.key.keysym.scancode, e.type)
             }
@@ -273,6 +294,26 @@ process_input :: proc(p: ^platform.Platform) {
             case .F10: // mask key
             case .F9:  // mask key
             case .F8:  // mask key
+            case .KP_1:
+                p.bus.joy0.state -= {.DOWN, .LEFT}
+            case .KP_2:
+                p.bus.joy0.state -= {.DOWN}
+            case .KP_3:
+                p.bus.joy0.state -= {.DOWN, .RIGHT}
+            case .KP_4:
+                p.bus.joy0.state -= {.LEFT}
+            case .KP_5:
+                p.bus.joy0.state -= {.BUTTON0}
+            case .KP_6:
+                p.bus.joy0.state -= {.RIGHT}
+            case .KP_7:
+                p.bus.joy0.state -= {.LEFT, .UP}
+            case .KP_8:
+                p.bus.joy0.state -= {.UP}
+            case .KP_9:
+                p.bus.joy0.state -= {.RIGHT, .UP}
+            case .KP_0:
+                p.bus.joy0.state -= {.BUTTON1}
             case: 
                 send_key_to_ps2(p, e.key.keysym.scancode, e.type)
             }
