@@ -210,22 +210,28 @@ step_w65c816 :: proc(cpu: ^CPU_65xxx) {
     // in my opinion that behaviour is inncorrect, thus it corresponds with
     // FoenixIDE(?): Processor/CPU.cs Interrupt() routine where interrupt
     // is handled by vector regardless of Wait (WAI) flag where
-
-    //case cpu.irq_pending &&  cpu.in_wai && !cpu.f.I:
+    /*
     case cpu.irq_pending &&  cpu.in_wai:
         cpu.in_wai       = false
         cpu.irq_pending  = false
         cpu.irq         -= {.IRQB}
         oper_IRQ(cpu)
         fallthrough
+    */
 
-    /*
+    // correct behaviour, when WAI causes CPU just to run over, when
+    // I flag is set
+    case cpu.irq_pending &&  cpu.in_wai && !cpu.f.I:
+        cpu.in_wai       = false
+        cpu.irq_pending  = false
+        cpu.irq         -= {.IRQB}
+        oper_IRQ(cpu)
+
     case cpu.irq_pending &&  cpu.in_wai &&  cpu.f.I:
         cpu.in_wai       = false
         cpu.irq_pending  = false
         cpu.irq          = {}
         fallthrough
-    */
 
     case:
         cpu.px           = false
