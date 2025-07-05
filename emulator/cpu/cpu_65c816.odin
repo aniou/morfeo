@@ -50,6 +50,8 @@ make_w65c816 :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
 
     c             := CPU_65xxx{cpu = cpu, type = CPU_65xxx_type.W65C816S}
     c.real65c02    = false
+    c.in_wai       = false
+    c.in_stp       = false
     c.a            = DataRegister_65xxx{}
     c.x            = DataRegister_65xxx{}
     c.y            = DataRegister_65xxx{}
@@ -91,7 +93,10 @@ delete_w65c816 :: proc(cpu: ^CPU) {
 
 reset_w65c816 :: proc(cpu: ^CPU) {
     c         := &cpu.model.(CPU_65xxx)
-    oper_RST(c)
+    c.in_wai   = false
+    c.in_stp   = false
+    oper_RST(c)             // kinda of shortcut because there is
+                            // corresponding code in step_*
 }
 
 // ----------------------------------------------------------------------------
@@ -137,6 +142,11 @@ run_w65c816 :: proc(cpu: ^CPU, ticks: u32 = 1000) {
     c := &cpu.model.(CPU_65xxx)
     current_ticks : u32 = 0
 
+    if c.in_stp {           // only cpu->reset() may clear it
+        step_w65c816(c)     // redundant, added only for clarity
+        return
+    }
+
     for current_ticks <= ticks {
         step_w65c816(c)
         current_ticks += c.cycles
@@ -168,7 +178,10 @@ run_v2_w65c816 :: proc(cpu: ^CPU, ticks: u32 = 1000) {
 step_w65c816 :: proc(cpu: ^CPU_65xxx) {
 
     switch {
-    case cpu.irq_pending:
+    case cpu.in_stp:
+        return
+
+    case cpu.irq_pending && !cpu.in_wai:
         cpu.irq_pending = false
         switch {
         case .RESB   in cpu.irq:
@@ -185,24 +198,45 @@ step_w65c816 :: proc(cpu: ^CPU_65xxx) {
             if cpu.f.I { return }       // that makes "empty" call to _execute, but code is simpler
             oper_IRQ(cpu)
         }
+
     case cpu.in_mvn:
         oper_MVN(cpu)
-        cpu.cycles      = cycles_65c816[cpu.ir] if cpu.in_mvn else 0
+        cpu.cycles       = cycles_65c816[cpu.ir] if cpu.in_mvn else 0
 
     case cpu.in_mvp:
         oper_MVP(cpu)
-        cpu.cycles      = cycles_65c816[cpu.ir] if cpu.in_mvn else 0
+        cpu.cycles       = cycles_65c816[cpu.ir] if cpu.in_mvn else 0
+
+    // in my opinion that behaviour is inncorrect, thus it corresponds with
+    // FoenixIDE(?): Processor/CPU.cs Interrupt() routine where interrupt
+    // is handled by vector regardless of Wait (WAI) flag where
+
+    //case cpu.irq_pending &&  cpu.in_wai && !cpu.f.I:
+    case cpu.irq_pending &&  cpu.in_wai:
+        cpu.in_wai       = false
+        cpu.irq_pending  = false
+        cpu.irq         -= {.IRQB}
+        oper_IRQ(cpu)
+        fallthrough
+
+    /*
+    case cpu.irq_pending &&  cpu.in_wai &&  cpu.f.I:
+        cpu.in_wai       = false
+        cpu.irq_pending  = false
+        cpu.irq          = {}
+        fallthrough
+    */
 
     case:
-        cpu.px          = false
-        cpu.ir          = u8(read_m(cpu.pc, byte)) // XXX: u16?
-        cpu.ab.index    = 0                        // XXX: move to addressing modes?
-        cpu.ab.pwrap    = false                    // XXX: move to addressing modes?
+        cpu.px           = false
+        cpu.ir           = u8(read_m(cpu.pc, byte)) // XXX: u16?
+        cpu.ab.index     = 0                        // XXX: move to addressing modes?
+        cpu.ab.pwrap     = false                    // XXX: move to addressing modes?
 
-        cpu.cycles      = cycles_65c816[cpu.ir]
-        cpu.cycles     -= decCycles_flagM[cpu.ir]         if cpu.f.M             else 0
-        cpu.cycles     -= decCycles_flagX[cpu.ir]         if cpu.f.X             else 0
-        cpu.cycles     += incCycles_regDL_not00[cpu.ir]   if cpu.d & 0x00FF != 0 else 0
+        cpu.cycles       = cycles_65c816[cpu.ir]
+        cpu.cycles      -= decCycles_flagM[cpu.ir]         if cpu.f.M             else 0
+        cpu.cycles      -= decCycles_flagX[cpu.ir]         if cpu.f.X             else 0
+        cpu.cycles      += incCycles_regDL_not00[cpu.ir]   if cpu.d & 0x00FF != 0 else 0
 
         if cpu.debug {
             if cpu.bus.debug {
@@ -222,8 +256,8 @@ step_w65c816 :: proc(cpu: ^CPU_65xxx) {
     // interrupts are triggered at end of current command with exception in ABORT
     // that is triggered early and causes command to be no-op with the same cycles
     // as original - but ABORT is not implemented propelry in that variant of exec
-    if cpu.bus.pic0.irq_active && !cpu.f.I {
-        log.debugf("cpu0: irq active")
+    if cpu.bus.pic0.irq_active {
+        log.debugf("cpu0: irq/nmi line active")
         cpu.bus.pic0.irq_active = false
         cpu.irq += {.IRQB}
     }

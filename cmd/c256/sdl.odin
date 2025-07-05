@@ -260,6 +260,9 @@ process_input :: proc(p: ^platform.Platform) {
                 gui.switch_busdump = true
             case .F8:
                 gui.switch_gpu = true
+            case .F7:
+                platform.read_intel_hex(p.bus, p.cpu, "data/tetris.hex", emu.FLASHSRC)
+                p.cpu->reset()
             case:
                 send_key_to_ps2(p, e.key.keysym.scancode, e.type)
             }

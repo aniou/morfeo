@@ -134,6 +134,8 @@ CPU_65xxx :: struct {
     state:     CPU_65xxx_state,    // current CPU state
     wdm:       bool,               // support for non-standard WDM (0x42) command?
     debug:     bool,               // debugging enabled
+    in_wai:    bool,               // WAI command was issued
+    in_stp:    bool,               // STP command was issued
     real65c02: bool,               // flag for cases when is a difference
                                    // between E(mulated) mode nad real hw
 
@@ -1925,10 +1927,8 @@ oper_STA                    :: #force_inline proc (using c: ^CPU_65xxx) {
     _         = stor_m( ab, a    )
 }
 
-// XXX: implement something
-// XXX: temporary, for test
 oper_STP                    :: #force_inline proc (using c: ^CPU_65xxx) { 
-    abort     = true
+    in_stp    = true
 }
 
 oper_STX                    :: #force_inline proc (using c: ^CPU_65xxx) { 
@@ -2043,8 +2043,8 @@ oper_TYX                    :: #force_inline proc (using c: ^CPU_65xxx) {
     f.Z       = test_z( x    )
 }
 
-// XXX: implement something
 oper_WAI                    :: #force_inline proc (using c: ^CPU_65xxx) {
+    in_wai    = true
 }
 
 // XXX: implement debug interface

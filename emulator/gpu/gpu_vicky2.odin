@@ -267,7 +267,7 @@ vicky2_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, c: ^emu.Con
     g.screen_resized     = false
 
     g.pixel_size         = 1
-    //g.gpu_enabled        = true
+    g.gpu_enabled        = true
     g.cursor_enabled     = true
     g.cursor_visible     = true
     g.bitmap_enabled     = true  // XXX: there is no way to change it in vicky2?
