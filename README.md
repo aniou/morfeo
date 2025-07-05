@@ -145,6 +145,7 @@ F9       |Enable/disable bus operation dump
 F10      |Enable/disable rudimentary disassembler (to be improved)
 F11      |Reset 
 F12      |Exit emulator
+KP 0-9   |Numeric keyboard as joy0 directions, 5 -> Button0, 0 -> Button1
 
 # FQA
 
