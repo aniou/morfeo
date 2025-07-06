@@ -94,6 +94,14 @@ Region :: enum {
     ID_CARD,    // id block of extension card
 }
 
+// commands, recongized by GUI (or platform?)
+CMD :: enum{QUIT, LOAD, RESET}
+
+Command :: struct {
+    command:    CMD,
+    params:     []string
+}
+
 // general config structure for emulator
 DIP :: enum{DIP1, DIP2, DIP5, DIP4, DIP3, DIP6, DIP7, DIP8}
 
@@ -105,9 +113,9 @@ Config :: struct {
     gpu_id:    int,
     disasm:    bool,
     busdump:   bool,
+    key:       map[string][dynamic]Command,
     files:     [dynamic]string,
 }   
-
 
 // used by devices
 unsupported_read_size :: proc(procedure, dev_name: string, dev_id: int, mode: Bitsize, addr: u32) {

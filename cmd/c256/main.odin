@@ -120,6 +120,38 @@ parse_ini :: proc(c: ^emu.Config, file_path: string) {
         }
     }
 
+    // ---------------------------------------------------------------------------------------------
+    command : emu.CMD
+    valid   : bool
+
+    if "key" in iniconf {
+        for k in iniconf["key"] {
+            kname   := strings.clone(k)
+            cmdsets := strings.split(iniconf["key"][kname], ";")
+            for cmds in cmdsets {
+                valid = true
+                cmd := strings.split(strings.trim(cmds, " "), " ")
+                switch cmd[0] {
+                case "quit" : command = .QUIT
+                case "load" : command = .LOAD
+                case "reset": command = .RESET
+                case        : log.errorf("%s key %s : unknown command %s", #procedure, kname, cmd[0])
+                              valid = false
+                }
+                if kname not_in c.key {
+                    c.key[kname] = make([dynamic]emu.Command)
+                }
+                append(&c.key[kname], emu.Command{command, slice.clone(cmd[1:])})
+            }
+
+            if !valid {
+                delete_key(&c.key, kname)
+                delete(kname)
+            }
+        }
+    }
+
+    log.debugf("%s %v", #procedure, c)
     return
 }
 
@@ -185,8 +217,8 @@ read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
         c.disk1 = payload
     }
 
-    dipnames :: [?]string{"dip1", "dip2", "dip3", "dip4", "dip5", "dip6", "dip7", "dip8"} 
     // dest for dip-switches from CLI
+    dipnames :: [?]string{"dip1", "dip2", "dip3", "dip4", "dip5", "dip6", "dip7", "dip8"} 
     for dip in dipnames {
         payload, ok = getargs.get_payload(&argp, dip)
         if !ok {
@@ -202,6 +234,7 @@ read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
     }
 
     getargs.destroy(&argp)
+    args_ok = false
     return 
 }
 
@@ -289,6 +322,7 @@ main :: proc() {
 
     // init -------------------------------------------------------------
     config, ok := read_args()
+    log.debugf("%s %v", #procedure, config)
     if !ok {
         free(config)
         os.exit(1)
