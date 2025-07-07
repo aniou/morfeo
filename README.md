@@ -134,8 +134,19 @@ and reads on internal bus.
 [DEBUG] --- bus0 read8  000000ea from 0x 0039:0F60
 ```
 
-At this moment only few function keys are supported. See for standard output
-logs for unsupported functions and not-implemented-yet memory regions!
+From now a c256-family platforms has configurable ``F1-F12`` keys, see 
+files in ``conf/`` directory for examples. Unconfigured keys are passed
+for emulator, but configured one are shadowed by GUI, so beware!
+
+There is possibility to load multiple files at one ``load`` command,
+just place space-separated names as well as issue multiple commands via
+single keystroke, by separating them by ``;``.
+
+In future there may be possibility to use combination like SHIFT-F1 as
+one with minimal interference with current systems, but it is a matter
+of real necessity.
+
+Default configuration looks like:
 
 |Key     |Effect
 ---------|---------------------------
