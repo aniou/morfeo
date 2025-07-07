@@ -35,6 +35,8 @@ c256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
     p.bus.joy0   =   joy.joy_c256_make  ("joy0")
     p.bus.rng    =   rng.rng_c256_make  ("rng0")
     p.cpu        =   cpu.make_w65c816   ("cpu0", p.bus)
+    
+    p.cfg        = config
 
     p.delete     = c256_delete
     p.init       = c256_init

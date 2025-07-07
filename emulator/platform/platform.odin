@@ -19,6 +19,8 @@ Platform   :: struct {
     delete: proc(^Platform),
     init:   proc(^Platform),
 
+    cfg:    ^emu.Config,
+
     cpu:     ^cpu.CPU,
     bus:     ^bus.Bus,
 

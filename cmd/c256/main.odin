@@ -132,16 +132,24 @@ parse_ini :: proc(c: ^emu.Config, file_path: string) {
                 valid = true
                 cmd := strings.split(strings.trim(cmds, " "), " ")
                 switch cmd[0] {
-                case "quit" : command = .QUIT
-                case "load" : command = .LOAD
-                case "reset": command = .RESET
-                case        : log.errorf("%s key %s : unknown command %s", #procedure, kname, cmd[0])
-                              valid = false
+                case "quit"          : command = .QUIT
+                case "load"          : command = .LOAD
+                case "reset"         : command = .RESET
+                case "toggle_gpu"    : command = .TOGGLE_GPU
+                case "toggle_busdump": command = .TOGGLE_BUSDUMP
+                case "toggle_disasm" : command = .TOGGLE_DISASM
+                case                 : log.errorf("%s key %s : unknown command %s", #procedure, kname, cmd[0])
+                                       valid = false
                 }
                 if kname not_in c.key {
                     c.key[kname] = make([dynamic]emu.Command)
                 }
-                append(&c.key[kname], emu.Command{command, slice.clone(cmd[1:])})
+                
+                params := make([dynamic]string)
+                for param in cmd[1:] {
+                    append(&params, strings.clone(param))
+                }
+                append(&c.key[kname], emu.Command{command, params})
             }
 
             if !valid {
@@ -234,7 +242,7 @@ read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
     }
 
     getargs.destroy(&argp)
-    args_ok = false
+    //args_ok = false
     return 
 }
 

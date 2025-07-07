@@ -95,11 +95,11 @@ Region :: enum {
 }
 
 // commands, recongized by GUI (or platform?)
-CMD :: enum{QUIT, LOAD, RESET}
+CMD :: enum{QUIT, LOAD, RESET, TOGGLE_GPU, TOGGLE_BUSDUMP, TOGGLE_DISASM}
 
 Command :: struct {
     command:    CMD,
-    params:     []string
+    params:     [dynamic]string
 }
 
 // general config structure for emulator
