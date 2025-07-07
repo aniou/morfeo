@@ -229,32 +229,5 @@ send_key_to_ps2 :: proc(p: ^platform.Platform, code: sdl2.Scancode, event: sdl2.
         ps2code += 0x80
     }
 
-    p.bus.ps20->send_key(ps2code)
-    // irq!
-
-
+    p.bus.ps20->send_key(ps2code)       // IRQ is triggered by ps2 module
 }
-
-/*
-func (g *GUI) sendKey(code sdl.Scancode, state byte) {
-    mask := g.p.CPU0.Read_8(INT_MASK_REG1)
-    if (^mask & byte(r1_FNX1_INT00_KBD)) == byte(r1_FNX1_INT00_KBD) {
-        code := PS2ScanCode(code)
-        //fmt.Printf("\nKEY pressed?:%v, mask %2X %2X %2X\n", state, mask, ^mask, byte(r1_FNX1_INT00_KBD))
-
-        if code == sc_null {
-            fmt.Printf("unknown scancode\n")
-        } else {
-            if state == sdl.RELEASED {
-                g.p.SIO.Data = code + 0x80
-            } else {
-                g.p.SIO.Data = code
-            }
-            g.p.CPU0.Write_8(0xAF_1064, 0)
-            irq1 := g.p.CPU0.Read_8(INT_PENDING_REG1) | r1_FNX1_INT00_KBD
-            g.p.CPU0.Write_8(INT_PENDING_REG1, irq1)
-            g.p.CPU0.TriggerIRQ()
-        }
-    }
-}
-*/
