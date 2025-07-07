@@ -49,7 +49,8 @@ read_ini :: proc(file_path: string) -> Maybe(ini.INI) {
 // set dip value according to key/val 
 parse_dip :: proc(c: ^emu.Config, key, val: string) {
 
-    switch strings.to_lower(val) {
+    lower_val := strings.to_lower(val)
+    switch lower_val {
     case "n", "0", "off", "no",  "false": 
         switch key {
         case "dip1": c.dipoff += {.DIP1}
@@ -75,7 +76,7 @@ parse_dip :: proc(c: ^emu.Config, key, val: string) {
         case       : log.errorf("config: unknown DIP: %s", key)
         }
     }
-
+    delete(lower_val)
 }
 
 parse_ini :: proc(c: ^emu.Config, file_path: string) {
@@ -101,9 +102,11 @@ parse_ini :: proc(c: ^emu.Config, file_path: string) {
             switch {
             case strings.has_prefix(key, "file"): append(&c.files, val)
             case strings.has_prefix(key, "dip") : parse_dip(c, key, val)
+                                                  delete(val)
             case key == "disk0"                 : c.disk0 = val
             case key == "disk1"                 : c.disk0 = val
             }
+            delete(key)
         }
         delete(keys)
         log.debugf("config: DIP enabled is %v", ~c.dipoff)
@@ -150,7 +153,9 @@ parse_ini :: proc(c: ^emu.Config, file_path: string) {
                     append(&params, strings.clone(param))
                 }
                 append(&c.key[kname], emu.Command{command, params})
+                delete(cmd)
             }
+            delete(cmdsets)
 
             if !valid {
                 delete_key(&c.key, kname)
@@ -378,6 +383,26 @@ main :: proc() {
     // exiting ----------------------------------------------------------
     cleanup_sdl()
     p->delete()
+
+    // XXX - move to cleanup_config
+    for k in config.key {
+        for cmd in config.key[k] {
+            for param in cmd.params {
+                delete(param)
+            }
+            delete(cmd.params)
+        }
+        delete(config.key[k])
+        delete(k)
+    }
+    delete(config.key)
+    delete(config.disk0)
+    delete(config.disk1)
+    for f in config.files {
+        delete(f)
+    }
+    delete(config.files)
+
     free(config)
     os.exit(0)
 }

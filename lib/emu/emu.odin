@@ -156,6 +156,8 @@ write_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr, 
                 u16(addr >> 16), u16(addr & 0x0000_ffff),
                 display_val
     )
+
+    delete(display_val)
 }
 
 read_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr: u32) {

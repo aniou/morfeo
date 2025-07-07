@@ -228,11 +228,11 @@ draw_border :: proc(g: ^gpu.GPU) {
 }
 
 cleanup_sdl :: proc() {
-        sdl2.DestroyWindow(gui.window)
-        sdl2.DestroyRenderer(gui.renderer)
         sdl2.DestroyTexture(gui.texture_txt)
         sdl2.DestroyTexture(gui.texture_bm0)
         sdl2.DestroyTexture(gui.texture_bm1)
+        sdl2.DestroyRenderer(gui.renderer)
+        sdl2.DestroyWindow(gui.window)
         sdl2.QuitSubSystem(sdl2.INIT_EVERYTHING)
         sdl2.Quit()
 }
