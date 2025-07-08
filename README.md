@@ -7,10 +7,6 @@ At this moment MORFE/O supports 32bit m68k CPU (Musashi Core) and
 provides native implementation of 16bit WDC 65C816 and 8bit 
 WDC W65C02S cores.
 
-> [!WARNING]
-> Currently only small subset of platform is supported and software
-> itself is in infancy.
-
 > [!NOTE]
 > If You have an SID-emulating library in C or wrapper around
 > C++ reSID code - let me know! 
@@ -136,15 +132,11 @@ and reads on internal bus.
 
 From now a c256-family platforms has configurable ``F1-F12`` keys, see 
 files in ``conf/`` directory for examples. Unconfigured keys are passed
-for emulator, but configured one are shadowed by GUI, so beware!
+to emulator as-is, but configured one are shadowed by GUI, so beware!
 
-There is possibility to load multiple files at one ``load`` command,
-just place space-separated names as well as issue multiple commands via
-single keystroke, by separating them by ``;``.
-
-In future there may be possibility to use combination like SHIFT-F1 as
-one with minimal interference with current systems, but it is a matter
-of real necessity.
+There is possibility to load multiple files at one ``load`` command:
+just place space-separated names. There is also possible to issue 
+multiple commands via single keystroke, by separating them by ``;``.
 
 Default configuration looks like:
 
