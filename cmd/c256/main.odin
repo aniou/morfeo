@@ -328,6 +328,27 @@ main_loop :: proc(p: ^platform.Platform, config: ^emu.Config,) {
     return
 }
 
+cleanup_config :: proc(config: ^emu.Configuration) {
+    for k in config.key {
+        for cmd in config.key[k] {
+            for param in cmd.params {
+                delete(param)
+            }
+            delete(cmd.params)
+        }
+        delete(config.key[k])
+        delete(k)
+    }
+    delete(config.key)
+    delete(config.disk0)
+    delete(config.disk1)
+    for f in config.files {
+        delete(f)
+    }
+    delete(config.files)
+    free(config)
+}
+
 
 main :: proc() {
     logger_options := log.Options{.Level};
@@ -383,27 +404,8 @@ main :: proc() {
     // exiting ----------------------------------------------------------
     cleanup_sdl()
     p->delete()
+    cleanup_config(config)
 
-    // XXX - move to cleanup_config
-    for k in config.key {
-        for cmd in config.key[k] {
-            for param in cmd.params {
-                delete(param)
-            }
-            delete(cmd.params)
-        }
-        delete(config.key[k])
-        delete(k)
-    }
-    delete(config.key)
-    delete(config.disk0)
-    delete(config.disk1)
-    for f in config.files {
-        delete(f)
-    }
-    delete(config.files)
-
-    free(config)
     os.exit(0)
 }
 
