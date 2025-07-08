@@ -252,7 +252,7 @@ read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
 }
 
 
-main_loop :: proc(p: ^platform.Platform, config: ^emu.Config,) {
+main_loop :: proc(p: ^platform.Platform, config: ^emu.Config) {
 
     loops           := u32(0)
     ms_elapsed      := u32(0)
@@ -270,7 +270,7 @@ main_loop :: proc(p: ^platform.Platform, config: ^emu.Config,) {
 
     p->init()
     p.cpu->reset()
-    for !should_close {
+    for !gui.should_close {
 
         // Step 1: execute CPU and measure delays
         // XXX: move cpu_ticks into cpu's own structure, like for GPU
@@ -288,24 +288,8 @@ main_loop :: proc(p: ^platform.Platform, config: ^emu.Config,) {
             p.cpu->run(desired_cycles)
         }
 
-        // Step 2: process keyboard in (XXX: do it - mouse)
-        should_close, switch_disasm = render_gui(p)
-
-        // XXX why return when I have access to GUI? insane...
-        if switch_disasm {
-            c.debug = false if c.debug else true
-            gui.switch_disasm = false
-        }
-
-        if gui.switch_busdump {
-            p.bus.debug = false if p.bus.debug else true
-            gui.switch_busdump = false
-        }
-
-        if gui.reset {
-            p.cpu->reset()
-            gui.reset = false
-        }
+        // Step 2: render gui and process keyboard in (XXX: do it - mouse)
+        render_gui(p)
 
         // Step  3: print some information
         loops += 1
@@ -328,7 +312,7 @@ main_loop :: proc(p: ^platform.Platform, config: ^emu.Config,) {
     return
 }
 
-cleanup_config :: proc(config: ^emu.Configuration) {
+cleanup_config :: proc(config: ^emu.Config) {
     for k in config.key {
         for cmd in config.key[k] {
             for param in cmd.params {

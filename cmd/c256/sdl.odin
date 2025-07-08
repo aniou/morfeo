@@ -34,11 +34,8 @@ GUI :: struct {
 
     active_gpu:  u8,                    // GPU number
 
-    switch_disasm:  bool,
-    switch_busdump: bool,
     should_close:   bool,
     switch_gpu:     bool,
-    reset:          bool,
     current_gpu:    int,
     g:             ^gpu.GPU,             // currently active GPU
     gpu0:          ^gpu.GPU,             // first GPU
@@ -253,9 +250,9 @@ call_command :: proc(p: ^platform.Platform, k: string) -> (pass: bool = true) {
         case .TOGGLE_GPU:
             gui.switch_gpu = true
         case .TOGGLE_BUSDUMP:
-            gui.switch_busdump = true
+            p.bus.debug = false if p.bus.debug else true 
         case .TOGGLE_DISASM:
-            gui.switch_disasm = true
+            p.cpu.debug = false if p.cpu.debug else true
         }
 	}
     return
@@ -286,21 +283,6 @@ process_input :: proc(p: ^platform.Platform) {
 			case .F10: if pass := call_command(p, "f10"); pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
 			case .F11: if pass := call_command(p, "f11"); pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
 			case .F12: if pass := call_command(p, "f12"); pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			/*
-            case .F12:
-                gui.should_close = true
-            case .F11:
-                gui.reset = true
-            case .F10:
-                gui.switch_disasm = true
-            case .F9:
-                gui.switch_busdump = true
-            case .F8:
-                gui.switch_gpu = true
-            case .F7:
-                platform.read_intel_hex(p.bus, p.cpu, "data/tetris.hex", emu.FLASHSRC)
-                p.cpu->reset()
-			*/
             case .KP_1:
                 p.bus.joy0.state += {.DOWN, .LEFT}
             case .KP_2:
@@ -365,7 +347,7 @@ process_input :: proc(p: ^platform.Platform) {
     }
 }
 
-render_gui :: proc(p: ^platform.Platform) -> (bool, bool) {
+render_gui :: proc(p: ^platform.Platform) {
 
         // Step 1: process keyboard in (XXX: do it - mouse)
         process_input(p)
@@ -453,5 +435,5 @@ render_gui :: proc(p: ^platform.Platform) -> (bool, bool) {
         sdl2.RenderPresent(gui.renderer)
 
         // Step 7: back to main loop
-        return gui.should_close, gui.switch_disasm
+        return 
 }

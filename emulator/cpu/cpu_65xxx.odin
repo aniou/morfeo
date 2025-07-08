@@ -133,7 +133,6 @@ CPU_65xxx :: struct {
     stall:     u32,                // number of cycles to wait to execute current (ir) command
     state:     CPU_65xxx_state,    // current CPU state
     wdm:       bool,               // support for non-standard WDM (0x42) command?
-    debug:     bool,               // debugging enabled
     in_wai:    bool,               // WAI command was issued
     in_stp:    bool,               // STP command was issued
     real65c02: bool,               // flag for cases when is a difference
