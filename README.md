@@ -191,9 +191,9 @@ graphics and sound.
 At this moment on my short TODO list are:
 
 - [ ] better debug facilities for c256
-- [ ] tiles for c256
+- [x] tiles for c256 (WIP)
 - [ ] modernisation of a2560x to standard (config file etc.) of c256
-- [ ] EVID 200 (second monitor) extension card
+- [x] EVID 200 (second monitor) extension card
 
 # Hacking
 
