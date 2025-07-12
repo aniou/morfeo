@@ -34,9 +34,10 @@ Bus :: struct {
     gpu1:     ^gpu.GPU,
     rtc0:     ^rtc.RTC,
     ata0:     ^ata.PATA,
-    ram0:     ^ram.RAM,	   // first slot (ram/sram/flash...)
+    ram0:     ^ram.RAM,	    // first slot (ram/sram/flash...)
     ram1:     ^ram.RAM,     // second...
     ram2:     ^ram.RAM,     // third...
+    rom0:     ^ram.RAM,	    // first slot, yes - the same backend here
     inu0:     ^inu.INU,
     timer0: ^timer.TIMER,
     timer1: ^timer.TIMER,

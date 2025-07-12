@@ -83,6 +83,7 @@ main_loop :: proc(p: ^platform.Platform) {
     desired_cycles  := CPU_SPEED
     should_close    := false
 
+    p->init()
     p.cpu->reset()
     for !should_close {
 
