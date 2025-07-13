@@ -12,7 +12,7 @@ BITS :: emu.Bitsize
 
 /*
 
- bq4802Y: 5-V   Operation
+bq4802 Y: 5-V   Operation
 bq4802LY: 3.3-V Operation
 
  - following implementation is a very loose variation about 

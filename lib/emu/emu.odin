@@ -69,6 +69,44 @@ Bitsize :: enum {
     bits_32  = 32
 }
 
+/* variations about new structure names
+
+Bitsize :: enum {
+    bits_8   = 8,
+    bits_16be  = 16,
+    bits_32be  = 32
+}
+
+Bitsize :: enum {
+    bit_8     = 8,
+    bit_16be  = 16,
+    bit_32be  = 32
+}
+
+Bitsize :: enum {
+    t8     = 8,
+    t16be  = 16,
+    t32be  = 32
+}
+
+Bitsize :: enum {
+    t8      = 8,
+    t16_be  = 16,
+    t32_be  = 32
+
+Val_Type :: enum {
+    t8      = 8,
+    t16_be  = 16,
+    t32_be  = 32
+}
+
+Op_Type :: enum {
+    op8      = 8,
+    op16_be  = 16,
+    op32_be  = 32
+}
+*/
+
 Access_Type :: enum {
     READ,
     WRITE
