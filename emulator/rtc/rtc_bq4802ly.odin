@@ -18,6 +18,9 @@ bq4802LY: 3.3-V Operation
  - following implementation is a very loose variation about 
  interfaces, nor voltage or reaction times, so...
 
+  Microsecond :: 1000 * Nanosecond
+                 1 μs = 10-6 s = 1/1 000 000 s
+
 */
 
 // MODEL == MODEL_FOENIX_A2560K || MODEL == MODEL_FOENIX_GENX || MODEL == MODEL_FOENIX_A2560X
@@ -44,6 +47,28 @@ lookup :: #force_inline proc(kind: Kind) -> string {
   @static table := TABLE;
   return table[kind];
 }
+
+
+myMutex :sync.Mutex
+
+//  worker :: proc(t: ^thread.Thread) {
+
+    /*
+     when we come to this line
+     it will check if myMutex is available or not
+     if it isn't then it will wait for it
+     and once its available then it will pass and run below code
+    */
+    sync.lock(myMutex) // locking before we do our opeartion
+
+    fmt.printf("work of t%d started \n", arr[t.user_index])
+    time.sleep(time.Second)
+    fmt.printf("work of t%d completed \n", arr[t.user_index])
+    fmt.println()
+
+    sync.unlock(myMutex) // unlocking for other threads to use it
+}
+
 */
 
 REGISTERS :: [?]string {
@@ -84,14 +109,11 @@ bq4802_make :: proc(name: string, pic: ^pic.PIC) -> ^RTC {
     r         := new(RTC)
     r.name     = name
     r.pic      = pic
-    //r.read8    = bq4802_read8
-    //r.write8   = bq4802_write8
     r.delete   = bq4802_delete
     r.read     = bq4802_read
     r.write    = bq4802_write
     r.shutdown = false          // used to stop threads
 
-    //if t := thread.create_and_start_with_data(r, worker_proc, context); t != nil {
     if t := thread.create_and_start_with_data(r, worker_proc); t != nil {
         r.clock = t
     } else {
@@ -114,19 +136,6 @@ bq4802_write :: proc(r: ^RTC, mode: BITS, base, busaddr, val: u32) {
     return
 }
 
-// XXX - not used?
-/*
-bq4802_read8 :: proc(r: ^RTC, addr: u32) -> (val: u8) {
-    log.warnf("%s bq4802 read     from %2x  %-15s not implemented", r.name, addr, addr_name(addr))
-    return 0
-}
-
-bq4802_write8 :: proc(r: ^RTC, addr: u32, val: u8) {
-    log.warnf("%s bq4802 write %02x to   %2x  %-15s not implemented", r.name, val, addr, addr_name(addr))
-    return
-}
-*/
-
 bq4802_delete :: proc(r: ^RTC) {
     r.shutdown = true
     thread.join(r.clock)
@@ -134,7 +143,7 @@ bq4802_delete :: proc(r: ^RTC) {
     free(r)
 }
 
-worker_proc :: proc(p: rawptr) {
+bq4802_worker_proc :: proc(p: rawptr) {
         logger_options := log.Options{.Level};
         context.logger  = log.create_console_logger(opt = logger_options)
 
@@ -150,7 +159,7 @@ worker_proc :: proc(p: rawptr) {
 // XXX - not used?
 bq4802_clock :: proc(r: ^RTC) {
     
-    if t := thread.create_and_start_with_data(r, worker_proc, context); t != nil {
+    if t := thread.create_and_start_with_data(r, bq4802_worker_proc, context); t != nil {
         r.clock = t
     } else {
         log.errorf("%s bq4802 cannot create clock thread", r.name)
