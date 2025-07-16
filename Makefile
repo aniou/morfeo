@@ -49,7 +49,7 @@ release: $(musashi_objects)
 	odin build cmd/a2560x -define:TARGET=a2560x -no-bounds-check -disable-assert $(build_flags)
 
 a2560x: $(musashi_objects)
-	odin build cmd/a2560x -define:TARGET=a2560x      $(build_flags)
+	odin build cmd/a2560x -define:TARGET=a2560x    -debug  $(build_flags)
 
 c256fmx:
 	odin build cmd/c256 -define:TARGET=c256fmx -out:c256fmx -debug $(build_flags)
