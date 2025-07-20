@@ -524,14 +524,14 @@ vicky2_write :: proc(gpu: ^GPU, size: BITS, base, busaddr, val: u32, mode: emu.R
         d.vram0[addr] = val
 
     case .MOUSEPTR0:
-        log.debugf("vicky2: %s mouseptr0  addr %d value %d", d.name, busaddr, val)
+        //log.debugf("vicky2: %s mouseptr0  addr %d value %d", d.name, busaddr, val)
         d.mouseptr0[addr] = val
         if d.pointer_selected == .PTR0 {
             vicky2_render_mouse(d)
         }
 
     case .MOUSEPTR1:
-        log.debugf("vicky2: %s mouseptr1  addr %d value %d", d.name, busaddr, val)
+        //log.debugf("vicky2: %s mouseptr1  addr %d value %d", d.name, busaddr, val)
         d.mouseptr1[addr] = val
         if d.pointer_selected == .PTR1 {
             vicky2_render_mouse(d)
