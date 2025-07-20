@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 2025-07-12
 
 ### Added
-
 - a2560x: model/submodel/version support 
 - general: CHANGELOG introduced
+
+## 2025-07-20
+
+### Fixed
+- a2560x, c256: handling ps2 keycodes when CPU/IRQ is too slow.
+  In that case codes are enqueued in GUI and passed again as soon,
+  as it is possible. Additional IRQ is triggered on every try.
+
+  It doesn't looks nice, but missing keys during typing in c256
+  is far worse.
