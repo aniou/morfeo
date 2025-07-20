@@ -78,6 +78,7 @@ read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string, move_segm
 
 	it := string(content)
 	loop: for line in strings.split_lines_iterator(&it) {
+        finished = false
         if line[0] != ':' {
         	continue
         }
@@ -135,10 +136,7 @@ read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string, move_segm
                 
             case 0x01:
                 finished = true
-                if in_segment {
-                    log.infof("code 01 segment %08x bytes %d", initial_address, byte_count)
-                }
-                break loop
+                //break loop
 
             case 0x04: 
                 base_address = get_extended_linear_address(data) or_break loop
@@ -165,6 +163,9 @@ read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string, move_segm
     if ! finished {
         log.error("File was not fully parsed!")
         ok = false
+    }
+    if in_segment {
+        log.infof("code 01 segment %08x bytes %d", initial_address, byte_count)
     }
     return   
 }
