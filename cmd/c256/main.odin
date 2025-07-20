@@ -292,6 +292,7 @@ main_loop :: proc(p: ^platform.Platform, config: ^emu.Config) {
         render_gui(p)
 
         // Step  3: print some information
+        /*
         loops += 1
         if time.tick_since(debug_ticks) > time.Second {
             debug_ticks  = time.tick_now()
@@ -308,6 +309,7 @@ main_loop :: proc(p: ^platform.Platform, config: ^emu.Config) {
             loops        = 0
             p.cpu.all_cycles = 0
         }
+        */
     }
     return
 }

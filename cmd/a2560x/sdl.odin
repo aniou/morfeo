@@ -33,6 +33,8 @@ GUI :: struct {
     g:            ^gpu.GPU,             // currently active GPU
     gpu0:         ^gpu.GPU,             // first GPU
     gpu1:         ^gpu.GPU,             // second GPU
+
+    ps2_queued_codes: [dynamic]u8,         // queue for scancodes if controller is not able to handle them at time
 }
 
 gui: GUI
@@ -224,6 +226,12 @@ cleanup_sdl :: proc() {
 process_input :: proc(p: ^platform.Platform) {
     e: sdl2.Event
 
+    // at first, try to send queued key 
+    if len(gui.ps2_queued_codes) > 0 {
+        send_queued_key_to_ps2(p)
+    }
+
+    // then process new ones
     for sdl2.PollEvent(&e) {
         #partial switch(e.type) {
         case .QUIT:

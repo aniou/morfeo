@@ -43,7 +43,7 @@ PS2  :: struct {
     write:    proc(^PS2, BITS, u32, u32,    u32),
     read8:    proc(^PS2, u32) -> u8,
     write8:   proc(^PS2, u32, u8),
-    send_key: proc(^PS2, u8),
+    send_key: proc(^PS2, u8)  -> bool,
     delete:   proc(^PS2),
 
     pic:            ^pic.PIC,
@@ -77,15 +77,6 @@ ps2_make :: proc(name: string, pic: ^pic.PIC) -> ^PS2 {
     s.name     = name
 
     return s
-}
-
-ps2_send_key :: proc(s: ^PS2, val: u8) {
-        log.debugf("ps2: %6s send_key %02x current status %02x", s.name, val, s.status)
-        s.data = val
-        s.status = s.status | PS2_STAT_OBF
-
-        s.pic->trigger(.KBD_PS2)
-        return
 }
 
 /*
@@ -213,3 +204,19 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
 ps2_delete :: proc(d: ^PS2) {
     free(d)
 }
+
+
+ps2_send_key :: proc(s: ^PS2, val: u8) -> (ok: bool = true) {
+    if s.status & PS2_STAT_OBF == PS2_STAT_OBF {
+        ok       = false
+        log.debugf("ps2: %6s send_key %02x but buffer is full, delayed", s.name, val)
+    } else {
+        s.data   = val
+        s.status = s.status | PS2_STAT_OBF
+        log.debugf("ps2: %6s send_key %02x current status %02x", s.name, val, s.status)
+    }
+
+    s.pic->trigger(.KBD_PS2)
+    return
+}
+

@@ -229,5 +229,20 @@ send_key_to_ps2 :: proc(p: ^platform.Platform, code: sdl2.Scancode, event: sdl2.
         ps2code += 0x80
     }
 
-    p.bus.ps20->send_key(ps2code)       // IRQ is triggered by ps2 module
+    append(&gui.ps2_queued_codes, ps2code)
+    send_queued_key_to_ps2(p)
 }
+
+
+send_queued_key_to_ps2 :: proc(p: ^platform.Platform) {
+    //if len(gui.ps2_queued_codes) == 0 {
+    //    return
+    //}
+
+    if p.bus.ps20->send_key(gui.ps2_queued_codes[0]) {      // IRQ is triggered by ps2 module
+        ordered_remove(&gui.ps2_queued_codes, 0)
+    }
+}
+
+
+
