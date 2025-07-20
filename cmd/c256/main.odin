@@ -328,10 +328,11 @@ cleanup_config :: proc(config: ^emu.Config) {
     delete(config.key)
     delete(config.disk0)
     delete(config.disk1)
-    for f in config.files {
-        delete(f)
-    }
-    delete(config.files)
+    //for f in config.files {
+    //    fmt.println(f)
+    //    delete(f)
+    //}
+    //delete(config.files)
     free(config)
 }
 

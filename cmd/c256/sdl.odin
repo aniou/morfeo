@@ -236,8 +236,9 @@ cleanup_sdl :: proc() {
         sdl2.Quit()
 }
 
-call_command :: proc(p: ^platform.Platform, k: string) -> (pass: bool = true) {
+call_command :: proc(p: ^platform.Platform, k: string) -> (pass: bool = false) {
     if k not_in p.cfg.key {
+        pass = true
         return  // do nothing, pass key to emulator
     }
 
