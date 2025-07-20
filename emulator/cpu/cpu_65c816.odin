@@ -136,7 +136,6 @@ reset_w65c816 :: proc(cpu: ^CPU) {
 //    4. Ideal model requires step-exact code, that is possible, but
 //       with different algorithm or even different language - maybe 
 //       in future?
-
 // ver.1 - less accurate, more performant, without ABORT
 run_w65c816 :: proc(cpu: ^CPU, ticks: u32 = 1000) {
     c := &cpu.model.(CPU_65xxx)
@@ -194,8 +193,8 @@ step_w65c816 :: proc(cpu: ^CPU_65xxx) {
             cpu.irq -= {.NMIB}
             oper_NMI(cpu)
         case .IRQB   in cpu.irq:
-            cpu.irq -= {.IRQB}
             if cpu.f.I { return }       // that makes "empty" call to _execute, but code is simpler
+            cpu.irq -= {.IRQB}
             oper_IRQ(cpu)
         }
 
