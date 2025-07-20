@@ -32,6 +32,15 @@ when        emu.TARGET == "a2560x"  { MACHINE_ID        : u32 : 0x08           /
                                       GABE_CHIP_VERSION : u32 : 0xFE_C0_0010   // Number[31:16], Version[15:0]
                                     }
 else                                { MACHINE_ID        : u32 : 0xFF           // silly workaround
+                                      MACHINE_SUBID     : u32 : 0xFF           // box type: CUBE
+                                      CLOCK_SPEED       : u32 : 0xFF   <<  5   // SYSCLK_33MHZ
+                                      CPU_ID            : u32 : 0xFF   << 12   // CPU_M68040V
+                                      FPGA_SUBVER       : u32 : 0xFF   << 16
+                                      FPGA_MODEL        : u32 : 65535  << 16
+                                      FPGA_VERSION      : u32 : 65535
+                                      GABE_BASE         : u32 : 0xFE_FF_FFFF
+                                      GABE_SUBVER_ID    : u32 : 0xFE_FF_FFFF
+                                      GABE_CHIP_VERSION : u32 : 0xFE_FF_FFFF   // Number[31:16], Version[15:0]
                                     }
 
 
