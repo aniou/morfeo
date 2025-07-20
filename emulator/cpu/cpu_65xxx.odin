@@ -2133,6 +2133,7 @@ oper_RST                    :: #force_inline proc (using c: ^CPU_65xxx) {
     f.I       = true
 
     ab.bank   = 0
+    ab.index  = 0
     ab.addr   = 0xFFFC
     pc.addr   = read_m( ab, word )
     pc.bank   = 0
@@ -2176,6 +2177,7 @@ oper_ABT                    :: #force_inline proc (using c: ^CPU_65xxx) {
     f.I       = true
     f.D       = false
     ab.bank   = 0
+    ab.index  = 0
     ab.addr   = 0xFFF8 if f.E else 0xFFE8
     pc.bank   = 0
     pc.addr   = read_m( ab, word )
@@ -2202,6 +2204,7 @@ oper_IRQ                    :: #force_inline proc (using c: ^CPU_65xxx) {
     f.I       = true
     f.D       = false
     ab.bank   = 0
+    ab.index  = 0
     ab.addr   = 0xFFFE if f.E else 0xFFEE
     pc.bank   = 0
     pc.addr   = read_m( ab, word )
@@ -2228,6 +2231,7 @@ oper_NMI                    :: #force_inline proc (using c: ^CPU_65xxx) {
     f.I       = true
     f.D       = false
     ab.bank   = 0
+    ab.index  = 0
     ab.addr   = 0xFFFA if f.E else 0xFFEA
     pc.bank   = 0
     pc.addr   = read_m( ab, word )

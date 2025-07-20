@@ -194,6 +194,7 @@ step_w65c816 :: proc(cpu: ^CPU_65xxx) {
             oper_NMI(cpu)
         case .IRQB   in cpu.irq:
             if cpu.f.I { return }       // that makes "empty" call to _execute, but code is simpler
+            //log.debugf("cpu0: IRQ start")
             cpu.irq -= {.IRQB}
             oper_IRQ(cpu)
         }
