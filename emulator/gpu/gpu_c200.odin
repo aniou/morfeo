@@ -454,7 +454,7 @@ C200_read_register :: proc(d: ^GPU_C200, size: BITS, busaddr, addr: u32, mode: e
 // val      - particular value
 @private
 C200_update_font_cache :: proc(g: ^GPU_C200, position: u32, value: u8) {
-       log.debugf("C200: %s update font cache position %d value %d", g.name, position, value)
+       //log.debugf("C200: %s update font cache position %d value %d", g.name, position, value)
        pos := position * 8
        val := value
         for j := u32(8); j > 0; j = j - 1 {          // counting down spares from shifting val left
