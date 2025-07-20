@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   It doesn't look nice, but missing keys during typing in c256
   is far worse.
 
+- 65xxxx emulation: pity mistake, that causes weird jumps after
+  interrupt call - internal 'index' register of virtual address
+  bus was not cleared...
+
 ## 2025-07-12
 ### Added
 - a2560x: model/submodel/version support 
