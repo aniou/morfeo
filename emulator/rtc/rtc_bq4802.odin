@@ -94,31 +94,23 @@ BQ4802_Control :: bit_field u32 {
     uti:               bool | 1,    // update transfer inhibit (don't update public from internal counters)
 }
 
+
+BQ4802_Value :: struct {    // universal value to simplify things
+    val    :  u32,
+    enabled: bool,           // used by alarms
+    dirty  : bool,           // used by write clocks
+}
+
 BQ4802_Clock :: struct {
-    second     : u32,
-    minute     : u32,
-    hour       : u32,
-    day        : u32,
-    day_of_week: u32,
-    month      : u32,
-    year       : u32,
-    century    : u32,
+    second     : BQ4802_Value,
+    minute     : BQ4802_Value,
+    hour       : BQ4802_Value,
+    day        : BQ4802_Value,
+    dow        : BQ4802_Value,
+    month      : BQ4802_Value,
+    year       : BQ4802_Value,
+    century    : BQ4802_Value,
 }
-
-BQ4802_Maybe_Clock :: struct {
-    second     : Maybe(u32),
-    minute     : Maybe(u32),
-    hour       : Maybe(u32),
-    day        : Maybe(u32),
-    day_of_week: Maybe(u32),
-    month      : Maybe(u32),
-    year       : Maybe(u32),
-    century    : Maybe(u32),
-}
-
-
-//REGS            :: enum {SECOND, MINUTE, HOUR, DAY, MONTH, YEAR, CENTURY}
-//Updated_by_user :: bit_set[REGS, u32]
 
 RTC :: struct {
     name:   string,
@@ -135,10 +127,9 @@ RTC :: struct {
     enable     : BQ4802_Enables,
     control    : BQ4802_Control,
 
-    internal   : BQ4802_Clock,       // internal clock, update once per second
-    public     : BQ4802_Clock,       // public clock, update if control.uti == 0
+    own        : BQ4802_Clock,       // internal clock, update once per second
+    pub        : BQ4802_Clock,       // public clock, update if control.uti == 0
     alarm      : BQ4802_Clock,       // alarm clock
-    writebuf   : BQ4802_Maybe_Clock, // temporary buffer registers for handling user writes
 
     days       : [12]u32,
 
@@ -163,17 +154,27 @@ bq4802_make :: proc(name: string, pic: ^pic.PIC) -> ^RTC {
     ldt, _ := timezone.datetime_to_tz(dt, tz)
     ts,  _  = time.datetime_to_time(ldt)        // time corrected for weekday below
 
-    r.internal.second      = u32(ldt.time.second)
-    r.internal.minute      = u32(ldt.time.minute)
-    r.internal.hour        = u32(ldt.time.hour)
-    r.internal.day         = u32(ldt.date.day)
-    r.internal.day_of_week = u32(time.weekday(ts))
-    r.internal.month       = u32(ldt.date.month)
-    r.internal.year        = u32(ldt.date.year % 100)
-    r.internal.century     = u32(ldt.date.year / 100)
+    r.own.second.val      = u32(ldt.time.second)
+    r.own.minute.val      = u32(ldt.time.minute)
+    r.own.hour.val        = u32(ldt.time.hour)
+    r.own.day.val         = u32(ldt.date.day)
+    r.own.dow.val         = u32(time.weekday(ts))
+    r.own.month.val       = u32(ldt.date.month)
+    r.own.year.val        = u32(ldt.date.year % 100)
+    r.own.century.val     = u32(ldt.date.year / 100)
 
-    r.public          = r.internal
-    r.days            = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+    r.own.second.enabled  = true
+    r.own.minute.enabled  = true
+    r.own.hour.enabled    = true
+    r.own.day.enabled     = true
+    r.own.dow.enabled     = true
+    r.own.month.enabled   = true
+    r.own.year.enabled    = true
+    r.own.century.enabled = true
+
+    r.pub                 = r.own
+    r.days                = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+    r.control.mode_24h    = true
 
     update_leap_year(r)
 
@@ -195,22 +196,22 @@ bq4802_read :: proc(r: ^RTC, mode: BITS, base, busaddr: u32) -> (val: u32) {
     }
 
     switch Register_bq4802(addr) {
-    case .RTC_SEC        : val = to_bcd(r.public.second)
-    case .RTC_ALRM_SEC   : val = to_bcd(r.alarm.second)
-    case .RTC_MIN        : val = to_bcd(r.public.minute)
-    case .RTC_ALRM_MIN   : val = to_bcd(r.alarm.minute)
-    case .RTC_HOUR       : log.warnf("%s bq4802 read%d     from %x  %-15s not implemented", r.name, mode, busaddr, addr_name(addr))
-    case .RTC_ALRM_HOUR  : log.warnf("%s bq4802 read%d     from %x  %-15s not implemented", r.name, mode, busaddr, addr_name(addr))
-    case .RTC_DAY        : val = to_bcd(r.public.day)
-    case .RTC_ALRM_DAY   : val = to_bcd(r.alarm.day)
-    case .RTC_DAY_OF_WEEK: val = to_bcd(r.public.day_of_week)
-    case .RTC_MONTH      : val = to_bcd(r.public.month)
-    case .RTC_YEAR       : val = to_bcd(r.public.year)
-    case .RTC_RATES      : val =    u32(r.rate)
-    case .RTC_ENABLES    : val =    u32(r.enable)
-    case .RTC_FLAGS      : val =    u32(r.flag)
-    case .RTC_CTRL       : val =    u32(r.control)
-    case .RTC_CENTURY    : val = to_bcd(r.public.century)
+    case .RTC_SEC        : val = time_to_bcd(r.pub.second)
+    case .RTC_ALRM_SEC   : val = time_to_bcd(r.alarm.second)
+    case .RTC_MIN        : val = time_to_bcd(r.pub.minute)
+    case .RTC_ALRM_MIN   : val = time_to_bcd(r.alarm.minute)
+    case .RTC_HOUR       : val = hour_to_bcd(r.pub.hour,    r.control.mode_24h)
+    case .RTC_ALRM_HOUR  : val = hour_to_bcd(r.alarm.hour,  r.control.mode_24h)
+    case .RTC_DAY        : val = time_to_bcd(r.pub.day)
+    case .RTC_ALRM_DAY   : val = time_to_bcd(r.alarm.day)
+    case .RTC_DAY_OF_WEEK: val = time_to_bcd(r.pub.dow)
+    case .RTC_MONTH      : val = time_to_bcd(r.pub.month)
+    case .RTC_YEAR       : val = time_to_bcd(r.pub.year)
+    case .RTC_RATES      : val =         u32(r.rate)
+    case .RTC_ENABLES    : val =         u32(r.enable)
+    case .RTC_FLAGS      : val =         u32(r.flag)
+    case .RTC_CTRL       : val =         u32(r.control)
+    case .RTC_CENTURY    : val = time_to_bcd(r.pub.century)
     }
     //log.warnf("%s bq4802 read%d     from %x  %-15s not implemented", r.name, mode, busaddr, addr_name(addr))
     return
@@ -223,23 +224,24 @@ bq4802_write :: proc(r: ^RTC, mode: BITS, base, busaddr, val: u32) {
         emu.unsupported_write_size(#procedure, r.name, r.id, mode, busaddr, val)
     } 
 
+    //log.debugf("%s bq4802 write%d %02x   to %x  %-15s", r.name, mode, val, busaddr, addr_name(addr))
     switch Register_bq4802(addr) {
-    case .RTC_SEC        : r.writebuf.second   = from_bcd(val)
-    case .RTC_ALRM_SEC   : r.alarm.second      = from_bcd(val)
-    case .RTC_MIN        : r.writebuf.minute   = from_bcd(val)
-    case .RTC_ALRM_MIN   : r.alarm.minute      = from_bcd(val)
-    case .RTC_HOUR       : r.writebuf.hour     = from_bcd(val)
-    case .RTC_ALRM_HOUR  : r.alarm.hour        = from_bcd(val)
-    case .RTC_DAY        : r.writebuf.day      = from_bcd(val)
-    case .RTC_ALRM_DAY   : r.alarm.day         = from_bcd(val)
+    case .RTC_SEC        : r.pub.second   = time_from_bcd(val)
+    case .RTC_ALRM_SEC   : r.alarm.second = time_from_bcd(val)
+    case .RTC_MIN        : r.pub.minute   = time_from_bcd(val)
+    case .RTC_ALRM_MIN   : r.alarm.minute = time_from_bcd(val)
+    case .RTC_HOUR       : r.pub.hour     = hour_from_bcd(val,  r.control.mode_24h)
+    case .RTC_ALRM_HOUR  : r.alarm.hour   = hour_from_bcd(val,  r.control.mode_24h)
+    case .RTC_DAY        : r.pub.day      = time_from_bcd(val)
+    case .RTC_ALRM_DAY   : r.alarm.day    = time_from_bcd(val)
     case .RTC_DAY_OF_WEEK: log.warnf("%s bq4802 write%d %02x   to %x  %-15s does nothing", r.name, mode, val, busaddr, addr_name(addr))
-    case .RTC_MONTH      : r.writebuf.month    = from_bcd(val)
-    case .RTC_YEAR       : r.writebuf.year     = from_bcd(val)
-    case .RTC_RATES      : r.rate              = BQ4802_Rates(val)
-    case .RTC_ENABLES    : r.enable            = BQ4802_Enables(val)
-    case .RTC_FLAGS      : r.flag              = BQ4802_Flags(val)
-    case .RTC_CTRL       : r.control           = BQ4802_Control(val)
-    case .RTC_CENTURY    : r.writebuf.century  = from_bcd(val)
+    case .RTC_MONTH      : r.pub.month    = time_from_bcd(val)
+    case .RTC_YEAR       : r.pub.year     = time_from_bcd(val)
+    case .RTC_RATES      : r.rate         = BQ4802_Rates(val)
+    case .RTC_ENABLES    : r.enable       = BQ4802_Enables(val)
+    case .RTC_FLAGS      : r.flag         = BQ4802_Flags(val)
+    case .RTC_CTRL       : r.control      = BQ4802_Control(val)
+    case .RTC_CENTURY    : r.pub.century  = time_from_bcd(val)
     }
 
     // if uti is not 0 then update
@@ -247,13 +249,13 @@ bq4802_write :: proc(r: ^RTC, mode: BITS, base, busaddr, val: u32) {
         return
     }
 
-    if val,ok := r.writebuf.second.?;  ok { r.internal.second  = val; r.writebuf.second  = nil }
-    if val,ok := r.writebuf.minute.?;  ok { r.internal.minute  = val; r.writebuf.minute  = nil }
-    if val,ok := r.writebuf.hour.?;    ok { r.internal.hour    = val; r.writebuf.hour    = nil }
-    if val,ok := r.writebuf.day.?;     ok { r.internal.day     = val; r.writebuf.day     = nil }
-    if val,ok := r.writebuf.month.?;   ok { r.internal.month   = val; r.writebuf.month   = nil }
-    if val,ok := r.writebuf.year.?;    ok { r.internal.year    = val; r.writebuf.year    = nil }
-    if val,ok := r.writebuf.century.?; ok { r.internal.century = val; r.writebuf.century = nil }
+    if r.pub.second.dirty  { r.own.second.val  = r.pub.second.val;   r.pub.second.dirty  = false }
+    if r.pub.minute.dirty  { r.own.minute.val  = r.pub.minute.val;   r.pub.minute.dirty  = false }
+    if r.pub.hour.dirty    { r.own.hour.val    = r.pub.hour.val;     r.pub.hour.dirty    = false }
+    if r.pub.day.dirty     { r.own.day.val     = r.pub.day.val;      r.pub.day.dirty     = false }
+    if r.pub.month.dirty   { r.own.month.val   = r.pub.month.val;    r.pub.month.dirty   = false }
+    if r.pub.year.dirty    { r.own.year.val    = r.pub.year.val;     r.pub.year.dirty    = false }
+    if r.pub.century.dirty { r.own.century.val = r.pub.century.val;  r.pub.century.dirty = false }
 
     //log.warnf("%s bq4802 write%d %02x   to %x  %-15s not implemented", r.name, mode, val, busaddr, addr_name(addr))
     return
@@ -276,51 +278,54 @@ bq4802_worker_clock :: proc(p: rawptr) {
        for !r.shutdown {
             update_leap = false
 			clock: {
-                r.internal.second      += 1
-			    if r.internal.second    < 60 do break clock
-                r.internal.second       = 0
+                r.own.second.val      += 1
+			    if r.own.second.val    < 60 do break clock
+                r.own.second.val       = 0
 
-                r.internal.minute      += 1
-			    if r.internal.minute    < 60 do break clock
-                r.internal.minute       = 0
+                r.own.minute.val      += 1
+			    if r.own.minute.val    < 60 do break clock
+                r.own.minute.val       = 0
 
-                r.internal.hour        += 1
-			    if r.internal.minute    < 24 do break clock
-                r.internal.hour         = 0
+                r.own.hour.val        += 1
+			    if r.own.hour.val      < 24 do break clock
+                r.own.hour.val         = 0
 
-                r.internal.day_of_week += 1
-                r.internal.day_of_week &= 7
-                r.internal.day         += 1
-                if r.internal.day      <= r.days[r.internal.month] do break clock
-                r.internal.day          = 1
+                r.own.dow.val += 1
+                r.own.dow.val &= 7
+                r.own.day.val         += 1
+                if r.own.day.val      <= r.days[r.own.month.val] do break clock
+                r.own.day.val          = 1
 
-                r.internal.month       += 1
-                if r.internal.month     < 13 do break clock
-                r.internal.month        = 1
+                r.own.month.val       += 1
+                if r.own.month.val     < 13 do break clock
+                r.own.month.val        = 1
                 
-                update_leap        = true
-                r.internal.year        += 1
-                if r.internal.year     <= 99 do break clock
-                r.internal.year         = 0
+                update_leap            = true
+                r.own.year.val        += 1
+                if r.own.year.val     <= 99 do break clock
+                r.own.year.val         = 0
 
-                r.internal.century     += 1
-                if r.internal.century  <= 99 do break clock
-                r.internal.century      = 0
+                r.own.century.val     += 1
+                if r.own.century.val  <= 99 do break clock
+                r.own.century.val      = 0
 			}
 
             if update_leap    do update_leap_year(r)
-            if !r.control.uti do r.public = r.internal
+            if !r.control.uti do r.pub = r.own
 
             // XXX: alarm check there
-            /*
-			log.debugf("%s bq4802 %4d-%2d-%2d (%d) %d:%d:%d (uti: %v)", 
+			log.debugf("%s bq4802 %2d%2d-%2d-%2d (%d) %d:%d:%d (uti: %v)", 
                         r.name, 
-                        r.internal.year, r.internal.month, r.internal.day, 
-                        r.internal.day_of_week,
-                        r.internal.hour, r.internal.minute, r.internal.second,
+                        r.own.century.val, 
+                        r.own.year.val,
+                        r.own.month.val,
+                        r.own.day.val, 
+                        r.own.dow.val,
+                        r.own.hour.val, 
+                        r.own.minute.val, 
+                        r.own.second.val,
                         r.control.uti
                     )
-                    */
 
 
             time.sleep(time.Second)
@@ -344,7 +349,7 @@ leap_year :: #force_inline proc(year: u32) -> bool {
 
 @private
 update_leap_year :: proc(r: ^RTC) {
-    if leap_year(r.internal.year) {
+    if leap_year(r.own.year.val) {
         r.days[1] = 29
     } else {
         r.days[1] = 28
@@ -352,18 +357,49 @@ update_leap_year :: proc(r: ^RTC) {
 }
 
 @private
-to_bcd :: proc(arg: u32) -> (val: u32) {
-    tens :=   arg  / 10
-    ones :=   arg  % 10
-    val   = (tens <<  4) | ones
+hour_to_bcd :: proc(hour: BQ4802_Value, mode_24h: bool) -> (val: u32) {
+    if mode_24h {
+        val = time_to_bcd(hour)
+    } else {
+        hour := hour
+        switch hour.val {
+        case 0       : hour.val += 12; val = time_to_bcd(hour)  ; val |= 0x80
+        case 1 ..= 12:                 val = time_to_bcd(hour)
+        case         : hour.val -= 12; val = time_to_bcd(hour)  ; val |= 0x80
+        }
+    }
+
     return
 }
 
 @private
-from_bcd :: proc(arg: u32) -> (val: u32) {
-    tens := (arg  & 0xf0) >> 4  
-    ones :=  arg  & 0x0f
-    val   = (tens *   10)  + ones
+time_to_bcd :: proc(arg: BQ4802_Value) -> (val: u32) {
+    tens :=  arg.val     / 10
+    ones :=  arg.val     % 10
+    val   = (tens <<  4) | ones
+    val  |= 0xC0 if !arg.enabled else 0
+    return
+}
+
+@private
+time_from_bcd :: proc(arg: u32) -> (val: BQ4802_Value) {
+    val.dirty    = true
+    val.enabled  =  arg  & 0xc0  != 0xc0
+    tens        := (arg  & 0xf0) >> 4
+    ones        :=  arg  & 0x0f
+    val.val      = (tens *   10)  + ones
+    return
+}
+
+@private
+// special case for hours
+hour_from_bcd :: proc(arg: u32, mode_24h: bool) -> (val: BQ4802_Value) {
+    pm    :=  arg  & 0x80  == 0x80
+    val    =  time_from_bcd(arg)
+
+    if !mode_24h && pm do val.val = arg + 12
+    if val.val == 24   do val.val = 0
+
     return
 }
 
