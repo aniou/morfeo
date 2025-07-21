@@ -170,7 +170,7 @@ c256_write :: proc(bus: ^Bus, size: BITS, addr, val: u32) {
     case 0xAF_0500 ..= 0xAF_05FF:    bus.gpu0->write(size, 0xAF_0500, addr, val, .MOUSEPTR0  )
     case 0xAF_0600 ..= 0xAF_06FF:    bus.gpu0->write(size, 0xAF_0600, addr, val, .MOUSEPTR1  )
     case 0xAF_0000 ..= 0xAF_07FF:    bus.gpu0->write(size, 0xAF_0000, addr, val, .MAIN_A     )
-    case 0xAF_0800 ..= 0xAF_080F:    bus.rtc0->write(size, 0xAF_0000, addr, val)
+    case 0xAF_0800 ..= 0xAF_080F:    bus.rtc0->write(size, 0xAF_0800, addr, val)
     case 0xAF_1F40 ..= 0xAF_1F7F:    bus.gpu0->write(size, 0xAF_1F40, addr, val, .TEXT_FG_LUT)
     case 0xAF_1F80 ..= 0xAF_1FFF:    bus.gpu0->write(size, 0xAF_1F80, addr, val, .TEXT_BG_LUT)
     case 0xAF_2000 ..= 0xAF_3FFF:    bus.gpu0->write(size, 0xAF_2000, addr, val, .LUT        )
