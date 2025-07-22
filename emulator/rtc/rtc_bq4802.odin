@@ -134,7 +134,7 @@ RTC :: struct {
     days       : [12]u32,
 
     clock:    ^thread.Thread,
-	//mutex:    sync.Mutex,       // ok, there is a small window to desync r/w of date, but...
+    //mutex:    sync.Mutex,       // ok, there is a small window to desync r/w of date, but...
     shutdown: bool,
 
 }
@@ -277,17 +277,17 @@ bq4802_worker_clock :: proc(p: rawptr) {
        r := transmute(^RTC)p
        for !r.shutdown {
             update_leap = false
-			clock: {
+            clock: {
                 r.own.second.val      += 1
-			    if r.own.second.val    < 60 do break clock
+                if r.own.second.val    < 60 do break clock
                 r.own.second.val       = 0
 
                 r.own.minute.val      += 1
-			    if r.own.minute.val    < 60 do break clock
+                if r.own.minute.val    < 60 do break clock
                 r.own.minute.val       = 0
 
                 r.own.hour.val        += 1
-			    if r.own.hour.val      < 24 do break clock
+                if r.own.hour.val      < 24 do break clock
                 r.own.hour.val         = 0
 
                 r.own.dow.val += 1
@@ -308,13 +308,13 @@ bq4802_worker_clock :: proc(p: rawptr) {
                 r.own.century.val     += 1
                 if r.own.century.val  <= 99 do break clock
                 r.own.century.val      = 0
-			}
+            }
 
             if update_leap    do update_leap_year(r)
             if !r.control.uti do r.pub = r.own
 
             // XXX: alarm check there
-			log.debugf("%s bq4802 %2d%2d-%2d-%2d (%d) %d:%d:%d (uti: %v)", 
+            log.debugf("%s bq4802 %2d%2d-%2d-%2d (%d) %d:%d:%d (uti: %v)", 
                         r.name, 
                         r.own.century.val, 
                         r.own.year.val,
