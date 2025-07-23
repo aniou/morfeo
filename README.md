@@ -163,10 +163,6 @@ core (Musashi) is written in C.
 
 Because I need some fun too.
 
-### Why MCP banner is "C256 Foenix"?
-
-Because a proper ID bits in GABE emulation part are not implemented yet.
-
 ### In which areas morfeo is better than morfe?
 
 * clean architecture
