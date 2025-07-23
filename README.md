@@ -1,46 +1,24 @@
-# MORFE/O - Meyer's Own Re-combinable FrankenEmulator / Odin version
+# MORFE/O
+**Meyer's Own Re-combinable FrankenEmulator / Odin version**
 
-So, there is - slowly evolving - emulator framework, capable for easy
-emulation of various sets of CPUs, GPUs and memory models.
+Universal emulator framework, capable of emulating various sets
+of CPUs, GPUs and memory models. Support for RTC, PS2, PATA included!
 
-At this moment MORFE/O supports 32bit m68k CPU (Musashi Core) and 
-provides native implementation of 16bit WDC 65C816 and 8bit 
-WDC W65C02S cores.
+## Supported CPUs
+- m68k (Musashi Core)
+- WDC 65c816
+- WDC W65C02S 
 
-> [!NOTE]
-> If You have an SID-emulating library in C or wrapper around
-> C++ reSID code - let me know! 
-
-# Available targets
-
-## a2560x
-
-An emulator of m68k-based of [Foenix machines](https://c256foenix.com/).
-
-Currently only a kind of ``a2560x`` platform is supported, but morfeo
-is modular and extensible...
-
-## c256fmx, c256u, c256u+
-
-An emulator capable to run subset of features C256 FMX/U/U+ machines, but
-without sound. 
-
-At this moment has better quality (config files, switches) than a2560-one. 
-
-## test_65c816 and test_w65c02s
-
-Test suites for cores, based on sets provided by [SingleStepTests](https://github.com/SingleStepTests)
-
-Notes:
-* STP and WAI require implementation
-
-* tests for MVN and MVP are invalid and disabled (but opcodes works!)
+# Available platforms
+- [a2560x](https://wiki.c256foenix.com/index.php?title=A2560)
+- [c256fmx, c256u, c256u+](https://wiki.c256foenix.com/index.php?title=C256)
+- test_65c816, test_w65c02s - simple platform for running [SingleStepTests](https://github.com/SingleStepTests)
 
 # Building
-
 At this moment emulator was built and tested on Ubuntu 22.04 LTS and
 openSUSE Leap 15.6.
 
+## Prequisites
 1. You need a working copy of [Odin](https://odin-lang.org/docs/install/)
    language - follow link and install Odin in preffered way.
 
@@ -58,24 +36,37 @@ git submodule init lib/getargs
 git submodule init lib/odin-ini-parser
 git submodule init external/Musashi
 git submodule update
-make
 ```
 
 4. If You want to run test programs for 65xx-based core then You need two
-additional modules.
-
-**WARNING:** they need about 20G of additional space!
+additional modules. **WARNING:** they need about 20G of additional space!
 
 ```shell
 git submodule init external/tests-65816
 git submodule init external/tests-6502
 ```
 
-5. Type ``make`` for impatient or ``make help`` for detailed options. 
+## Available targets
+Type ``make`` for for detailed list of targets, select preferred and issue command,
+for example ``make c256u+`` will build emulator for C256 U+ platform. Binary will
+be located in current directory
 
-# Running a2560x
+```
+make a2560x       - build an a2560x emulator
+make c256fmx      - build an C256 FMX
+make c256u        - build an C256 U
+make c256u+       - build an C256 U+
 
-Run:
+make test_w65c02s - build a test suite for W65C02S
+make test_65c816  - build a test suite for 65C816
+
+make clean        - clean-up binaries
+make clean-all    - clean-up binaries and object files
+```
+
+
+# Running
+# a2560x 
 
 ```shell
 ./a2560x --gpu=1 --disk0 data/test-fat32.img data/foenixmcp-a2560x.hex
@@ -89,7 +80,7 @@ for unsupported functions and not-implemented-yet memory regions!
 F8       |Change active head in multi-head setups
 F12      |Exit emulator
 
-# Running c256*
+# c256fmx, c256u, c256u+
 
 Just use command (``c256fmx``, ``c256u``, ``c256u+``). Configuration will
 be loaded automagically from default file ``conf/[binaryname].ini``
@@ -150,6 +141,15 @@ F11      |Reset
 F12      |Exit emulator
 KP 0-9   |Numeric keyboard as joy0 directions, 5 -> Button0, 0 -> Button1
 
+# OF816 Open Firmware inspired FORTH
+This project contains copy of version of [OF816](https://github.com/aniou/of816/tree/C256/platforms/C256) 
+by [mgcaret](https://github.com/mgcaret). It can be run by simply passing corresponding hex file to any
+c256-family emulator:
+
+```
+./c256u+ data/of816.hex
+```
+
 # FQA
 
 ### Why not morfe (an Go-based)?
@@ -190,6 +190,8 @@ graphics and sound.
 
 At this moment on my short TODO list are:
 
+- [x] RTC
+- [x] joy0 via numpad
 - [ ] better debug facilities for c256
 - [x] tiles for c256 (WIP)
 - [ ] modernisation of a2560x to standard (config file etc.) of c256
@@ -208,15 +210,13 @@ See also ``emulator/gpu/gpu.odin``, and routines ``vicky3_make``
 and ``vicky3_read`` in ``emulator/gpu/gpu_vicky3.odin`` for samples.
 
 # Included software
-
-That project include:
-
 * [getargs](https://github.com/jasonKercher/getargs) module
 * [odin-ini-parser](https://github.com/laytan/odin-ini-parser) module
 * [Musashi](https://github.com/kstenerud/Musashi) core
 * a ``hex.odin`` file imported (and tweaked) from Odin core library 
 * [C256 Tetris](https://github.com/dtremblay/c256-tetris) binary by Daniel Tremblay
 * copy of [official MFX/U/U+ kernel](https://github.com/Trinity-11/Kernel_FMX)
+* copy of [OpenFirmware compatible FORTH by mgcaret](https://github.com/aniou/of816/tree/C256/platforms/C256)
 
 # Some screenshots
 
