@@ -69,8 +69,8 @@ REGISTERS :: [?]string {
 }
 
 BQ4802_Rates :: bit_field u32 {
-    irq_rate:           int | 4,
-    watchdog_rate:      int | 3,
+    periodic:           int | 4,
+    watchdog:           int | 3,
 }
 
 BQ4802_Flags :: bit_field u32 {
@@ -133,8 +133,9 @@ RTC :: struct {
 
     days       : [12]u32,
 
-    clock:    ^thread.Thread,
-    //mutex:    sync.Mutex,       // ok, there is a small window to desync r/w of date, but...
+    clock:           ^thread.Thread,
+    clock_periodic:  ^thread.Thread,
+
     shutdown: bool,
 
 }
@@ -184,6 +185,11 @@ bq4802_make :: proc(name: string, pic: ^pic.PIC) -> ^RTC {
         log.errorf("%s bq4802 cannot create clock thread", r.name)
     }
 
+    if t := thread.create_and_start_with_data(r, bq4802_worker_periodic); t != nil {
+        r.clock_periodic = t
+    } else {
+        log.errorf("%s bq4802 cannot create periodic clock thread", r.name)
+    }
 
     return r
 }
@@ -239,7 +245,7 @@ bq4802_write :: proc(r: ^RTC, mode: BITS, base, busaddr, val: u32) {
     case .RTC_YEAR       : r.pub.year     = time_from_bcd(val)
     case .RTC_RATES      : r.rate         = BQ4802_Rates(val)
     case .RTC_ENABLES    : r.enable       = BQ4802_Enables(val)
-    case .RTC_FLAGS      : r.flag         = BQ4802_Flags(val)
+    case .RTC_FLAGS      : r.flag         = BQ4802_Flags(val);   r.flag = BQ4802_Flags(0)   // clear on read
     case .RTC_CTRL       : r.control      = BQ4802_Control(val)
     case .RTC_CENTURY    : r.pub.century  = time_from_bcd(val)
     }
@@ -264,6 +270,7 @@ bq4802_write :: proc(r: ^RTC, mode: BITS, base, busaddr, val: u32) {
 bq4802_delete :: proc(r: ^RTC) {
     r.shutdown = true
     thread.join(r.clock)
+    thread.join(r.clock_periodic)
     free(r.clock)
     free(r)
 }
@@ -313,20 +320,27 @@ bq4802_worker_clock :: proc(p: rawptr) {
             if update_leap    do update_leap_year(r)
             if !r.control.uti do r.pub = r.own
 
-            // XXX: alarm check there
-            log.debugf("%s bq4802 %2d%2d-%2d-%2d (%d) %d:%d:%d (uti: %v)", 
-                        r.name, 
-                        r.own.century.val, 
-                        r.own.year.val,
-                        r.own.month.val,
-                        r.own.day.val, 
-                        r.own.dow.val,
-                        r.own.hour.val, 
-                        r.own.minute.val, 
-                        r.own.second.val,
-                        r.control.uti
-                    )
+            // spec (page 15): if all alarms are "disabled" then alarm is called once per second
+            alarm: {
+                if r.alarm.second.enabled && r.alarm.second.val != r.own.second.val do break alarm
+                if r.alarm.minute.enabled && r.alarm.minute.val != r.own.minute.val do break alarm
+                if r.alarm.hour.enabled   && r.alarm.hour.val   != r.own.hour.val   do break alarm
+                if r.alarm.day.enabled    && r.alarm.day.val    != r.own.day.val    do break alarm
 
+                if r.enable.alarm_irq && !r.flag.alarm_irq {
+                    r.pic->trigger(.RTC)
+                }
+                r.flag.alarm_irq = true
+
+                //log.debugf("%s bq4802 alarm %2d %2d:%2d:%2d", 
+                //            r.name, r.own.day.val, r.own.hour.val, r.own.minute.val, r.own.second.val)
+            }
+
+            /*
+            log.debugf("%s bq4802 %2d%2d-%2d-%2d (%d) %d:%d:%d (uti: %v)", r.name, 
+                        r.own.century.val, r.own.year.val, r.own.month.val, r.own.day.val, r.own.dow.val,
+                        r.own.hour.val, r.own.minute.val, r.own.second.val, r.control.uti)
+            */
 
             time.sleep(time.Second)
         }
@@ -334,6 +348,45 @@ bq4802_worker_clock :: proc(p: rawptr) {
 
         log.debugf("%s bq4802 shutdown clock thread", r.name)
         log.destroy_console_logger(context.logger)
+}
+
+// worker resposible for periodinc interrupts
+bq4802_worker_periodic :: proc(p: rawptr) {
+    logger_options := log.Options{.Level};
+    context.logger  = log.create_console_logger(opt = logger_options)
+
+    delay := [16]time.Duration {      // in Nanoseconds
+       1000000000,             // NONE == 1 second, w/o irq
+            30517,             //   30.5175 μs
+            61035,             //   61.035  μs
+           122070,             //  122.070  μs
+           244141,             //  244.141  μs
+           488281,             //  488.281  μs
+           976562,             //  976.5625 μs
+          1953150,             //   1.95315 ms
+          3906250,             //   3.90625 ms
+          7812500,             //    7.8125 ms
+         15625000,             //    15.625 ms
+         31250000,             //     31.25 ms
+         62500000,             //      62.5 ms
+        125000000,             //       125 ms
+        250000000,             //       250 ms
+        500000000,             //       500 ms
+    }
+
+    r := transmute(^RTC)p
+    for !r.shutdown {
+        time.sleep(delay[r.rate.periodic])
+        if r.rate.periodic == 0 do continue
+
+        if r.enable.periodic_irq && !r.flag.periodic_irq {
+            r.pic->trigger(.RTC)
+        }
+        r.flag.periodic_irq = true
+    }
+
+    log.debugf("%s bq4802 shutdown periodic clock thread", r.name)
+    log.destroy_console_logger(context.logger)
 }
 
 @private

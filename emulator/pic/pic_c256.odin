@@ -494,6 +494,7 @@ pic_c256_trigger :: proc(pic: ^PIC, irq: IRQ)  {
     case       .TIMER0: pic_c256_internal_trigger(pic, .FNX0_INT02_TMR0)
     case       .TIMER1: pic_c256_internal_trigger(pic, .FNX0_INT03_TMR1)
     case       .TIMER2: pic_c256_internal_trigger(pic, .FNX0_INT04_TMR2)
+    case          .RTC: pic_c256_internal_trigger(pic, .FNX0_INT05_RTC)
     case          : emu.call_not_implemented(#procedure, fmt.aprintf("%s", irq))
     }
 }
