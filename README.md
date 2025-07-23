@@ -143,12 +143,14 @@ KP 0-9   |Numeric keyboard as joy0 directions, 5 -> Button0, 0 -> Button1
 
 # OF816 Open Firmware inspired FORTH
 This project contains copy of version of [OF816](https://github.com/aniou/of816/tree/C256/platforms/C256) 
-by [mgcaret](https://github.com/mgcaret). It can be run by simply passing corresponding hex file to any
-c256-family emulator:
+by [mgcaret](https://github.com/mgcaret). It can be run by simply passing corresponding hex file to c256u+
+or c256fmx emulators, it will start automatically:
 
 ```
 ./c256u+ data/of816.hex
 ```
+
+Running from `c256u` platform requires manual execution by `call 65536` command from BASIC816 level.
 
 # FQA
 
