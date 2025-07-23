@@ -18,12 +18,18 @@ import "emulator:pic"
 BITS :: emu.Bitsize
 
 /*
+  This implementations does not support:
 
-bq4802 Y: 5-V   Operation
-bq4802LY: 3.3-V Operation
+  - daylight saving time functionality - usefulness of that is dubious
+    in particular, for OS-es (if You need a time-zone aware OS then You
+    should set internal clock to UTC and apply timezone correction at
+    OS level) and in general - in various countires there are periodically 
+    raised requests for abandoning that misfeature and some goverments 
+    already did that
 
- - following implementation is a very loose variation about 
- interfaces, nor voltage or reaction times, so...
+  - watchdog time - it is not usable on current hardware, but feel free
+    to ask me for support if use-case will appear
+
 
   Microsecond :: 1000 * Nanosecond
                  1 μs = 10-6 s = 1/1 000 000 s
@@ -456,7 +462,7 @@ hour_from_bcd :: proc(arg: u32, mode_24h: bool) -> (val: BQ4802_Value) {
     return
 }
 
-/* --------- some notes 
+/* --------- some final notes 
 
 1. Daylight savings from https://stackoverflow.com/a/22761920
 
