@@ -306,7 +306,7 @@ bq4802_worker_clock :: proc(p: rawptr) {
                 r.own.dow.val += 1
                 r.own.dow.val &= 7
                 r.own.day.val         += 1
-                if r.own.day.val      <= r.days[r.own.month.val] do break clock
+                if r.own.day.val      <= r.days[r.own.month.val - 1] do break clock
                 r.own.day.val          = 1
 
                 r.own.month.val       += 1
