@@ -11,11 +11,11 @@ import "core:unicode/utf8"
 import "lib:emu"
 
 when ODIN_OS == .Linux {
-	foreign import pty "system:util"
+    foreign import pty "system:util"
 
-	foreign pty {
-		openpty     :: proc "c" (rawptr, rawptr, rawptr, rawptr, rawptr) -> int ---
-	}
+    foreign pty {
+        openpty     :: proc "c" (rawptr, rawptr, rawptr, rawptr, rawptr) -> int ---
+    }
 }
 
 BITS :: emu.Bitsize
@@ -38,24 +38,24 @@ tty_make :: proc(name: string) -> ^TTY {
     d.delete   = tty_delete
     d.name     = name
 
-	pty_ok    := false
+    pty_ok    := false
     when ODIN_OS == .Linux {
-		if err := openpty(&d.master, &d.slave, &d.pty_name[0], nil, nil); err == 0 {
-			pty_ok = true
+        if err := openpty(&d.master, &d.slave, &d.pty_name[0], nil, nil); err == 0 {
+            pty_ok = true
             d.pty_name[127] = 0
-			log.infof("tty: PTY available %s", transmute(cstring)&d.pty_name)
-		}
-	}
+            log.infof("tty: PTY available %s", transmute(cstring)&d.pty_name)
+        }
+    }
 
-	if pty_ok {
-    	//t.read     = tty_read
-    	d.read     = tty_fake_read		// read support not ready yet
-    	d.write    = tty_write
-	} else {
-    	d.read     = tty_fake_read
-    	d.write    = tty_fake_write
-		log.warnf("tty: PTY not available or not supported, using dummy routines")
-	}
+    if pty_ok {
+        //t.read     = tty_read
+        d.read     = tty_fake_read      // read support not ready yet
+        d.write    = tty_write
+    } else {
+        d.read     = tty_fake_read
+        d.write    = tty_fake_write
+        log.warnf("tty: PTY not available or not supported, using dummy routines")
+    }
 
     return d
 }
@@ -80,27 +80,27 @@ tty_write :: proc(d: ^TTY, mode: BITS, base, busaddr, val: u32) {
 
     // this is sick. first such a thing I found in Odin
     k, i := utf8.encode_rune(rune(val))
-	fmt.fprintf(d.master, string(k[:i]))
+    fmt.fprintf(d.master, string(k[:i]))
     return
 }
 
 tty_fake_read :: proc(d: ^TTY, mode: BITS, base, busaddr: u32) -> (val: u32) {
     log.warnf("tty: %6s Read  addr %6x is not implemented, 0xFF returned", d.name, busaddr)
-	return 0xFF
+    return 0xFF
 }
 
 tty_fake_write :: proc(d: ^TTY, mode: BITS, base, busaddr, val: u32)         {
     log.warnf("tty: %6s Write addr %6x val %2x is not implemented", d.name, busaddr, val)
-	return
+    return
 }
 
 tty_delete :: proc(d: ^TTY) {
     when ODIN_OS == .Linux {
-		fmt.fprintf(d.master, "\n\n\n*** exiting\n")
+        fmt.fprintf(d.master, "\n\n\n*** exiting\n")
         //time.sleep(time.Second * 10)
-		os.close(d.master)
-		os.close(d.slave)
-	}
+        os.close(d.master)
+        os.close(d.slave)
+    }
     free(d)
 }
 
