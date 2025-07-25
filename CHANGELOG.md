@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2025-07-25
+- a2560x: add kind of pseudo-tty, that works only on Linux.
+  During a start driver allocates pts and prints it on screen,
+  for example `/dev/pts/7`. After that we can assign to that
+  pts by command `screen /dev/pts/7` and see characters sent
+  to COM2 (0xFE_C0_22F8). It should make porting comples OS-es
+  easier due to availability of early-kernel-console-output.
+
 ## 2025-07-23
 - finished RTC implementation of bq4802 RTC timer, only one
   things missed are Daylight Saving Time function and Watchdog,

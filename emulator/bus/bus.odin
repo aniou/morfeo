@@ -12,6 +12,7 @@ import "emulator:rtc"
 import "emulator:ram"
 import "emulator:rng"
 import "emulator:timer"
+import "emulator:tty"
 
 import "core:prof/spall"
 
@@ -47,6 +48,7 @@ Bus :: struct {
     joy2:     ^joy.JOY,     // not supported yet
     joy3:     ^joy.JOY,     // not supported yet
     rng:      ^rng.RNG,
+    tty0:     ^tty.TTY,
 
     dip_user: u32,          // switches 3 to 5
     dip_boot: u32,          // switches 1, 2 and 8
