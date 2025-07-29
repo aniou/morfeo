@@ -170,6 +170,20 @@ read_intel_hex :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string, move_segm
     return   
 }
 
+read_raw_binary :: proc(bus: ^bus.Bus, cpu: ^cpu.CPU, filepath: string, position: u32 = 0) -> (ok: bool) {
+    data, status := os.read_entire_file_from_filename(filepath)
+    if !status {
+        log.errorf("read file %s failed: %s", filepath, os.error_string)
+        return false
+    }
+    index : u32 = 0
+    for value in data {
+        bus->write(.bits_8, position + index, u32(value))
+        index += 1
+    }
+    log.infof("file %s %d bytes read at position %d", filepath, index, position)
+    return
+}
 
 /*
 main :: proc() {

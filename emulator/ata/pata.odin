@@ -1,6 +1,12 @@
 
 package ata
 
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ata/ns-ata-_identify_device_data
+// http://wiki.osdev.org/PCI_IDE_Controller
+//
+// T13/2161-D Revision 5 
+// 7.12.7
+
 import "core:log"
 import "core:os"
 
@@ -15,8 +21,9 @@ STATE :: enum {
     IDE_DATA_OUT,
 }
 
-CMD_READ0 :: 0x20   // read with retries if fault comes
-CMD_READ1 :: 0x21   // read without retries
+CMD_READ0    :: 0x20   // read with retries if fault comes
+CMD_READ1    :: 0x21   // read without retries
+CMD_IDENTIFY :: 0xEC   // ATA_CMD_IDENTIFY
 
 ERROR :: enum {
     // controller errors (bits!)
@@ -89,7 +96,7 @@ when emu.TARGET == "c256fmx" {
             "PATA_CLDR_LO  / LBA1",
             "PATA_CLDR_HI  / LBA2",
             "PATA_DEVH     / LBA3",
-            "PATA_CMD_STAT",
+            "PATA_CMD/STAT",
             "PATA_DATA16 lo",
             "PATA_DATA16 hi",
     }
@@ -109,7 +116,7 @@ when emu.TARGET == "c256fmx" {
             "offset 0x0b",
             "PATA_DEVH     / LBA3",
             "offset 0x0d",
-            "PATA_CMD_STAT",
+            "PATA_CMD/STAT",
             "offset 0x0f",
     }
 }
@@ -142,6 +149,7 @@ DRIVE :: struct {
     fd:              os.Handle,    // file descriptor for image
     offset:          u32,          // current file position
     data:            [512*256]u8,
+    ident:           [256]u16,     // identification space
     data_amount:     int,
     data_pointer:    int,
 }
@@ -218,16 +226,19 @@ pata_read8 :: proc(p: ^PATA, addr: u32) -> u8 {
         switch addr {
         case REG_PATA_DATA_LO:
             val := pata_get_data_from_buffer(p)
-            //s.debug(LOG_TRACE, "pata: %6s drive %d read lo16 0x%02x from buffer\n", s.name, s.selected, val)
+            //log.debugf("pata: %6s drive %d read lo16 0x%02x from buffer\n", p.name, p.selected, val)
             return val
         case REG_PATA_DATA_HI:
             val := pata_get_data_from_buffer(p)
-            //s.debug(LOG_TRACE, "pata: %6s drive %d read hi16 0x%02x from buffer\n", s.name, s.selected, val)
+            //log.debugf("pata: %6s drive %d read hi16 0x%02x from buffer\n", p.name, p.selected, val)
+            return val
+        case REG_PATA_SECT_SRT:  // 0x06
+            val := p.drive[p.selected].lba0
             return val
         case REG_PATA_CMD_STAT: // 0x0e - check status when read
-             reg := REG_DESC
-             log.debugf("pata: %6s read  0x%02x from %13s", p.name, p.drive[p.selected].status, reg[addr])
-             return p.drive[p.selected].status
+            reg := REG_DESC
+            log.debugf("pata: %6s read  0x%02x from %02x %13s", p.name, p.drive[p.selected].status, addr, reg[addr])
+            return p.drive[p.selected].status
         case:
             log.warnf("pata: %6s Read  addr %6x is not implemented, 0 returned", p.name, addr)
             return 0
@@ -248,34 +259,45 @@ pata_write8 :: proc(p: ^PATA, addr: u32, val: u8) {
 
             switch val {
             case 0x00: 
-                log.debugf("pata: %6s write 0x%02x to   %-22s (NOP)", p.name, val, reg[addr])
+                log.debugf("pata: %6s write 0x%02x to   %02x %-22s (NOP)", p.name, val, addr, reg[addr])
                 drive.status  &~=  ST_BSY
                 drive.status   |=  ST_DRDY
             case CMD_READ0, CMD_READ1:  // 0x20, 0x21
-                log.debugf("pata: %6s write 0x%02x to   %-22s (READ SECT)", p.name, val, reg[addr])
+                log.debugf("pata: %6s write 0x%02x to   %02x %-22s (READ SECT)", p.name, val, addr, reg[addr])
                 pata_cmd_read_sectors(p)
+            case CMD_IDENTIFY:          // 0xEC
+                log.debugf("pata: %6s write 0x%02x to   %02x %-22s (IDENTIFY)", p.name, val, addr, reg[addr])
+				for d,i in drive.ident {
+					drive.data[i*2  ] = u8(d >>    8)
+					drive.data[i*2+1] = u8(d  & 0xFF)
+				}
+				drive.data_amount   = 512
+				drive.data_pointer  = 0
+				drive.status      &~= ST_BSY
+				drive.status       |= ST_DRQ
+				drive.state         = .IDE_DATA_IN
             case:
-                log.debugf("pata: %6s write 0x%02x to   %-22s (unknown)", p.name, val, reg[addr])
+                log.debugf("pata: %6s write 0x%02x to   %02x %-22s (unknown)", p.name, val, addr, reg[addr])
             }
 
         case REG_PATA_SECT_CNT:  // 0x04
-            log.debugf("pata: %6s write 0x%02x to   %-22s", p.name, val, reg[addr])
+            log.debugf("pata: %6s write 0x%02x to   %02x %-22s", p.name, val, addr, reg[addr])
             p.drive[p.selected].sector_count = val
 
         case REG_PATA_SECT_SRT:  // 0x06
-            log.debugf("pata: %6s write 0x%02x to   %-22s", p.name, val, reg[addr])
+            log.debugf("pata: %6s write 0x%02x to   %02x %-22s", p.name, val, addr, reg[addr])
             p.drive[p.selected].lba0         = val
 
         case REG_PATA_CLDR_LO:   // 0x08
-            log.debugf("pata: %6s write 0x%02x to   %-22s", p.name, val, reg[addr])
+            log.debugf("pata: %6s write 0x%02x to   %02x %-22s", p.name, val, addr, reg[addr])
             p.drive[p.selected].lba1         = val
 
         case REG_PATA_CLDR_HI:   // 0x0a
-            log.debugf("pata: %6s write 0x%02x to   %-22s", p.name, val, reg[addr])
+            log.debugf("pata: %6s write 0x%02x to   %02x %-22s", p.name, val, addr, reg[addr])
             p.drive[p.selected].lba2         = val
 
         case REG_PATA_DEVH: // 0x0c
-            log.debugf("pata: %6s write 0x%02x to   %-22s", p.name, val, reg[addr])
+            log.debugf("pata: %6s write 0x%02x to   %02x %-22s", p.name, val, addr, reg[addr])
 
             if (val & DEVH_DEV) > 0 {
                 p.selected = 1
@@ -296,15 +318,69 @@ pata_write8 :: proc(p: ^PATA, addr: u32, val: u8) {
 }
 
 pata_attach_disk :: proc(p: ^PATA, number: int, path: string) -> bool {
-    f, err := os.open(path)
-    if err != 0 {
-        log.errorf("%s open %s failed, error %d", p.name, path, err)
+    s, err1 := os.stat(path)
+    if err1 != 0 {
+        log.errorf("%s stat %s failed, error %d", p.name, path, err1)
+        return false
+    }
+
+    f, err2 := os.open(path)
+    if err2 != 0 {
+        log.errorf("%s open %s failed, error %d", p.name, path, err2)
         return false
     }
     log.debugf("%s succesfully atached %s as disk %d", p.name, path, number)
 
     p.drive[number].fd = f
+    pata_make_identity(&p.drive[number].ident, s.size)
     return true
+}
+
+// words!
+IDENT :: enum {
+    DEVICETYPE     =   0,
+    CYLINDERS      =   1,
+    HEADS          =   3,
+    SECT_PER_TRACK =   6,
+    SERIAL         =  10,
+    FIRMWARE       =  23, //  4 words, 8 bytes
+    MODEL          =  27, // 20 words
+    MAX_BLOCK_SIZE =  47, // 01h-10h = Maximum number of sectors that shall be transferred per interrupt on READ/WRITE MULTIPLE commands
+    CAPABILITIES   =  49,
+    FIELDVALID     =  53, // indicates field validity of higher words (bit0: words54-58, bit1: words 64-70)
+    //MAX_LBA        =  60,
+    //COMMANDSETS    =  82,
+    //MAX_LBA_EXT    = 100,
+}
+
+pata_make_identity :: proc(id: ^[256]u16, size: i64) {
+    id[IDENT.DEVICETYPE]       = (1 << 15) | (1 << 6)             // 6: fixed device, 7: removable media, 15: ATA
+    id[IDENT.CYLINDERS]        = u16(size / (63 * 255 * 512))
+    id[IDENT.HEADS]            = 63
+    id[IDENT.SECT_PER_TRACK]   = 255
+    id[IDENT.MAX_BLOCK_SIZE]   = 0                                // no READ/WRITE MULTIPLE
+    id[IDENT.CAPABILITIES]     = (1 <<  9)                        // LBA Supported
+    id[IDENT.FIELDVALID]       = 0
+
+    copy_string(id[IDENT.SERIAL:],   "12345678901234567890", 20)  // length in bytes
+    copy_string(id[IDENT.FIRMWARE:], "X211.234",              8)  // same too
+    copy_string(id[IDENT.MODEL:],    "MORFEO IDE DISK 1.0",  40)  // same...
+}
+
+
+copy_string :: proc(dst: []u16, str: string, max: int) {
+    for c,si in str {
+		if si == max do break
+
+        di := si / 2
+        if si & 1 == 1 {
+            dst[di] &= 0x00FF
+            dst[di] |= u16(c) << 8
+        } else {
+            dst[di] &= 0xFF00
+            dst[di] |= u16(c)
+        }
+    }
 }
 
 pata_delete :: proc(p: ^PATA) {
@@ -397,7 +473,7 @@ pata_get_data_from_buffer :: proc(p: ^PATA) -> (retval: u8) {
     }
     
     retval = drive.data[drive.data_pointer]
-    //s.debug(LOG_ERROR, "pata: %6s drive %d pointer %d value %d\n", s.name, s.selected, drive.data_pointer, retval )
+    //log.debugf("pata: %6s drive %d pointer %d value %d", p.name, p.selected, drive.data_pointer, retval )
     drive.data_pointer += 1
     if drive.data_pointer >= drive.data_amount {
         drive.status &~= (ST_BSY|ST_DRQ)

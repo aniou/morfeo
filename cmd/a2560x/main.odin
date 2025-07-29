@@ -35,6 +35,7 @@ read_args :: proc(p: ^platform.Platform) -> (c: ^Config, args_ok: bool = true) {
     c = new(Config)
     argp := getargs.make_getargs()
     getargs.add_arg(&argp, "disk0", "",       .Optional)
+    getargs.add_arg(&argp, "rom", "",         .Optional)
     getargs.add_arg(&argp, "gpu",   "",       .Optional)
     getargs.add_arg(&argp, "h",     "help",   .None)
 
@@ -62,6 +63,12 @@ read_args :: proc(p: ^platform.Platform) -> (c: ^Config, args_ok: bool = true) {
         if !ok {
             args_ok = false
         }
+    }
+
+    // very crude rom attach, currently at 0
+    payload, ok = getargs.get_payload(&argp, "rom")
+    if ok {
+        platform.read_raw_binary(p.bus, p.cpu, payload, 0)
     }
 
     // files to load - XXX maybe should be moved to outside?
@@ -107,6 +114,7 @@ main_loop :: proc(p: ^platform.Platform) {
         should_close = render_gui(p)
 
         // Step  3: print some information
+        /*
         loops += 1
         if time.tick_since(debug_ticks) > time.Second {
             debug_ticks  = time.tick_now()
@@ -123,6 +131,7 @@ main_loop :: proc(p: ^platform.Platform) {
             loops        = 0
             p.cpu.all_cycles = 0
         }
+        */
     }
     return
 }

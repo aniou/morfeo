@@ -44,6 +44,7 @@ tty_make :: proc(name: string) -> ^TTY {
             pty_ok = true
             d.pty_name[127] = 0
             log.infof("tty: PTY available %s", transmute(cstring)&d.pty_name)
+            time.sleep(5 * time.Second)
         }
     }
 
