@@ -72,7 +72,7 @@ ps2_make :: proc(name: string, pic: ^pic.PIC) -> ^PS2 {
     s.write8   = ps2_write8
     s.send_key = ps2_send_key
     s.status   = 0
-    s.debug    = true
+    s.debug    = false
     s.CCB      = 0
     s.name     = name
 
@@ -120,14 +120,12 @@ ps2_write :: proc(s: ^PS2, mode: BITS, base, busaddr, val: u32) {
 ps2_read8 :: proc(s: ^PS2, addr: u32) -> (val: u8) {
     switch addr {
     case KBD_DATA:          // 0x60
-        log.debugf("ps2: %6s read     KBD_DATA: val %02x", s.name, s.data)
+        if s.debug do log.debugf("ps2: %6s read     KBD_DATA: val %02x", s.name, s.data)
         s.status = s.status & ~PS2_STAT_OBF
         val = s.data
 
     case KBD_STATUS:        // 0x64
-        if s.debug {
-            log.debugf("ps2: %6s read   KBD_STATUS: val %02x", s.name, s.status)
-        }
+        if s.debug do log.debugf("ps2: %6s read   KBD_STATUS: val %02x", s.name, s.status)
         val = s.status
     case:
         log.warnf("ps2: %6s Read  addr %6x is not implemented, 0 returned", s.name, addr)
@@ -141,7 +139,7 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
     switch addr {
     case KBD_DATA: // 0x60
         if s.ccb_write_mode {
-            log.debugf("ps2: %6s write    KBD_DATA: val %02x -> CCB", s.name, val)
+            if s.debug do log.debugf("ps2: %6s write    KBD_DATA: val %02x -> CCB", s.name, val)
 
              s.ccb_write_mode  = false
              s.CCB             = val
@@ -164,9 +162,9 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
             log.debugf("ps2: %6s write    KBD_DATA: val %02x - data UNKNOWN", s.name, val)
         }
 
-        log.debugf("ps2: %6s write    KBD_DATA: val %02x", s.name, val)
+        if s.debug do log.debugf("ps2: %6s write    KBD_DATA: val %02x", s.name, val)
    case KBD_COMMAND: // 0x64 - command when write
-        log.debugf("ps2: %6s write KBD_COMMAND: val %02x", s.name, val)
+        if s.debug do log.debugf("ps2: %6s write KBD_COMMAND: val %02x", s.name, val)
         switch val {
         case 0x60:
             s.ccb_write_mode    = true
@@ -209,11 +207,11 @@ ps2_delete :: proc(d: ^PS2) {
 ps2_send_key :: proc(s: ^PS2, val: u8) -> (ok: bool = true) {
     if s.status & PS2_STAT_OBF == PS2_STAT_OBF {
         ok       = false
-        log.debugf("ps2: %6s send_key %02x but buffer is full, delayed", s.name, val)
+        log.warnf("ps2: %6s send_key %02x but buffer is full, delayed", s.name, val)
     } else {
         s.data   = val
         s.status = s.status | PS2_STAT_OBF
-        log.debugf("ps2: %6s send_key %02x current status %02x", s.name, val, s.status)
+        if s.debug do log.debugf("ps2: %6s send_key %02x current status %02x", s.name, val, s.status)
     }
 
     s.pic->trigger(.KBD_PS2)
