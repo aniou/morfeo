@@ -226,21 +226,24 @@ pata_read8 :: proc(p: ^PATA, addr: u32) -> u8 {
         switch addr {
         case REG_PATA_DATA_LO:
             val := pata_get_data_from_buffer(p)
-            //log.debugf("pata: %6s drive %d read lo16 0x%02x from buffer\n", p.name, p.selected, val)
+            log.debugf("pata: %6s drive %d read lo16 0x%02x from buffer", p.name, p.selected, val)
             return val
         case REG_PATA_DATA_HI:
             val := pata_get_data_from_buffer(p)
-            //log.debugf("pata: %6s drive %d read hi16 0x%02x from buffer\n", p.name, p.selected, val)
+            log.debugf("pata: %6s drive %d read hi16 0x%02x from buffer", p.name, p.selected, val)
             return val
         case REG_PATA_SECT_SRT:  // 0x06
             val := p.drive[p.selected].lba0
+            reg := REG_DESC
+            log.debugf("pata: %6s drive %d read  0x%02x from %02x %13s", p.name, p.selected, val, addr, reg[addr])
             return val
         case REG_PATA_CMD_STAT: // 0x0e - check status when read
+            val := p.drive[p.selected].status
             reg := REG_DESC
-            log.debugf("pata: %6s read  0x%02x from %02x %13s", p.name, p.drive[p.selected].status, addr, reg[addr])
-            return p.drive[p.selected].status
+            log.debugf("pata: %6s drive %d read  0x%02x from %02x %13s", p.name, p.selected, val, addr, reg[addr])
+            return val
         case:
-            log.warnf("pata: %6s Read  addr %6x is not implemented, 0 returned", p.name, addr)
+            log.warnf("pata: %6s drive %d Read  addr %6x is not implemented, 0 returned", p.name, p.selected, addr)
             return 0
         }
 }
@@ -281,23 +284,23 @@ pata_write8 :: proc(p: ^PATA, addr: u32, val: u8) {
             }
 
         case REG_PATA_SECT_CNT:  // 0x04
-            log.debugf("pata: %6s write 0x%02x to   %02x %-22s", p.name, val, addr, reg[addr])
+            log.debugf("pata: %6s drive %d write 0x%02x to   %02x %-22s", p.name, p.selected, val, addr, reg[addr])
             p.drive[p.selected].sector_count = val
 
         case REG_PATA_SECT_SRT:  // 0x06
-            log.debugf("pata: %6s write 0x%02x to   %02x %-22s", p.name, val, addr, reg[addr])
+            log.debugf("pata: %6s drive %d write 0x%02x to   %02x %-22s", p.name, p.selected, val, addr, reg[addr])
             p.drive[p.selected].lba0         = val
 
         case REG_PATA_CLDR_LO:   // 0x08
-            log.debugf("pata: %6s write 0x%02x to   %02x %-22s", p.name, val, addr, reg[addr])
+            log.debugf("pata: %6s drive %d write 0x%02x to   %02x %-22s", p.name, p.selected, val, addr, reg[addr])
             p.drive[p.selected].lba1         = val
 
         case REG_PATA_CLDR_HI:   // 0x0a
-            log.debugf("pata: %6s write 0x%02x to   %02x %-22s", p.name, val, addr, reg[addr])
+            log.debugf("pata: %6s drive %d write 0x%02x to   %02x %-22s", p.name, p.selected, val, addr, reg[addr])
             p.drive[p.selected].lba2         = val
 
         case REG_PATA_DEVH: // 0x0c
-            log.debugf("pata: %6s write 0x%02x to   %02x %-22s", p.name, val, addr, reg[addr])
+            log.debugf("pata: %6s drive %d write 0x%02x to   %02x %-22s", p.name, p.selected, val, addr, reg[addr])
 
             if (val & DEVH_DEV) > 0 {
                 p.selected = 1
@@ -312,7 +315,7 @@ pata_write8 :: proc(p: ^PATA, addr: u32, val: u8) {
                         p.name, p.selected, p.drive[p.selected].lba_mode, p.drive[p.selected].lba3)
 
         case:
-            log.warnf("pata: %6s Write addr %6x val %2x is not implemented", p.name, addr, val)
+            log.warnf("pata: %6s drive %d Write addr %6x val %2x is not implemented", p.name, p.selected, addr, val)
         }
         return
 }
@@ -338,29 +341,48 @@ pata_attach_disk :: proc(p: ^PATA, number: int, path: string) -> bool {
 
 // words!
 IDENT :: enum {
-    DEVICETYPE     =   0,
-    CYLINDERS      =   1,
-    HEADS          =   3,
-    SECT_PER_TRACK =   6,
-    SERIAL         =  10,
-    FIRMWARE       =  23, //  4 words, 8 bytes
-    MODEL          =  27, // 20 words
-    MAX_BLOCK_SIZE =  47, // 01h-10h = Maximum number of sectors that shall be transferred per interrupt on READ/WRITE MULTIPLE commands
-    CAPABILITIES   =  49,
-    FIELDVALID     =  53, // indicates field validity of higher words (bit0: words54-58, bit1: words 64-70)
-    //MAX_LBA        =  60,
+    DEVICETYPE        =   0,
+    CYLINDERS         =   1,
+    HEADS             =   3,
+    SECT_TRACK        =   6, // only word, so it may be not sufficient for large disk, see below [word 56]
+    SERIAL            =  10,
+    FIRMWARE          =  23, //  4 words
+    MODEL             =  27, // 20 words
+    MAX_BLOCK_SIZE    =  47, // 01h-10h = Maximum number of sectors that shall be transferred per interrupt on READ/WRITE MULTIPLE commands
+    CAPABILITIES      =  49,
+    FIELDVALID        =  53, // indicates field validity of higher words (bit0: words54-58, bit1: words 64-70)
+    CUR_CYLINDERS     =  54,
+    CUR_HEADS         =  55,
+    CUR_SECT_TRACK    =  56,
+    CUR_SECT_CAP_L    =  57, // 2 words
+    CUR_SECT_CAP_H    =  58, 
+    //CUR_MULTI_SECT    =  59, // not used yet
+    USABLE_SECT_L     =  60, // 2 words, User Addressable Sectors, for 28bit commands
+    USABLE_SECT_H     =  61, // 
     //COMMANDSETS    =  82,
     //MAX_LBA_EXT    = 100,
 }
 
 pata_make_identity :: proc(id: ^[256]u16, size: i64) {
-    id[IDENT.DEVICETYPE]       = (1 << 15) | (1 << 6)             // 6: fixed device, 7: removable media, 15: ATA
-    id[IDENT.CYLINDERS]        = u16(size / (63 * 255 * 512))
-    id[IDENT.HEADS]            = 63
-    id[IDENT.SECT_PER_TRACK]   = 255
-    id[IDENT.MAX_BLOCK_SIZE]   = 0                                // no READ/WRITE MULTIPLE
-    id[IDENT.CAPABILITIES]     = (1 <<  9)                        // LBA Supported
-    id[IDENT.FIELDVALID]       = 0
+    h : u16 = 63
+    s : u16 = 255
+    c :     = size / i64(h * s * 512)
+
+    id[IDENT.DEVICETYPE]        = (1 << 15) | (1 << 6)   // 6: fixed device, 7: removable media, 15: ATA
+    id[IDENT.CYLINDERS]         = u16(c & 0xFFFF)
+    id[IDENT.HEADS]             = h
+    id[IDENT.SECT_TRACK]        = s
+    id[IDENT.MAX_BLOCK_SIZE]    = 0                      // no READ/WRITE MULTIPLE
+    id[IDENT.CAPABILITIES]      = 1 << 1                 // LBA Supported
+    id[IDENT.FIELDVALID]        = 1
+    id[IDENT.CUR_CYLINDERS]     = u16(c)
+    id[IDENT.CUR_HEADS]         = h
+    id[IDENT.CUR_SECT_TRACK]    = s
+    id[IDENT.CUR_SECT_CAP_H]    = u16(c  & 0xFFFF)
+    id[IDENT.CUR_SECT_CAP_L]    = u16(c >> 16    )
+    id[IDENT.USABLE_SECT_L]     = id[IDENT.CUR_SECT_CAP_L]
+    id[IDENT.USABLE_SECT_H]     = id[IDENT.CUR_SECT_CAP_H]
+
 
     copy_string(id[IDENT.SERIAL:],   "12345678901234567890", 20)  // length in bytes
     copy_string(id[IDENT.FIRMWARE:], "X211.234",              8)  // same too
