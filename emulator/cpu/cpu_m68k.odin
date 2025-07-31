@@ -102,6 +102,9 @@ CPU_m68k :: struct {
 
 
 // XXX - parametrize CPU type!
+// M68K_CPU_TYPE_68EC040 for a2560x comes from that
+// a2560x contains MC68040V that is a 3.3V version 
+// of MC68EC040, ie. version with MMU but without FPU
 m68k_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
 
     cpu       := new(CPU)
@@ -113,7 +116,7 @@ m68k_make :: proc (name: string, bus: ^bus.Bus) -> ^CPU {
     cpu.clear_irq   = m68k_clear_irq
     cpu.bus    = bus
     cpu.all_cycles = 0
-    c         := CPU_m68k{cpu = cpu, type = CPU_type.M68K_CPU_TYPE_68EC030}
+    c         := CPU_m68k{cpu = cpu, type = CPU_type.M68K_CPU_TYPE_68EC040}
     cpu.model  = c
 
     // we need global because of external musashi (XXX - maybe whole CPU?)
