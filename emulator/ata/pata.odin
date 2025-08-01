@@ -21,9 +21,12 @@ STATE :: enum {
     IDE_DATA_OUT,
 }
 
-CMD_READ0    :: 0x20   // read with retries if fault comes
-CMD_READ1    :: 0x21   // read without retries
-CMD_IDENTIFY :: 0xEC   // ATA_CMD_IDENTIFY
+CMD_READ_PIO     :: 0x20   // read with retries if fault comes
+CMD_PIO_NR       :: 0x21   // read without retries
+CMD_IDENTIFY     :: 0xEC   // ATA_CMD_IDENTIFY
+CMD_WRITE_PIO    :: 0x30   // write with retries if fault comes
+CMD_WRITE_PIO_NR :: 0x31   // write without retries
+
 
 ERROR :: enum {
     // controller errors (bits!)
@@ -187,16 +190,13 @@ pata_make :: proc(name:string) -> ^PATA {
     return pata
 }
 
+// XXX: note .bits_16 means .bits_16be (big endian)
 pata_read :: proc(d: ^PATA, mode: BITS, base, busaddr: u32) -> (val: u32) {
     addr := busaddr - base
     switch mode {
-        case .bits_8:  
-            val = cast(u32) pata_read8(d, addr)
-        case .bits_16:      // kind of workaround for 0x400 (IDE DATA register)
-            val = u32(pata_read8(d, addr  )) << 8 |
-                  u32(pata_read8(d, addr+1))
-        case .bits_32:       
-            emu.unsupported_read_size(#procedure, d.name, d.id, mode, busaddr)
+        case .bits_8:   val = u32(pata_read8(d, addr))
+        case .bits_16:  val = u32(pata_read8(d, addr)) << 8 | u32(pata_read8(d, addr+1))
+        case .bits_32:  emu.unsupported_read_size(#procedure, d.name, d.id, mode, busaddr)
     }
     return
 }
@@ -264,7 +264,7 @@ pata_write8 :: proc(p: ^PATA, addr: u32, val: u8) {
             if p.debug do log.debugf("pata: %6s write 0x%02x to   %02x %-22s (NOP)", p.name, val, addr, reg[addr])
             drive.status  &~=  ST_BSY
             drive.status   |=  ST_DRDY
-        case CMD_READ0, CMD_READ1:  // 0x20, 0x21
+        case CMD_READ_PIO, CMD_PIO_NR:  // 0x20, 0x21
             if p.debug do log.debugf("pata: %6s write 0x%02x to   %02x %-22s (READ SECT)", p.name, val, addr, reg[addr])
             pata_cmd_read_sectors(p)
         case CMD_IDENTIFY:          // 0xEC
