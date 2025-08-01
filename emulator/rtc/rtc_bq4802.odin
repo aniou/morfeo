@@ -80,23 +80,23 @@ BQ4802_Rates :: bit_field u32 {
 }
 
 BQ4802_Flags :: bit_field u32 {
-    battery_valid:     bool | 1,
-    power_fail:        bool | 1,
-    periodic_irq:      bool | 1,
-    alarm_irq:         bool | 1,
+    battery_valid:     bool | 1,    // BVF
+    power_fail:        bool | 1,    // PWRF
+    periodic_irq:      bool | 1,    // PF
+    alarm_irq:         bool | 1,    // AF
 }
 
 BQ4802_Enables :: bit_field u32 {
-    alarm_in_battery : bool | 1,
-    power_fail_irq:    bool | 1,
-    periodic_irq:      bool | 1,
-    alarm_irq:         bool | 1,
+    alarm_in_battery : bool | 1,    // ABE
+    power_fail_irq:    bool | 1,    // PWRIE
+    periodic_irq:      bool | 1,    // PIE
+    alarm_irq:         bool | 1,    // AIE
 }
 
 BQ4802_Control :: bit_field u32 {
-    dse:               bool | 1,    // daylight savings enable  
-    mode_24h:          bool | 1,
-    enable_on_battery: bool | 1,
+    dse:               bool | 1,    // DSE    - daylight savings enable  
+    mode_24h:          bool | 1,    // 24/12
+    enable_on_battery: bool | 1,    // 1: on of battery - irrelevant for emulator
     uti:               bool | 1,    // update transfer inhibit (don't update public from internal counters)
 }
 
@@ -182,6 +182,7 @@ bq4802_make :: proc(name: string, pic: ^pic.PIC) -> ^RTC {
     r.pub                 = r.own
     r.days                = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
     r.control.mode_24h    = true
+    r.flag.battery_valid  = true
 
     update_leap_year(r)
 
@@ -226,6 +227,7 @@ bq4802_read :: proc(r: ^RTC, mode: BITS, base, busaddr: u32) -> (val: u32) {
     case .RTC_CENTURY    : val = time_to_bcd(r.pub.century)
     }
     //log.warnf("%s bq4802 read%d     from %x  %-15s not implemented", r.name, mode, busaddr, addr_name(addr))
+    log.debugf("%s bq4802 read%d  val %2x from %x  %-15s", r.name, mode, val, busaddr, addr_name(addr))
     return
 }
 
