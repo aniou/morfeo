@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2025-08-01
+- writing support for PATA added. Beware: don't trust it
+  too much, always backup your data!
+
 ## 2025-07-30
 - large upgrade of PATA emulation code, now it is able to 
   handle disk operation from FUZIX too
