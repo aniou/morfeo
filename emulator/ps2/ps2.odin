@@ -55,6 +55,8 @@ PS2  :: struct {
     status:         u8,     // controller status
     CCB:            u8,     // controller configuration byte
     ccb_write_mode: bool,   // denotes that next write should go to CCB
+    cmd:            u8,     // if command has a argument, then command code is here
+    cmd_write_mode: bool,   // denotes that next write should be a command argument
 
     first_enabled:  bool,
     second_enabled: bool,
@@ -141,9 +143,9 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
         if s.ccb_write_mode {
             if s.debug do log.debugf("ps2: %6s write    KBD_DATA: val %02x -> CCB", s.name, val)
 
-             s.ccb_write_mode  = false
-             s.CCB             = val
-             return 
+            s.ccb_write_mode  = false
+            s.CCB             = val
+            return 
         }
 
         switch val {
@@ -165,6 +167,24 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
         if s.debug do log.debugf("ps2: %6s write    KBD_DATA: val %02x", s.name, val)
    case KBD_COMMAND: // 0x64 - command when write
         if s.debug do log.debugf("ps2: %6s write KBD_COMMAND: val %02x", s.name, val)
+
+        if s.cmd_write_mode {
+            s.cmd_write_mode  = false
+            switch s.cmd {
+            case 0xed: 
+                s.status = s.status | PS2_STAT_OBF
+                s.data   = PS2_RESP_ACK
+                log.warnf("ps2: %6s write arg for KBD_COMMAND LED (0xed): val %02x not supported", s.name, val)
+            case 0xf0:  // for support of get scancode I need a queue...
+                s.status = s.status | PS2_STAT_OBF
+                s.data   = PS2_RESP_ACK
+                log.warnf("ps2: %6s write arg for KBD_COMMAND SCANCODE (0xf0)): val %02x not supported", s.name, val)
+            case     :
+                log.errorf("ps2: %6s write arf for UKNONWN KBD_COMMAND %02x: val %02x not supported", s.name, s.cmd, val)
+            }
+
+        }
+
         switch val {
         case 0x60:
             s.ccb_write_mode    = true
@@ -189,8 +209,14 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
             s.first_enabled = false
         case 0xae: // enable first PS/2 port
             s.first_enabled = true
+        case 0xed: // set LED status
+            s.cmd = val
+            s.cmd_write_mode = true
+        case 0xf0: // get/set current scancode
+            s.cmd = val
+            s.cmd_write_mode = true
         case:
-            log.debugf("ps2: %6s write KBD_COMMAND: val %02x - command UNKNOWN", s.name, val)
+            log.warnf("ps2: %6s write KBD_COMMAND: val %02x - command UNKNOWN", s.name, val)
         }
    case:
         log.warnf("ps2: %6s Write addr %6x val %2x is not implemented", s.name, addr, val)

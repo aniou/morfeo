@@ -43,7 +43,7 @@ a2560x_read :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32) {
     case 0xFE_C0_0224                 :  val = bus.gpu1.frames   // TIMER 4 
     case 0xFE_C0_0400 ..= 0xFE_C0_040F:  val = bus.ata0->read(size, 0xFE_C0_0400, addr)
     case 0xFE_C0_2060 ..= 0xFE_C0_2068:  val = bus.ps20->read(size, 0xFE_C0_2060, addr)
-    case 0xFE_C0_22F8                 :  val = bus.tty0->read(size, 0xFE_C0_22F8, addr)
+    //case 0xFE_C0_22F8                 :  val = bus.tty0->read(size, 0xFE_C0_22F8, addr)
     case 0xFE_C0_0000 ..= 0xFE_C1_FFFF:  val = bus.rom0->read(size, 0xFE_C0_0000, addr)
 
     case 0xFE_C4_0000 ..= 0xFE_C4_003C:  val = bus.gpu0->read(size, 0xFE_C4_0000, addr, .MAIN_A)
@@ -84,7 +84,7 @@ a2560x_write :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
 
     case 0xFE_C0_0400 ..= 0xFE_C0_040F:  bus.ata0->write(size, 0xFE_C0_0400, addr, val)
     case 0xFE_C0_2060 ..= 0xFE_C0_2068:  bus.ps20->write(size, 0xFE_C0_2060, addr, val)
-    case 0xFE_C0_22F8                 :  bus.tty0->write(size, 0xFE_C0_22F8, addr, val)
+    //case 0xFE_C0_22F8                 :  bus.tty0->write(size, 0xFE_C0_22F8, addr, val)
     case 0xFE_C0_0000 ..= 0xFE_C1_FFFF:  emu.write_not_implemented(#procedure, "rom0",  size, addr, val)
 
     case 0xFE_C4_0000 ..= 0xFE_C4_003C:  bus.gpu0->write(size, 0xFE_C4_0000, addr, val, .MAIN_A)

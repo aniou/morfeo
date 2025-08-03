@@ -56,7 +56,7 @@ a2560x_make :: proc() -> ^Platform {
     p.bus.rtc0  = rtc.bq4802_make  ("rtc0", pic)
     p.bus.ram0  = ram.ram_make     ("ram0", 0x40_0000)
     p.bus.rom0  = ram.ram_make     ("rom0", 0x02_0000)      // for GAVIN backend
-    p.bus.tty0  = tty.tty_make     ("tty0")
+    //p.bus.tty0  = tty.tty_make     ("tty0")
     p.cpu       = cpu.m68k_make    ("cpu0", p.bus)
 
     p.delete    = a2560x_delete
@@ -74,7 +74,7 @@ a2560x_delete :: proc(p: ^Platform) {
     p.bus.ram0->delete()
     p.bus.rom0->delete()
     p.bus.rtc0->delete()
-    p.bus.tty0->delete()
+    //p.bus.tty0->delete()
          p.bus->delete()
 
     free(p);

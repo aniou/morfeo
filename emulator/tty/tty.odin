@@ -49,8 +49,8 @@ tty_make :: proc(name: string) -> ^TTY {
     }
 
     if pty_ok {
-        //t.read     = tty_read
-        d.read     = tty_fake_read      // read support not ready yet
+        d.read     = tty_read
+        //d.read     = tty_fake_read      // read support not ready yet
         d.write    = tty_write
     } else {
         d.read     = tty_fake_read
@@ -68,8 +68,15 @@ tty_read :: proc(d: ^TTY, mode: BITS, base, busaddr: u32) -> (val: u32) {
         emu.unsupported_read_size(#procedure, d.name, d.id, mode, busaddr)
         return
     }
+    v : [1]u8
 
-    return 0xFF
+    _, err := os.read(d.master, v[0:])
+    if err != 0 {
+        log.errorf("TTY read error: %s", err)
+        return 0
+    }
+
+    return u32(v[0])
 }
 
 tty_write :: proc(d: ^TTY, mode: BITS, base, busaddr, val: u32) {
