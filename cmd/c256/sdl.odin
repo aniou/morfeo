@@ -264,10 +264,8 @@ call_command :: proc(p: ^platform.Platform, k: string) -> (pass: bool = false) {
 process_input :: proc(p: ^platform.Platform) {
     e: sdl2.Event
 
-    // at first, try to send queued key 
-    if len(gui.ps2_queued_codes) > 0 {
-        send_queued_key_to_ps2(p)
-    }
+    // at first, try to flush PS/2 queue
+    p.bus.ps20->kick()   
 
     // then process new ones
     for sdl2.PollEvent(&e) {
@@ -280,18 +278,66 @@ process_input :: proc(p: ^platform.Platform) {
             gui.should_close = true
         case .KEYDOWN:
             #partial switch(e.key.keysym.sym) {
-			case .F1 : if pass := call_command(p, "f1");  pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F2 : if pass := call_command(p, "f2");  pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F3 : if pass := call_command(p, "f3");  pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F4 : if pass := call_command(p, "f4");  pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F5 : if pass := call_command(p, "f5");  pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F6 : if pass := call_command(p, "f6");  pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F7 : if pass := call_command(p, "f7");  pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F8 : if pass := call_command(p, "f8");  pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F9 : if pass := call_command(p, "f9");  pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F10: if pass := call_command(p, "f10"); pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F11: if pass := call_command(p, "f11"); pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F12: if pass := call_command(p, "f12"); pass do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
+			case .F1 : 
+				if pass := call_command(p, "f1");  pass {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .DOWN)
+				}
+			case .F2 :
+				if pass := call_command(p, "f2");  pass {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .DOWN)
+				}
+			case .F3 :
+				if pass := call_command(p, "f3");  pass {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .DOWN)
+				}
+			case .F4 :
+				if pass := call_command(p, "f4");  pass {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .DOWN)
+				}
+			case .F5 :
+				if pass := call_command(p, "f5");  pass {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .DOWN)
+				}
+			case .F6 :
+				if pass := call_command(p, "f6");  pass {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .DOWN)
+				}
+			case .F7 :
+				if pass := call_command(p, "f7");  pass {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .DOWN)
+				}
+			case .F8 :
+				if pass := call_command(p, "f8");  pass {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .DOWN)
+				}
+			case .F9 :
+				if pass := call_command(p, "f9");  pass {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .DOWN)
+				}
+			case .F10:
+				if pass := call_command(p, "f10");  pass {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .DOWN)
+				}
+			case .F11:
+				if pass := call_command(p, "f11");  pass {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .DOWN)
+				}
+			case .F12:
+				if pass := call_command(p, "f12");  pass {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .DOWN)
+				}
             case .KP_1:
                 p.bus.joy0.state += {.DOWN, .LEFT}
             case .KP_2:
@@ -313,22 +359,71 @@ process_input :: proc(p: ^platform.Platform) {
             case .KP_0:
                 p.bus.joy0.state += {.BUTTON1}
             case:
-                send_key_to_ps2(p, e.key.keysym.scancode, e.type)
+                code := scan_to_key[e.key.keysym.scancode]                                                                            
+                p.bus.ps20->send_key(code, .DOWN)
             }
         case .KEYUP:
             #partial switch(e.key.keysym.sym) {
-			case .F1 : if "f1"  not_in p.cfg.key do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F2 : if "f2"  not_in p.cfg.key do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F3 : if "f3"  not_in p.cfg.key do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F4 : if "f4"  not_in p.cfg.key do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F5 : if "f5"  not_in p.cfg.key do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F6 : if "f6"  not_in p.cfg.key do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F7 : if "f7"  not_in p.cfg.key do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F8 : if "f8"  not_in p.cfg.key do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F9 : if "f9"  not_in p.cfg.key do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F10: if "f10" not_in p.cfg.key do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F11: if "f11" not_in p.cfg.key do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
-			case .F12: if "f12" not_in p.cfg.key do send_key_to_ps2(p, e.key.keysym.scancode, e.type)
+			case .F1 : 
+				if "f1"  not_in p.cfg.key {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .UP)
+				}
+			case .F2 :
+				if "f2"  not_in p.cfg.key {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .UP)
+				}
+			case .F3 :
+				if "f3"  not_in p.cfg.key {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .UP)
+				}
+			case .F4 :
+				if "f4"  not_in p.cfg.key {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .UP)
+				}
+			case .F5 :
+				if "f5"  not_in p.cfg.key {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .UP)
+				}
+			case .F6 :
+				if "f6"  not_in p.cfg.key {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .UP)
+				}
+			case .F7 :
+				if "f7"  not_in p.cfg.key {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .UP)
+				}
+			case .F8 :
+				if "f8"  not_in p.cfg.key {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .UP)
+				}
+			case .F9 :
+				if "f9"  not_in p.cfg.key {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .UP)
+				}
+			case .F10:
+				if "f10"  not_in p.cfg.key {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .UP)
+				}
+			case .F11:
+				if "f11"  not_in p.cfg.key {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .UP)
+				}
+			case .F12:
+				if "f12"  not_in p.cfg.key {
+               		code := scan_to_key[e.key.keysym.scancode]                                                                            
+                	p.bus.ps20->send_key(code, .UP)
+				}
             case .KP_1:
                 p.bus.joy0.state -= {.DOWN, .LEFT}
             case .KP_2:
@@ -350,7 +445,9 @@ process_input :: proc(p: ^platform.Platform) {
             case .KP_0:
                 p.bus.joy0.state -= {.BUTTON1}
             case: 
-                send_key_to_ps2(p, e.key.keysym.scancode, e.type)
+                code := scan_to_key[e.key.keysym.scancode]                                                                            
+                p.bus.ps20->send_key(code, .UP)
+                //send_key_to_ps2(p, e.key.keysym.scancode, e.type)
             }
         }
     }

@@ -226,10 +226,8 @@ cleanup_sdl :: proc() {
 process_input :: proc(p: ^platform.Platform) {
     e: sdl2.Event
 
-    // at first, try to send queued key 
-    if len(gui.ps2_queued_codes) > 0 {
-        send_queued_key_to_ps2(p)
-    }
+    // at first, try to flush PS/2 queue
+    p.bus.ps20->kick() 
 
     // then process new ones
     for sdl2.PollEvent(&e) {
@@ -243,14 +241,18 @@ process_input :: proc(p: ^platform.Platform) {
             case .F8:
                 gui.switch_gpu = true
             case:
-                send_key_to_ps2(p, e.key.keysym.scancode, e.type)
+                code := scan_to_key[e.key.keysym.scancode]
+                p.bus.ps20->send_key(code, .DOWN)
+                //send_key_to_ps2(p, e.key.keysym.scancode, e.type)
             }
         case .KEYUP:
             #partial switch(e.key.keysym.sym) {
             case .F12: // mask key
             case .F8:  // mask key
             case: 
-                send_key_to_ps2(p, e.key.keysym.scancode, e.type)
+                code := scan_to_key[e.key.keysym.scancode]
+                p.bus.ps20->send_key(code, .UP)
+                //send_key_to_ps2(p, e.key.keysym.scancode, e.type)
             }
         }
     }
