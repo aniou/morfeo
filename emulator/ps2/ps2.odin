@@ -135,14 +135,19 @@ ps2_read8 :: proc(s: ^PS2, addr: u32) -> (val: u8) {
             return
         }
 
-        log.debugf("ps2: %6s read     KBD_DATA:          qlen: %d", s.name, queue.len(s.outbuf))
         val = queue.pop_front(&s.outbuf)
         if queue.len(s.outbuf) == 0 {
             s.status = s.status & ~PS2_STAT_OBF
         } else {
             s.status = s.status | PS2_STAT_OBF    // redundant, but to be sure...
         }
-        log.debugf("ps2: %6s read     KBD_DATA: val %02x qlen: %d", s.name, val, queue.len(s.outbuf))
+
+        if s.debug {
+            log.debugf("ps2: %6s read     KBD_DATA: val %02x qlen: %d", s.name, val, queue.len(s.outbuf))
+            for a in 0 ..< queue.len(s.outbuf) {
+                log.debugf("ps2: %6s read     KBD_DATA:  queue remain: %02x", s.name, queue.get(&s.outbuf, a))
+            }
+        }
 
     case KBD_STATUS:        // 0x64
         if s.debug do log.debugf("ps2: %6s read   KBD_STATUS: val %02x", s.name, s.status)
@@ -251,6 +256,9 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
         case 0xf0: // get/set current scancode
             s.cmd = val
             s.cmd_write_mode = true
+        case 0xf4: // re-enable (reset) keyboard
+            queue.clear(&s.outbuf)
+            if s.debug do log.debugf("ps2: %6s write    KBD_COMMAND: val %02x - RE-ENABLE, clear queue", s.name, val)
         case 0xf6: // set default parameters (do nothing now)
             s.status = s.status | PS2_STAT_OBF
             queue.push_back(&s.outbuf, PS2_RESP_ACK)
@@ -260,7 +268,7 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
             s.status = s.status | PS2_STAT_OBF
             queue.push_back(&s.outbuf, PS2_RESP_ACK)
             queue.push_back(&s.outbuf, 0xAA)            // self-test passed
-            log.debugf("ps2: %6s write    KBD_DATA: val %02x - RESET", s.name, val)
+            log.debugf("ps2: %6s write    KBD_COMMAND: val %02x - RESET", s.name, val)
         case:
             log.warnf("ps2: %6s write KBD_COMMAND: val %02x - command UNKNOWN", s.name, val)
         }
