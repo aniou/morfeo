@@ -77,7 +77,7 @@ ps2_make :: proc(name: string, pic: ^pic.PIC) -> ^PS2 {
     s.delete       = ps2_delete
     s.send_key     = ps2_send_key
     s.kick         = ps2_kick_queue
-	s.status       = 0
+    s.status       = 0
     s.debug        = true
     s.CCB          = 0
     s.name         = name
@@ -130,7 +130,7 @@ ps2_read8 :: proc(s: ^PS2, addr: u32) -> (val: u8) {
     case KBD_DATA:          // 0x60
         if queue.len(s.outbuf) == 0 {
             val = 0
-			s.status = s.status & ~PS2_STAT_OBF
+            s.status = s.status & ~PS2_STAT_OBF
             log.debugf("ps2: %6s read     KBD_DATA: queue empty", s.name)
             return
         }
@@ -138,10 +138,10 @@ ps2_read8 :: proc(s: ^PS2, addr: u32) -> (val: u8) {
         log.debugf("ps2: %6s read     KBD_DATA:          qlen: %d", s.name, queue.len(s.outbuf))
         val = queue.pop_front(&s.outbuf)
         if queue.len(s.outbuf) == 0 {
-			s.status = s.status & ~PS2_STAT_OBF
-		} else {
-			s.status = s.status | PS2_STAT_OBF    // redundant, but to be sure...
-		}
+            s.status = s.status & ~PS2_STAT_OBF
+        } else {
+            s.status = s.status | PS2_STAT_OBF    // redundant, but to be sure...
+        }
         log.debugf("ps2: %6s read     KBD_DATA: val %02x qlen: %d", s.name, val, queue.len(s.outbuf))
 
     case KBD_STATUS:        // 0x64
@@ -172,7 +172,7 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
         case 0xf4: // mouse/keyboard enable
             s.status = s.status | PS2_STAT_OBF
             //s.data   = PS2_RESP_ACK
-			queue.push_back(&s.outbuf, PS2_RESP_ACK)
+            queue.push_back(&s.outbuf, PS2_RESP_ACK)
             s.debug  = false  // to get rid console messages in case of pooling
         case 0xf5: // mouse/keyboard disable
             s.status = s.status | PS2_STAT_OBF
@@ -198,18 +198,18 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
                 log.warnf("ps2: %6s write arg for KBD_COMMAND LED (0xed): val %02x not supported", s.name, val)
             case 0xf0:  // for support of get scancode I need a queue...
                 switch val {
-				case 0:
-					queue.push_back(&s.outbuf, PS2_RESP_ACK)
-					queue.push_back(&s.outbuf, u8(s.scancode_set))
-				case 1 ..= 3:	
+                case 0:
+                    queue.push_back(&s.outbuf, PS2_RESP_ACK)
+                    queue.push_back(&s.outbuf, u8(s.scancode_set))
+                case 1 ..= 3:   
                     s.status       = s.status | PS2_STAT_OBF
                     //s.data         = PS2_RESP_ACK
-					queue.push_back(&s.outbuf, PS2_RESP_ACK)
+                    queue.push_back(&s.outbuf, PS2_RESP_ACK)
                     s.scancode_set = SCANCODE_NR(val)
                 case:
                     s.status       = s.status | PS2_STAT_OBF
                     //s.data         = PS2_RESP_ERR0
-					queue.push_back(&s.outbuf, PS2_RESP_ERR0)
+                    queue.push_back(&s.outbuf, PS2_RESP_ERR0)
                 }
                 log.warnf("ps2: %6s write arg for KBD_COMMAND SCANCODE (0xf0)): set to %d", s.name, val)
             case     :
@@ -253,13 +253,13 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
             s.cmd_write_mode = true
         case 0xf6: // set default parameters (do nothing now)
             s.status = s.status | PS2_STAT_OBF
-			queue.push_back(&s.outbuf, PS2_RESP_ACK)
+            queue.push_back(&s.outbuf, PS2_RESP_ACK)
         //case 0xfe: // resend last byte
         //             - worth to implement (add last_byte and put it when read from queue)
         case 0xff: // reset
             s.status = s.status | PS2_STAT_OBF
-			queue.push_back(&s.outbuf, PS2_RESP_ACK)
-			queue.push_back(&s.outbuf, 0xAA)            // self-test passed
+            queue.push_back(&s.outbuf, PS2_RESP_ACK)
+            queue.push_back(&s.outbuf, 0xAA)            // self-test passed
             log.debugf("ps2: %6s write    KBD_DATA: val %02x - RESET", s.name, val)
         case:
             log.warnf("ps2: %6s write KBD_COMMAND: val %02x - command UNKNOWN", s.name, val)

@@ -10,7 +10,7 @@ SCANCODE_NR :: enum {       // valid scancode sets for PS/2 KBD (there is no 0)
     three = 3
 }
 
-SC          :: [8]u8  		                    // a scancode sequence, sent up to first 0
+SC          :: [8]u8                            // a scancode sequence, sent up to first 0
 SCAN_SET    :: [emu.KEY][emu.KEY_STATE]SC       // two sequences: .DOWN and .UP for scancodes
 SCANCODES   :: [SCANCODE_NR]SCAN_SET            // table of three scancodes sets for PS/2
 
