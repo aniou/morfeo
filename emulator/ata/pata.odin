@@ -149,6 +149,7 @@ DRIVE :: struct {
     err:             ERROR,
     state:           STATE,
 
+    attached:        bool,         // is there disk or not?
     fd:              os.Handle,    // file descriptor for image
     offset:          u32,          // current file position
     data:            [512*256]u8,
@@ -183,8 +184,8 @@ pata_make :: proc(name:string) -> ^PATA {
     pata.write8   = pata_write8
     pata.delete   = pata_delete
     pata.attach   = pata_attach_disk
-    pata.drive[0] = DRIVE{ status = ST_DRDY }
-    pata.drive[1] = DRIVE{ status = ST_DRDY }
+    pata.drive[0] = DRIVE{ status = ST_DRDY, attached = false }
+    pata.drive[1] = DRIVE{ status = ST_DRDY, attached = false }
     pata.debug    = false
 
     return pata
@@ -338,7 +339,8 @@ pata_attach_disk :: proc(p: ^PATA, number: int, path: string) -> bool {
     }
     log.infof("%s succesfully atached %s as disk %d", p.name, path, number)
 
-    p.drive[number].fd = f
+    p.drive[number].fd       = f
+    p.drive[number].attached = true
     pata_make_identity(&p.drive[number].ident, s.size)
     return true
 }
@@ -410,8 +412,16 @@ copy_string :: proc(dst: []u16, str: string, max: int) {
 }
 
 pata_delete :: proc(p: ^PATA) {
-    os.close(p.drive[0].fd)
-    os.close(p.drive[1].fd)
+    if p.drive[0].attached {
+        os.flush(p.drive[0].fd)
+        os.close(p.drive[0].fd)
+    }
+
+    if p.drive[1].attached {
+        os.flush(p.drive[1].fd)
+        os.close(p.drive[1].fd)
+    }
+
     free(p)
     return
 }
