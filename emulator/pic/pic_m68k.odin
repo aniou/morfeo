@@ -491,5 +491,5 @@ m68040_clean :: proc(pic: ^PIC) {
 pic_m68k_delete :: proc(pic: ^PIC) {
     d         := &pic.model.(PIC_M68K)
     free(d.data)
-    free(d)
+    free(pic)
 }

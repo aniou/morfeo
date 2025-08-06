@@ -65,6 +65,7 @@ a2560x_make :: proc() -> ^Platform {
 }
 
 a2560x_delete :: proc(p: ^Platform) {
+         p.cpu->delete()
     p.bus.ata0->delete()
     p.bus.gpu0->delete()
     p.bus.gpu1->delete()
@@ -73,7 +74,6 @@ a2560x_delete :: proc(p: ^Platform) {
     p.bus.ram0->delete()
     p.bus.rom0->delete()
     p.bus.rtc0->delete()
-         p.cpu->delete()
     //p.bus.tty0->delete()
          p.bus->delete()
 
