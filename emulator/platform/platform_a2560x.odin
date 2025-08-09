@@ -54,8 +54,9 @@ a2560x_make :: proc() -> ^Platform {
     p.bus.gpu1  = gpu.vicky3_make  ("B", pic, 1, 0)        // XXX - no DIP switch support
     p.bus.ps20  = ps2.ps2_make     ("ps20", pic)
     p.bus.rtc0  = rtc.bq4802_make  ("rtc0", pic)
-    p.bus.ram0  = ram.ram_make     ("ram0", 0x40_0000)
-    p.bus.rom0  = ram.ram_make     ("rom0", 0x02_0000)      // for GAVIN backend
+    p.bus.ram0  = ram.ram_make     ("ram0",  0x40_0000)
+    p.bus.rom0  = ram.ram_make     ("rom0",  0x02_0000)      // for GAVIN backend
+    p.bus.ram1  = ram.ram_make     ("ram1", 0x400_0000)      // SDRAM
     //p.bus.tty0  = tty.tty_make     ("tty0")
     p.cpu       = cpu.m68k_make    ("cpu0", p.bus)
 
@@ -72,6 +73,7 @@ a2560x_delete :: proc(p: ^Platform) {
     p.bus.pic0->delete()
     p.bus.ps20->delete()
     p.bus.ram0->delete()
+    p.bus.ram1->delete()
     p.bus.rom0->delete()
     p.bus.rtc0->delete()
     //p.bus.tty0->delete()

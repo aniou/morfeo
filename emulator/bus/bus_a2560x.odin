@@ -36,7 +36,7 @@ a2560x_read :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32) {
     case 0x00_00_0000 ..= 0x00_3F_FFFF:  val = bus.ram0->read(size, 0x00_00_0000, addr)
     case 0x00_80_0000 ..= 0x00_9F_FFFF:  val = bus.gpu1->read(size, 0x00_80_0000, addr, .VRAM0) // XXX VRAMA and VRAMB
     case 0x00_A0_0000 ..= 0x00_BF_FFFF:  emu.read_not_implemented(#procedure, "vram1", size, addr)  
-    case 0x02_00_0000 ..= 0x05_FF_FFFF:  emu.read_not_implemented(#procedure, "dram0", size, addr)
+    case 0x02_00_0000 ..= 0x05_FF_FFFF:  val = bus.ram1->read(size, 0x02_00_0000, addr)
     case 0xFE_C0_0080 ..= 0xFE_C0_009F:  val = bus.rtc0->read(size, 0xFE_C0_0080, addr)
     case 0xFE_C0_0100 ..= 0xFE_C0_011F:  val = bus.pic0->read(size, 0xFE_C0_0100, addr)
     case 0xFE_C0_0220                 :  val = bus.gpu0.frames   // TIMER 3
@@ -78,7 +78,7 @@ a2560x_write :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     case 0x00_00_0000 ..= 0x00_3F_FFFF:  bus.ram0->write(size, 0x00_00_0000, addr, val)
     case 0x00_80_0000 ..= 0x00_9F_FFFF:  bus.gpu1->write(size, 0x00_80_0000, addr, val, .VRAM0) // XXX VRAMA and VRAMB
     case 0x00_A0_0000 ..= 0x00_BF_FFFF:  emu.write_not_implemented(#procedure, "vram1", size, addr, val)   // 8M in 2M banks?
-    case 0x02_00_0000 ..= 0x05_FF_FFFF:  emu.write_not_implemented(#procedure, "dram0", size, addr, val)
+    case 0x02_00_0000 ..= 0x05_FF_FFFF:  bus.ram1->write(size, 0x02_00_0000, addr, val)     // 64MB SDRAM in X/K
     case 0xFE_C0_0080 ..= 0xFE_C0_009F:  bus.rtc0->write(size, 0xFE_C0_0080, addr, val)
     case 0xFE_C0_0100 ..= 0xFE_C0_011F:  bus.pic0->write(size, 0xFE_C0_0100, addr, val)
 
