@@ -249,7 +249,7 @@ call_command :: proc(p: ^platform.Platform, k: string) -> (pass: bool = false) {
         case .RESET: 
             p.cpu->reset()
         case .LOAD : 
-            for fname in cmd.params do platform.read_intel_hex(p.bus, p.cpu, fname, emu.FLASHSRC)
+            for fname in cmd.params do platform.read_file(p, fname, emu.FLASHSRC)
         case .TOGGLE_GPU:
             gui.switch_gpu = true
         case .TOGGLE_BUSDUMP:

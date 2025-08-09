@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2025-08-09
+- morfeo got a Motorola S-REC file support! Multiple file
+  extensions are considered: `.s19`, `.s37`, `.s68`, `.s28` 
+  and `.srec` are recongized. 
+  There are also `.hex` for Intel Hex.
+
 ## 2025-08-05
 - a brand new ps/2 model - with proper support for modes
   1, 2 and 3 and keycodes queue. FUZIX now works with VT

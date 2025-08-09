@@ -373,7 +373,7 @@ main :: proc() {
     // FoenixIDE that bank ($18:0000 or $38:) is moved to $00:0000
     for f in config.files {
         log.info(f)
-        ok = platform.read_intel_hex(p.bus, p.cpu, f, emu.FLASHSRC)
+        ok = platform.read_file(p, f, emu.FLASHSRC)
         if !ok {
             log.errorf("Cannot load hex file %s", f)
             p->delete()

@@ -68,12 +68,13 @@ read_args :: proc(p: ^platform.Platform) -> (c: ^Config, args_ok: bool = true) {
     // very crude rom attach, currently at 0
     payload, ok = getargs.get_payload(&argp, "rom")
     if ok {
-        platform.read_raw_binary(p.bus, p.cpu, payload, 0)
+        platform.read_file(p, payload, 0)
     }
 
     // files to load - XXX maybe should be moved to outside?
     for ; argp.arg_idx < len(os.args) ; argp.arg_idx += 1 {
-        platform.read_intel_hex(p.bus, p.cpu, os.args[argp.arg_idx])
+        //platform.read_intel_hex(p.bus, p.cpu, os.args[argp.arg_idx])
+        platform.read_file(p, os.args[argp.arg_idx])
     }
 
     getargs.destroy(&argp)
