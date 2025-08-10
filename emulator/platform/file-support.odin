@@ -167,13 +167,14 @@ read_srec :: proc(p: ^Platform, filepath: string) -> (ok: bool) {
         case 0x02:
             address  = data[2] << 16 | data[3] << 8  | data[4]
             count   += 1
-            for val, index in data[4:last] {
+            for val, index in data[5:last] {
                 p.bus->write(.bits_8, address + u32(index), val)
             }
         case 0x03:
             address  = data[2] << 24 | data[3] << 16 | data[4] << 8 | data[5]
             count   += 1
-            for val, index in data[4:last] {
+            for val, index in data[6:last] {
+                //log.debugf("addr %08x val %02x",  address + u32(index), val)
                 p.bus->write(.bits_8, address + u32(index), val)
             }
         case 0x04:
