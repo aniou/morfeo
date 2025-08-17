@@ -36,9 +36,9 @@ PS2_RESP_ERR0   :: u8(0x00)
 PS2_RESP_ACK    :: u8(0xFA)
 PS2_RESP_RESEND :: u8(0xFE)
 
-KBD_DATA        :: 0x00 // $AF1803 (FMX: $AF1060) for reading and writing
-KBD_COMMAND     :: 0x04 // $AF1807 (FMX: $AF1064) for writing
-KBD_STATUS      :: 0x04 // $AF1807 (FMX: $AF1064) for reading
+PS2_DATA        :: 0x00 // $AF1803 (FMX: $AF1060) for reading and writing
+PS2_COMMAND     :: 0x04 // $AF1807 (FMX: $AF1064) for writing
+PS2_STATUS      :: 0x04 // $AF1807 (FMX: $AF1064) for reading
 
 BITS :: emu.Bitsize
 PS2  :: struct {
@@ -82,6 +82,9 @@ ps2_make :: proc(name: string, pic: ^pic.PIC) -> ^PS2 {
     s.CCB          = 0
     s.name         = name
     s.scancode_set = .one
+    s.cmd_write_mode = false
+    s.ccb_write_mode = false
+
 
     queue.init(&s.outbuf)
     return s
@@ -127,7 +130,7 @@ ps2_write :: proc(s: ^PS2, mode: BITS, base, busaddr, val: u32) {
 
 ps2_read8 :: proc(s: ^PS2, addr: u32) -> (val: u8) {
     switch addr {
-    case KBD_DATA:          // 0x60
+    case PS2_DATA:          // 0x60
         if queue.len(s.outbuf) == 0 {
             val = 0
             s.status = s.status & ~PS2_STAT_OBF
@@ -149,7 +152,7 @@ ps2_read8 :: proc(s: ^PS2, addr: u32) -> (val: u8) {
             }
         }
 
-    case KBD_STATUS:        // 0x64
+    case PS2_STATUS:        // 0x64
         if s.debug do log.debugf("ps2: %6s read   KBD_STATUS: val %02x", s.name, s.status)
         val = s.status
     case:
@@ -191,7 +194,7 @@ ps2_read8 :: proc(s: ^PS2, addr: u32) -> (val: u8) {
 
 ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
     switch addr {
-    case KBD_DATA: // 0x60
+    case PS2_DATA: // 0x60 - PS2 device command or PS2 controller command parameter
         if s.debug do log.debugf("ps2: %6s write    KBD_DATA: val %02x", s.name, val)
 
         if s.ccb_write_mode {
@@ -201,26 +204,6 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
             s.CCB             = val
             return 
         }
-
-        switch val {
-        case 0xf4: // mouse/keyboard enable
-            s.status = s.status | PS2_STAT_OBF
-            //s.data   = PS2_RESP_ACK
-            queue.push_back(&s.outbuf, PS2_RESP_ACK)
-            s.debug  = false  // to get rid console messages in case of pooling
-        case 0xf5: // mouse/keyboard disable
-            s.status = s.status | PS2_STAT_OBF
-        case 0xf6: // mouse - reset without self-test
-            s.status = s.status | PS2_STAT_OBF
-        case 0xff: // mouse/keyboard reset
-            s.status = s.status | PS2_STAT_OBF
-            log.debugf("ps2: %6s write    KBD_DATA: val %02x - RESET from CCB?", s.name, val)
-        case:
-            log.debugf("ps2: %6s write    KBD_DATA: val %02x - data UNKNOWN", s.name, val)
-        }
-
-   case KBD_COMMAND: // 0x64 - command when write
-        if s.debug do log.debugf("ps2: %6s write KBD_COMMAND: val %02x", s.name, val)
 
         if s.cmd_write_mode {
             s.cmd_write_mode  = false
@@ -247,16 +230,43 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
                 }
                 log.warnf("ps2: %6s write arg for KBD_COMMAND SCANCODE (0xf0)): set to %d", s.name, val)
             case     :
-                log.errorf("ps2: %6s write arf for UKNONWN KBD_COMMAND %02x: val %02x not supported", s.name, s.cmd, val)
+                log.errorf("ps2: %6s write arg UKNOWN KBD_COMMAND %02x: val %02x not supported", s.name, s.cmd, val)
             }
             return
         }
 
         switch val {
+        case 0xed: // set LED status
+            s.cmd = val
+            s.cmd_write_mode = true
+        case 0xf0: // get/set current scancode
+            s.cmd = val
+            s.cmd_write_mode = true
+        case 0xf4: // mouse/keyboard enable
+            s.status = s.status | PS2_STAT_OBF
+            queue.push_back(&s.outbuf, PS2_RESP_ACK)
+            s.debug  = false  // to get rid console messages in case of pooling
+        case 0xf5: // mouse/keyboard disable
+            s.status = s.status | PS2_STAT_OBF
+            queue.push_back(&s.outbuf, PS2_RESP_ACK)
+        case 0xf6: // set default parameters (do nothing now)
+            s.status = s.status | PS2_STAT_OBF
+            queue.push_back(&s.outbuf, PS2_RESP_ACK)
+        case 0xff: // reset
+            s.status = s.status | PS2_STAT_OBF
+            queue.push_back(&s.outbuf, PS2_RESP_ACK)
+            queue.push_back(&s.outbuf, 0xAA)            // self-test passed
+            log.debugf("ps2: %6s write    KBD_DATA: val %02x - RESET", s.name, val)
+       case:
+            log.debugf("ps2: %6s write    KBD_DATA: val %02x - data UNKNOWN", s.name, val)
+        }
+
+   case PS2_COMMAND: // 0x64 - PS2 controller command when write
+        if s.debug do log.debugf("ps2: %6s write PS2_COMMAND: val %02x", s.name, val)
+
+        switch val {
         case 0x60:
             s.ccb_write_mode    = true
-        case 0xd4: // write next byte to second PS/2 port
-            s.status = s.status | PS2_STAT_OBF
         case 0xa7: // disable second PS/2 port
             s.status = s.status | PS2_STAT_OBF
             s.second_enabled = false
@@ -279,27 +289,10 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
             s.first_enabled = false
         case 0xae: // enable first PS/2 port
             s.first_enabled = true
-        case 0xed: // set LED status
-            s.cmd = val
-            s.cmd_write_mode = true
-        case 0xf0: // get/set current scancode
-            s.cmd = val
-            s.cmd_write_mode = true
-        case 0xf4: // re-enable (reset) keyboard
-            queue.clear(&s.outbuf)
-            if s.debug do log.debugf("ps2: %6s write    KBD_COMMAND: val %02x - RE-ENABLE, clear queue", s.name, val)
-        case 0xf6: // set default parameters (do nothing now)
+        case 0xd4: // write next byte to second PS/2 port
             s.status = s.status | PS2_STAT_OBF
-            queue.push_back(&s.outbuf, PS2_RESP_ACK)
-        //case 0xfe: // resend last byte
-        //             - worth to implement (add last_byte and put it when read from queue)
-        case 0xff: // reset
-            s.status = s.status | PS2_STAT_OBF
-            queue.push_back(&s.outbuf, PS2_RESP_ACK)
-            queue.push_back(&s.outbuf, 0xAA)            // self-test passed
-            log.debugf("ps2: %6s write    KBD_COMMAND: val %02x - RESET", s.name, val)
         case:
-            log.warnf("ps2: %6s write KBD_COMMAND: val %02x - command UNKNOWN", s.name, val)
+            log.warnf("ps2: %6s write PS2_COMMAND: val %02x - command UNKNOWN", s.name, val)
         }
    case:
         log.warnf("ps2: %6s Write addr %6x val %2x is not implemented", s.name, addr, val)
