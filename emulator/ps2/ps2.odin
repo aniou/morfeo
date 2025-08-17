@@ -160,6 +160,35 @@ ps2_read8 :: proc(s: ^PS2, addr: u32) -> (val: u8) {
     return
 }
 
+/* 
+
+  BIG XXX
+  I need to programm a valid CCB support, because it creates a difference between
+  real hardware and emulator - for example 8042 has default enabled translation to
+  scan set 1, and code tested in emulator doesn't work properly on A2560X because
+  some software (FUZIX) works on scan code set 2 and when translation is ON there
+  is not possible to switch scancodes
+
+  https://wiki.osdev.org/I8042_PS/2_Controller
+  https://wiki.osdev.org/PS/2_Keyboard
+  
+  PS/2 Controller Configuration Byte
+  
+  Commands 0x20 and 0x60 let you read and write the PS/2 Controller Configuration Byte. 
+  This configuration byte has the following format:
+  
+  Bit 	Meaning
+  0 	First PS/2 port interrupt (1 = enabled, 0 = disabled)
+  1 	Second PS/2 port interrupt (1 = enabled, 0 = disabled, only if 2 PS/2 ports supported)
+  2 	System Flag (1 = system passed POST, 0 = your OS shouldn't be running)
+  3 	Should be zero
+  4 	First PS/2 port clock (1 = disabled, 0 = enabled)
+  5 	Second PS/2 port clock (1 = disabled, 0 = enabled, only if 2 PS/2 ports supported)
+  6 	First PS/2 port translation (1 = enabled, 0 = disabled)
+  7 	Must be zero
+  
+*/
+
 ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
     switch addr {
     case KBD_DATA: // 0x60
