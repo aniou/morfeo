@@ -131,7 +131,7 @@ ps2_read8 :: proc(s: ^PS2, addr: u32) -> (val: u8) {
         if queue.len(s.outbuf) == 0 {
             val = 0
             s.status = s.status & ~PS2_STAT_OBF
-            log.debugf("ps2: %6s read     KBD_DATA: queue empty", s.name)
+            log.debugf("ps2: %6s read     KBD_DATA: queue empty status %02x", s.name, s.status)
             return
         }
 
