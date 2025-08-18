@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   soo slow. Implementation is good enough for C256, but
   not sufficient for modern machines. 
 - sample [FUZIX](https://github.com/aniou/FUZIX) binaries
-  included, see [README](https://github.com/aniou/morfeo)
+  included, see [README](https://github.com/aniou/morfeo?tab=readme-ov-file#fuzix)
   for details.
 
 ## 2025-08-09
