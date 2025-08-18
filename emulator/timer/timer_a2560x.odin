@@ -47,14 +47,11 @@ Timer_a2560x_ctrl :: bit_field u32 {
 
 TIMER_A2560X_THREAD :: struct {
     id:           int,            // internal, thread id
-    clock:        ^thread.Thread,
-    sleep:        time.Duration,  // how long to sleep between calls
     ctrl:         Timer_a2560x_ctrl,
 
     charge:       u32,            // initial value when counts down
     compare:      u32,            // max value when counts up
     counter:      u32,            // internal counter
-    shutdown:     bool,           // used by thread to graceful shutdown
     is_equal:     bool,           // denote being equal to
 
     irq:          pic.IRQ,        // irq type to send when counter is equal
@@ -63,8 +60,10 @@ TIMER_A2560X_THREAD :: struct {
 
 TIMER_A2560X :: struct {
     using timer: ^TIMER,
+    clock:       ^thread.Thread,
+    shutdown:     bool,           // used by thread to graceful shutdown
 
-    tth:      [5]^TIMER_A2560X_THREAD,
+    tth:      [5]TIMER_A2560X_THREAD,
 }
 
 timer_a2560x_make :: proc(name: string, pic_ctrl: ^pic.PIC, id: int) -> ^TIMER {
@@ -76,31 +75,27 @@ timer_a2560x_make :: proc(name: string, pic_ctrl: ^pic.PIC, id: int) -> ^TIMER {
     timer.write    = timer_a2560x_write
     timer.tick     = timer_a2560x_external_tick
     t             := TIMER_A2560X{timer = timer}
+    t.shutdown     = false
 
     irq_table     := [5]pic.IRQ{.TIMER0, .TIMER1, .TIMER2, .TIMER3, .TIMER4}
 
     for i in 0..=4 {
-        t.tth[i]              = new(TIMER_A2560X_THREAD)
+        t.tth[i]              = TIMER_A2560X_THREAD{}
         t.tth[i].id           = i
         t.tth[i].ctrl.countup = true
         t.tth[i].irq          = irq_table[i]
         t.tth[i].pic          = pic_ctrl
-        t.tth[i].shutdown     = false
         t.tth[i].ctrl.enabled = false
-        t.tth[i].sleep        = 4 * time.Nanosecond   // roughly tick with 33Mhz
-
-        // TIMER4 and 5 are ticked by start of frame (in fact - from SDL code)
-        if i < 3 {
-            if c := thread.create_and_start_with_data(t.tth[i], timer_a2560x_worker_proc); c != nil {
-                t.tth[i].clock = c
-            } else {
-                log.errorf("%s TIMER%d cannot create clock thread", t.name, i)
-            }
-        }
     }
 
     t.tth[3].ctrl.enabled = true
     t.tth[4].ctrl.enabled = true
+
+    if c := thread.create_and_start_with_data(timer, timer_a2560x_worker_proc); c != nil {
+        t.clock = c
+    } else {
+        log.errorf("%s TIMER%d cannot create clock thread", t.name, t.id)
+    }
 
     timer.model    = t
     return timer
@@ -143,7 +138,7 @@ timer_a2560x_read :: proc(d: ^TIMER, mode: BITS, base, busaddr: u32) -> (val: u3
     case TIMER_A2560X_T4_VAL  : val = t.tth[4].counter
     case TIMER_A2560X_T4_CMP  : val = 0
     }
-    log.debugf("TIMER: returned %08x %08x %08x", addr, busaddr, val)
+    //log.debugf("TIMER: returned %08x %08x %08x", addr, busaddr, val)
     return
 }
 
@@ -181,13 +176,13 @@ timer_a2560x_write :: proc(d: ^TIMER, mode: BITS, base, busaddr, val: u32) {
             case t.tth[i].ctrl.sload: t.tth[i].counter = t.tth[i].charge
             }
         }
-    case TIMER_A2560X_T0_VAL  : t.tth[0].charge  = val
-    case TIMER_A2560X_T0_CMP  : t.tth[0].compare = val
-    case TIMER_A2560X_T1_VAL  : t.tth[1].charge  = val
-    case TIMER_A2560X_T1_CMP  : t.tth[1].compare = val
-    case TIMER_A2560X_T2_VAL  : t.tth[2].charge  = val
-    case TIMER_A2560X_T2_CMP  : t.tth[2].compare = val
-    case TIMER_A2560X_T3_VAL  : t.tth[3].charge  = val
+    case TIMER_A2560X_T0_VAL  : t.tth[0].charge  = val / 10     // because emulator is too slow
+    case TIMER_A2560X_T0_CMP  : t.tth[0].compare = val / 10
+    case TIMER_A2560X_T1_VAL  : t.tth[1].charge  = val / 10
+    case TIMER_A2560X_T1_CMP  : t.tth[1].compare = val / 10
+    case TIMER_A2560X_T2_VAL  : t.tth[2].charge  = val / 10
+    case TIMER_A2560X_T2_CMP  : t.tth[2].compare = val / 10
+    case TIMER_A2560X_T3_VAL  : t.tth[3].charge  = val 
     case TIMER_A2560X_T3_CMP  : t.tth[3].compare = val
     case TIMER_A2560X_T4_VAL  : t.tth[4].charge  = val
     case TIMER_A2560X_T4_CMP  : t.tth[4].compare = val
@@ -198,9 +193,9 @@ timer_a2560x_delete :: proc(d: ^TIMER) {
     t    := &d.model.(TIMER_A2560X)
     // TIMER3 and 4 in A2560X doesn't have a clock thread
     for i in 0..=2 {
-        t.tth[i].shutdown = true
-        thread.join(t.tth[i].clock)
-        free(t.tth[i].clock)
+        t.shutdown = true
+        thread.join(t.clock)
+        //free(t.clock)
     }
     free(d)
 }
@@ -209,7 +204,7 @@ timer_a2560x_delete :: proc(d: ^TIMER) {
 timer_a2560x_external_tick :: proc(d: ^TIMER, id: int = 0) {
     t    := &d.model.(TIMER_A2560X)
     if id == 3 || id == 4 {
-        timer_a2560x_internal_tick(t.tth[id])
+        timer_a2560x_internal_tick(&t.tth[id])
     } else {
         log.errorf("%s TIMER%d should not be externally ticked", t.name, id)
     }
@@ -223,14 +218,16 @@ timer_a2560x_internal_tick :: proc(t: ^TIMER_A2560X_THREAD) {
 
     if t.counter > 330000 do log.debugf("TIMER%d internal tick, count %d compare %d", t.id, t.counter, t.compare)
 
+    t.is_equal = false
     if t.ctrl.countup {
         t.counter += 1
         if t.counter == t.compare {
-            if t.ctrl.reclr {
+            if t.ctrl.reclr || t.id == 0 {   // bad workaround for too slow emulator
                 t.counter     = 0
             } else {
-                //t.ctrl.enabled = false
+                t.ctrl.enabled = false
             }
+            t.is_equal = true
             if t.ctrl.irq_en do t.pic->trigger(t.irq)
             //log.debugf("TIMER%d hit countup irq %v ", t.id, t.irq)
         }
@@ -238,11 +235,12 @@ timer_a2560x_internal_tick :: proc(t: ^TIMER_A2560X_THREAD) {
     } else {
         t.counter -= 1
         if t.counter == t.compare {
-            if t.ctrl.reload {
+            if t.ctrl.reload || t.id == 0 {
                 t.counter     = t.charge
             } else {
-                //t.ctrl.enabled = false
+                t.ctrl.enabled = false
             }
+            t.is_equal = true
             if t.ctrl.irq_en do t.pic->trigger(t.irq)
             //log.debugf("TIMER%d hit countdown irq %v ", t.id, t.irq)
         }
@@ -254,13 +252,15 @@ timer_a2560x_worker_proc :: proc(p: rawptr) {
         logger_options := log.Options{.Level};
         context.logger  = log.create_console_logger(opt = logger_options)
 
-        t := transmute(^TIMER_A2560X_THREAD)p
-        nextime := time.now()._nsec
-        nextime += 10
+        d := transmute(^TIMER)p
+        t := &d.model.(TIMER_A2560X)
+        nextime := time.now()._nsec + 400
         for !t.shutdown {
             if time.now()._nsec > nextime {
-                nextime = time.now()._nsec + 4
-                if t.ctrl.enabled do timer_a2560x_internal_tick(t)
+                nextime = time.now()._nsec + 400
+                if t.tth[0].ctrl.enabled do timer_a2560x_internal_tick(&t.tth[0])
+                if t.tth[1].ctrl.enabled do timer_a2560x_internal_tick(&t.tth[1])
+                if t.tth[2].ctrl.enabled do timer_a2560x_internal_tick(&t.tth[2])
             }
             //log.debugf("internal thread TIMER%d tick", t.id)
         }
