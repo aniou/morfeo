@@ -10,7 +10,8 @@ musashi_objects  += $(musashi_dir)/softfloat/softfloat.o
 
 odin_defs        += -collection:emulator=emulator
 odin_defs        += -collection:lib=lib
-build_flags      += $(odin_defs) -o:speed
+build_flags_rele += $(odin_defs) -o:speed
+build_flags      += $(odin_defs)
 
 .PHONY: doc a2560x test_w65c02s test_65c816 c256fmx c256u c256u+
 
@@ -45,7 +46,7 @@ $(musashi_objects): external/m68kconf.h
 	$(MAKE) -C $(musashi_dir)
 
 a2560x_rel: $(musashi_objects)
-	odin build cmd/a2560x -define:TARGET=a2560x -no-bounds-check -disable-assert $(build_flags)
+	odin build cmd/a2560x -define:TARGET=a2560x -no-bounds-check -disable-assert $(build_flags_rele)
 a2560x: $(musashi_objects)
 	odin build cmd/a2560x -define:TARGET=a2560x    -debug  $(build_flags)
 c256fmx_rel:

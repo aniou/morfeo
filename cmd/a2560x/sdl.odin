@@ -66,7 +66,7 @@ init_sdl :: proc(p: ^platform.Platform, gpu_number: int = 1) -> (ok: bool) {
     // XXX: parametrize it and fetch default resolutions from current gpu
     gui.x_size      = 800
     gui.y_size      = 600
-    gui.scale_mult  = 2
+    gui.scale_mult  = 3
     gui.fullscreen  = false
 
     // set initial parameters and force refresh in render_gui() by switch_gpu = 1
@@ -287,12 +287,14 @@ render_gui :: proc(p: ^platform.Platform) -> bool {
             if gui.current_gpu   == 0 do gui.g->render()
             gui.gpu0.frames      += 1
             gui.gpu0.last_tick    = time.tick_now()
+            p.bus.timer0->tick(3)
         }
 
         if time.tick_since(gui.gpu1.last_tick) >= gui.gpu1.delay {
             if gui.current_gpu   == 1 do gui.g->render()
             gui.gpu1.frames      += 1
             gui.gpu1.last_tick    = time.tick_now()
+            p.bus.timer0->tick(4)
         }
 
         // Step 5 : draw to screen

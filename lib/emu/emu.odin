@@ -130,6 +130,7 @@ Region :: enum {
     TILEMAP,
     TILESET,
     ID_CARD,    // id block of extension card
+    STATUS,     // general status register
 }
 
 // commands, recongized by GUI (or platform?)

@@ -483,7 +483,7 @@ render_gui :: proc(p: ^platform.Platform) {
             if gui.current_gpu   == 0 do gui.g->render()
             gui.gpu0.frames      += 1
             gui.gpu0.last_tick    = time.tick_now()
-            p.bus.timer2->tick()
+            p.bus.timer2->tick(2)   // id doesn't matter at this moment
         }
 
         if time.tick_since(gui.gpu1.last_tick) >= gui.gpu1.delay {

@@ -8,8 +8,6 @@ import "core:thread"
 import "emulator:pic"
 import "lib:emu"
 
-BITS :: emu.Bitsize
-
 // there are three timers i C256
 // 0 clicks at 14318180Hz
 // 1 clicks at 14318180Hz too
@@ -28,32 +26,27 @@ TIMER_CMP_L    :: 0x05
 TIMER_CMP_M    :: 0x06
 TIMER_CMP_H    :: 0x07
 
-Timer_ctrl :: bit_field u32 {
+Timer_c256_ctrl :: bit_field u32 {
     enabled: bool | 1,
     sclr:    bool | 1,
     sload:   bool | 1,
     countup: bool | 1,           // 1 - count up, 2 - count down
 }
 
-Timer_cmp :: bit_field u32 {
+Timer_c256_cmp :: bit_field u32 {
     reclr:   bool | 1,           // set to 0 (cycle) when count up and == comparec
     reload:  bool | 1,           // reload from chargec when counting down
 }
 
-TIMER :: struct {
-    name:       string,
-    id:         u8,
-    irq:         pic.IRQ,             // irq type to send when counter is equal
-    pic:        ^pic.PIC,
+TIMER_C256 :: struct {
+    using timer: ^TIMER,
 
-    read:       proc(^TIMER, BITS, u32, u32) -> u32,
-    write:      proc(^TIMER, BITS, u32, u32,    u32),
-    delete:     proc(^TIMER),
-    tick:       proc(^TIMER),
+    irq:          pic.IRQ,             // irq type to send when counter is equal
+    pic_ctrl:    ^pic.PIC,
 
-    clock:        ^thread.Thread,
-    ctrl:         Timer_ctrl,
-    cmp:          Timer_cmp,
+    clock:       ^thread.Thread,
+    ctrl:         Timer_c256_ctrl,
+    cmp:          Timer_c256_cmp,
     sleep:        time.Duration,  // how long to sleep between calls
 
     charge:       u32,            // initial value when counts down
@@ -63,15 +56,17 @@ TIMER :: struct {
     shutdown:     bool,           // used by thread to graceful shutdown
 }
 
-timer_c256_make :: proc(name: string, pic: ^pic.PIC, id: u8) -> ^TIMER {
-    t             := new(TIMER)
-    t.name         = name
-    t.id           = id
-    t.pic          = pic
-    t.delete       = timer_c256_delete
-    t.read         = timer_c256_read
-    t.write        = timer_c256_write
-    t.tick         = timer_c256_tick
+timer_c256_make :: proc(name: string, pic: ^pic.PIC, id: int) -> ^TIMER {
+    timer         := new(TIMER)
+    timer.name     = name
+    timer.id       = id
+    timer.delete   = timer_c256_delete
+    timer.read     = timer_c256_read
+    timer.write    = timer_c256_write
+    timer.tick     = timer_c256_external_tick
+    t             := TIMER_C256{timer = timer}
+
+    t.pic_ctrl     = pic
     t.shutdown     = false          // used to stop threads
     t.ctrl.enabled = false
     t.sleep        = 69 * time.Nanosecond
@@ -85,18 +80,21 @@ timer_c256_make :: proc(name: string, pic: ^pic.PIC, id: u8) -> ^TIMER {
 
     // TIMER2 is ticked by start of frame (in fact - from SDL code)
     if id != 2 {
-        if c := thread.create_and_start_with_data(t, worker_proc); t != nil {
-            t.clock = c
+        if c := thread.create_and_start_with_data(timer, timer_c256_worker_proc); c != nil {
+            t.clock      = c
+            log.debugf("TIMER thread %v", t.clock)
         } else {
             log.errorf("%s TIMER cannot create clock thread", t.name)
         }
     }
 
-    return t
+    timer.model  = t
+    return timer
 }
 
 // according to behaviour from FoenixIDE
-timer_c256_read :: proc(t: ^TIMER, mode: BITS, base, busaddr: u32) -> (val: u32) {
+timer_c256_read :: proc(d: ^TIMER, mode: BITS, base, busaddr: u32) -> (val: u32) {
+    t    := &d.model.(TIMER_C256)
     addr := busaddr - base
     switch addr {
     case TIMER_CTRL_REG: val = 1 if t.counter == t.compare else 0
@@ -111,11 +109,12 @@ timer_c256_read :: proc(t: ^TIMER, mode: BITS, base, busaddr: u32) -> (val: u32)
     return
 }
 
-timer_c256_write :: proc(t: ^TIMER, mode: BITS, base, busaddr, val: u32) {
+timer_c256_write :: proc(d: ^TIMER, mode: BITS, base, busaddr, val: u32) {
+    t    := &d.model.(TIMER_C256)
     addr := busaddr - base
     switch addr {
     case TIMER_CTRL_REG: 
-        t.ctrl       = cast(Timer_ctrl) val
+        t.ctrl       = cast(Timer_c256_ctrl) val
         switch {
         case t.ctrl.sclr : t.counter = 0
         case t.ctrl.sload: t.counter = t.charge
@@ -126,14 +125,15 @@ timer_c256_write :: proc(t: ^TIMER, mode: BITS, base, busaddr, val: u32) {
     case TIMER_CHARGE_L: t.charge  = emu.assign_byte1(t.charge,  val)
     case TIMER_CHARGE_M: t.charge  = emu.assign_byte2(t.charge,  val)
     case TIMER_CHARGE_H: t.charge  = emu.assign_byte3(t.charge,  val)
-    case TIMER_CMP_REG : t.cmp     = cast(Timer_cmp)         val
+    case TIMER_CMP_REG : t.cmp     = cast(Timer_c256_cmp)        val
     case TIMER_CMP_L   : t.compare = emu.assign_byte1(t.compare, val)
     case TIMER_CMP_M   : t.compare = emu.assign_byte2(t.compare, val)
     case TIMER_CMP_H   : t.compare = emu.assign_byte3(t.compare, val)
     }
 }
 
-timer_c256_delete :: proc(t: ^TIMER) {
+timer_c256_delete :: proc(d: ^TIMER) {
+    t    := &d.model.(TIMER_C256)
     t.shutdown = true
 
     // timer2 in c256 doesn't have a clock thread
@@ -142,15 +142,20 @@ timer_c256_delete :: proc(t: ^TIMER) {
         free(t.clock)
     }
 
-    free(t)
+    free(d)
 }
 
-// may be called internally or externally
-timer_c256_tick :: proc(t: ^TIMER) {
+timer_c256_external_tick :: proc(d: ^TIMER, id: int = 0) {
+    t    := &d.model.(TIMER_C256)
+    timer_c256_internal_tick(t)
+}
+
+timer_c256_internal_tick :: proc(t: ^TIMER_C256) {
     if !t.ctrl.enabled {
         return
     }
-    //log.debugf("%s tick", t.name)
+
+    log.debugf("%s tick", t.name)
 
     if t.ctrl.countup {
         t.counter += 1
@@ -161,7 +166,7 @@ timer_c256_tick :: proc(t: ^TIMER) {
             } else {
                 //t.ctrl.enabled = false
             }
-            t.pic->trigger(t.irq)
+            t.pic_ctrl->trigger(t.irq)
             //log.debugf("%s hit countup", t.name)
         }
 
@@ -174,21 +179,23 @@ timer_c256_tick :: proc(t: ^TIMER) {
             } else {
                 //t.ctrl.enabled = false
             }
-            t.pic->trigger(t.irq)
+            t.pic_ctrl->trigger(t.irq)
             //log.debugf("%s hit countdown", t.name)
         }
     }
 
 }
 
-worker_proc :: proc(p: rawptr) {
+timer_c256_worker_proc :: proc(p: rawptr) {
         logger_options := log.Options{.Level};
         context.logger  = log.create_console_logger(opt = logger_options)
 
-        t := transmute(^TIMER)p
+        d := transmute(^TIMER)p
+        t := &d.model.(TIMER_C256)
+        log.debugf("%s TIMER thread created, shutdown is %v", t.name, t.shutdown)
         for !t.shutdown {
             time.sleep(t.sleep)
-            timer_c256_tick(t)
+            timer_c256_internal_tick(t)
         }
         log.debugf("%s TIMER shutdown clock thread", t.name)
         log.destroy_console_logger(context.logger)

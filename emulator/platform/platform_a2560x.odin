@@ -10,6 +10,7 @@ import "emulator:pic"
 import "emulator:ps2"
 import "emulator:rtc"
 import "emulator:ram"
+import "emulator:timer"
 import "emulator:tty"
 
 import "core:fmt"
@@ -46,22 +47,22 @@ else                                { MACHINE_ID        : u32 : 0xFF           /
 
 
 a2560x_make :: proc() -> ^Platform {
-    p          := new(Platform)
-    pic        := pic.pic_m68k_make("pic0")
-    p.bus       = bus.a2560x_make  ("bus0", pic)
-    p.bus.ata0  = ata.pata_make    ("pata0")               // XXX - update to PIC
-    p.bus.gpu0  = gpu.vicky3_make  ("A", pic, 0, 0)        // XXX - no DIP switch support
-    p.bus.gpu1  = gpu.vicky3_make  ("B", pic, 1, 0)        // XXX - no DIP switch support
-    p.bus.ps20  = ps2.ps2_make     ("ps20", pic)
-    p.bus.rtc0  = rtc.bq4802_make  ("rtc0", pic)
-    p.bus.ram0  = ram.ram_make     ("ram0",  0x40_0000)
-    p.bus.rom0  = ram.ram_make     ("rom0",  0x02_0000)      // for GAVIN backend
-    p.bus.ram1  = ram.ram_make     ("ram1", 0x400_0000)      // SDRAM
-    //p.bus.tty0  = tty.tty_make     ("tty0")
-    p.cpu       = cpu.m68k_make    ("cpu0", p.bus)
+    p           := new(Platform)
+    pic         := pic.pic_m68k_make("pic0")
+    p.bus        = bus.a2560x_make  ("bus0", pic)
+    p.bus.ata0   = ata.pata_make    ("pata0")               // XXX - update to PIC
+    p.bus.gpu0   = gpu.vicky3_make  ("A", pic, 0, 0)        // XXX - no DIP switch support
+    p.bus.gpu1   = gpu.vicky3_make  ("B", pic, 1, 0)        // XXX - no DIP switch support
+    p.bus.ps20   = ps2.ps2_make     ("ps20", pic)
+    p.bus.rtc0   = rtc.bq4802_make  ("rtc0", pic)
+    p.bus.ram0   = ram.ram_make     ("ram0",  0x40_0000)
+    p.bus.rom0   = ram.ram_make     ("rom0",  0x02_0000)      // for GAVIN backend
+    p.bus.ram1   = ram.ram_make     ("ram1", 0x400_0000)      // SDRAM
+    p.bus.timer0 = timer.timer_a2560x_make("timer0", pic, 0)
+    p.cpu        = cpu.m68k_make    ("cpu0", p.bus)
 
-    p.delete    = a2560x_delete
-    p.init      = a2560x_init
+    p.delete     = a2560x_delete
+    p.init       = a2560x_init
     return p
 }
 
@@ -76,7 +77,7 @@ a2560x_delete :: proc(p: ^Platform) {
     p.bus.ram1->delete()
     p.bus.rom0->delete()
     p.bus.rtc0->delete()
-    //p.bus.tty0->delete()
+  p.bus.timer0->delete()
          p.bus->delete()
 
     free(p);
