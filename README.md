@@ -152,6 +152,13 @@ or c256fmx emulators, it will start automatically:
 
 Running from `c256u` platform requires manual execution by `call 65536` command from BASIC816 level.
 
+# FUZIX 
+We are able to run [FUZIX](https://github.com/aniou/FUZIX) on emulated A2560X! Just run `./fuzix.sh`
+script.
+
+**Important!**: remember to stop FUZIX by command `telinit 6` or You will face consequences of
+unclean disk shutdown! After "Halt" message You may safely quit by pressing `F12`.
+
 # FQA
 
 ### Why not morfe (an Go-based)?
@@ -175,10 +182,7 @@ Because I need some fun too.
 
 ### In which areas morfeo is worse than morfe?
 
-* lack of debugging tools for code
-* ~lack of 65c816 support~
 * Golang is more portable 
-* more memory leaks
 
 ### What about feature XXX?
 
@@ -189,11 +193,12 @@ graphics and sound.
 At this moment on my short TODO list are:
 
 - [x] RTC
-- [x] joy0 via numpad
+- [x] joy0 via numpad for c256
 - [ ] better debug facilities for c256
 - [x] tiles for c256 (WIP)
 - [ ] modernisation of a2560x to standard (config file etc.) of c256
 - [x] EVID 200 (second monitor) extension card
+- [x] timers for A2560X
 
 # Hacking
 
