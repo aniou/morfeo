@@ -365,27 +365,27 @@ pic_m68k_clear_irq :: proc(pic: ^PIC, group: IRQ_GROUP, val, reg: u8) {
     mask_group := IRQ_MASK
     for v in mask_group[group] {
         mask := d.irqs[v].mask
-        log.debugf("pic0: mask %02x %04b:%04b reg %04b:%04b", mask, (mask >> 4), (mask & 0x0f), (reg >> 4), (reg & 0x0f))
+        //log.debugf("pic0: mask %02x %04b:%04b reg %04b:%04b", mask, (mask >> 4), (mask & 0x0f), (reg >> 4), (reg & 0x0f))
 
         if val & mask == mask {  // does not change register
 
         /*
         if reg & mask == 0 {     // register already 0?
-            log.debugf("  already 0")
+            //log.debugf("  already 0")
             continue
         }
-        log.debugf("pic0: mask %02x %04b:%04b", mask, (mask >> 4), (mask & 0x0f))
+        //log.debugf("pic0: mask %02x %04b:%04b", mask, (mask >> 4), (mask & 0x0f))
         */
 
             // XXX: optimize it
             if (d.current == v) & (d.group == group) {
-                log.debugf("pic0: I found a potential IRQ to cancel: %s", v)
+                //log.debugf("pic0: I found a potential IRQ to cancel: %s", v)
                 d.current    = .NONE
                 d.group      = .GRP_NONE
                 d.irq_clear  = true
                 d.irq_active = false
             } else {
-                log.debugf("pic0: not processed, thus not cancel not needed %s", v)
+                //log.debugf("pic0: not processed, thus not cancel not needed %s", v)
                 d.current   = .NONE
                 d.group     = .GRP_NONE
                 d.irq_clear = true
@@ -398,7 +398,7 @@ pic_m68k_clear_irq :: proc(pic: ^PIC, group: IRQ_GROUP, val, reg: u8) {
 
 pic_m68k_write8 :: proc(pic: ^PIC, addr: u32, val: u8) {
     d         := &pic.model.(PIC_M68K)
-    log.debugf("pic0: write8 addr %d val %d", addr, val)
+    //log.debugf("pic0: write8 addr %d val %d", addr, val)
 	switch addr {
 	case PENDING_GRP0_A:
         pic_m68k_clear_irq(d, .GRP_0A, val, d.data[addr])
@@ -452,14 +452,14 @@ m68040_trigger :: proc(pic: ^PIC, i: IRQ) {
     } 
     
     if masked != 0 {
-        log.debugf("pic0: %s irq %s masked: %08b", d.name, i, d.data[MASK_GRP1_A])
-        log.debugf("pic0: %s irq %s masked: %08b", d.name, i, d.data[MASK_GRP1_B])
+        //log.debugf("pic0: %s irq %s masked: %08b", d.name, i, d.data[MASK_GRP1_A])
+        //log.debugf("pic0: %s irq %s masked: %08b", d.name, i, d.data[MASK_GRP1_B])
         return
     }
 
     // test if there is already processed irq
     if requested.prio <=  d.irqs[d.current].prio {
-        log.debugf("pic0: %s irq with highest prio pending (%v>%v)", d.name, d.current, i)
+        //log.debugf("pic0: %s irq with highest prio pending (%v>%v)", d.name, d.current, i)
         return
     }
 
@@ -477,7 +477,7 @@ m68040_trigger :: proc(pic: ^PIC, i: IRQ) {
     d.group   = d.irqs[i].group
     d.irq     = uint(d.irqs[i].prio)
     d.vector  = uint(d.irqs[i].vector)
-    log.debugf("pic0: %s irq %s triggered)", d.name, i)
+    //log.debugf("pic0: %s irq %s triggered)", d.name, i)
 }
 
 // probably not needed

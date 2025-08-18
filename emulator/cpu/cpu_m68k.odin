@@ -158,7 +158,7 @@ m68k_reset :: proc(cpu: ^CPU) {
 
 m68k_clear_irq :: proc(cpu: ^CPU) {
     if localbus.pic0.irq_clear {
-        log.debugf("%s IRQ clear", cpu.name)
+        //log.debugf("%s IRQ clear", cpu.name)
         localbus.pic0.irq_clear  = false
         localbus.pic0.irq_active = false
         localbus.pic0.current    = pic.IRQ.NONE
@@ -173,7 +173,7 @@ m68k_exec :: proc(cpu: ^CPU, ticks: u32 = 1000) {
     for current_ticks < ticks {
         // 1. check if there is irq to clear
         if localbus.pic0.irq_clear {
-            log.debugf("%s IRQ clear", cpu.name)
+            //log.debugf("%s IRQ clear", cpu.name)
             localbus.pic0.irq_clear  = false
             localbus.pic0.irq_active = false
             localbus.pic0.current    = pic.IRQ.NONE
@@ -185,9 +185,9 @@ m68k_exec :: proc(cpu: ^CPU, ticks: u32 = 1000) {
 
         // 3. check if there is a pending irq?
         if localbus.pic0.irq_active == false && localbus.pic0.current != pic.IRQ.NONE {
-            log.debugf("%s IRQ should be set!", cpu.name)
+            //log.debugf("%s IRQ should be set!", cpu.name)
             localbus.pic0.irq_active = true
-            log.debugf("IRQ active from exec %v irq %v", localbus.pic0.irq_active, localbus.pic0.irq)
+            //log.debugf("IRQ active from exec %v irq %v", localbus.pic0.irq_active, localbus.pic0.irq)
             m68k_set_irq(localbus.pic0.irq)
         }
 
@@ -203,11 +203,11 @@ m68k_exec :: proc(cpu: ^CPU, ticks: u32 = 1000) {
 @export
 m68k_cpu_irq_ack :: proc "c" (level: uint) -> uint {
     context = ctx
-    log.debugf("IRQ active from ACK %v", localbus.pic0.irq_active)
+    //log.debugf("IRQ active from ACK %v", localbus.pic0.irq_active)
     if localbus.pic0.irq_active == false {
         return M68K_INT_ACK_SPURIOUS
     }
-    log.debugf("cpu0 IRQ ACK requested %d responded %d", level, localbus.pic0.vector)
+    //log.debugf("cpu0 IRQ ACK requested %d responded %d", level, localbus.pic0.vector)
     return localbus.pic0.vector
 }
 

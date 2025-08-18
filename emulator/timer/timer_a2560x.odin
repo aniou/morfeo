@@ -3,6 +3,7 @@ package timer
 
 import "core:fmt"
 import "core:log"
+import "core:sys/linux"
 import "core:time"
 import "core:thread"
 import "emulator:pic"
@@ -86,7 +87,7 @@ timer_a2560x_make :: proc(name: string, pic_ctrl: ^pic.PIC, id: int) -> ^TIMER {
         t.tth[i].pic          = pic_ctrl
         t.tth[i].shutdown     = false
         t.tth[i].ctrl.enabled = false
-        t.tth[i].sleep        = 1 * time.Nanosecond   // roughly tick with 33Mhz
+        t.tth[i].sleep        = 4 * time.Nanosecond   // roughly tick with 33Mhz
 
         // TIMER4 and 5 are ticked by start of frame (in fact - from SDL code)
         if i < 3 {
@@ -157,7 +158,7 @@ timer_a2560x_write :: proc(d: ^TIMER, mode: BITS, base, busaddr, val: u32) {
     addr := busaddr - base
     switch addr {
 	case TIMER_A2560X_CTRL_0  : 
-        log.debugf("WRITE TIMER CTRL_0 %08x", val)
+        //log.debugf("WRITE TIMER CTRL_0 %08x", val)
         t.tth[0].ctrl = Timer_a2560x_ctrl((val      ) & 0x8F)
         t.tth[1].ctrl = Timer_a2560x_ctrl((val >>  8) & 0x8F)
         t.tth[2].ctrl = Timer_a2560x_ctrl((val >> 16) & 0x8F)
@@ -170,7 +171,7 @@ timer_a2560x_write :: proc(d: ^TIMER, mode: BITS, base, busaddr, val: u32) {
         }
 
 	case TIMER_A2560X_CTRL_1  : 
-        log.debugf("WRITE TIMER CTRL_1 %08x", val)
+        //log.debugf("WRITE TIMER CTRL_1 %08x", val)
         t.tth[3].ctrl = Timer_a2560x_ctrl( val      )
         t.tth[4].ctrl = Timer_a2560x_ctrl( val >>  8)
 
@@ -231,7 +232,7 @@ timer_a2560x_internal_tick :: proc(t: ^TIMER_A2560X_THREAD) {
                 //t.ctrl.enabled = false
             }
             if t.ctrl.irq_en do t.pic->trigger(t.irq)
-            log.debugf("TIMER%d hit countup irq %v ", t.id, t.irq)
+            //log.debugf("TIMER%d hit countup irq %v ", t.id, t.irq)
         }
 
     } else {
@@ -243,7 +244,7 @@ timer_a2560x_internal_tick :: proc(t: ^TIMER_A2560X_THREAD) {
                 //t.ctrl.enabled = false
             }
             if t.ctrl.irq_en do t.pic->trigger(t.irq)
-            log.debugf("TIMER%d hit countdown irq %v ", t.id, t.irq)
+            //log.debugf("TIMER%d hit countdown irq %v ", t.id, t.irq)
         }
     }
 
@@ -254,9 +255,13 @@ timer_a2560x_worker_proc :: proc(p: rawptr) {
         context.logger  = log.create_console_logger(opt = logger_options)
 
         t := transmute(^TIMER_A2560X_THREAD)p
+        nextime := time.now()._nsec
+        nextime += 10
         for !t.shutdown {
-            time.sleep(1)
-            if t.ctrl.enabled do timer_a2560x_internal_tick(t)
+            if time.now()._nsec > nextime {
+                nextime = time.now()._nsec + 4
+                if t.ctrl.enabled do timer_a2560x_internal_tick(t)
+            }
             //log.debugf("internal thread TIMER%d tick", t.id)
         }
         log.debugf("internal thread TIMER%d shutdown clock thread", t.id)
