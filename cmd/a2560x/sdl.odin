@@ -6,6 +6,8 @@ import "core:log"
 import "core:time"
 
 import "vendor:sdl2"
+import "lib:emu"
+
 import "emulator:gpu"
 import "emulator:platform"
 
@@ -60,21 +62,21 @@ create_texture :: proc() -> ^sdl2.Texture {
     return texture
 }
 
-init_sdl :: proc(p: ^platform.Platform, gpu_number: int = 1) -> (ok: bool) {
+init_sdl :: proc(p: ^platform.Platform, config: ^emu.Config) -> (ok: bool) {
     gui = GUI{}
 
     // XXX: parametrize it and fetch default resolutions from current gpu
     gui.x_size      = 800
     gui.y_size      = 600
-    gui.scale_mult  = 3
+    gui.scale_mult  = i32(config.gui_scale)
     gui.fullscreen  = false
 
     // set initial parameters and force refresh in render_gui() by switch_gpu = 1
     // current_gpu number shuffle is a trick for switch_gpu routine at first run
     gui.gpu0        = p.bus.gpu0
     gui.gpu1        = p.bus.gpu1
-    gui.current_gpu = 1                if gpu_number == 0      else 0
-    gui.g           = p.bus.gpu0       if gui.current_gpu == 0 else p.bus.gpu1
+    gui.current_gpu = 1                if config.gpu_id    == 0 else 0
+    gui.g           = p.bus.gpu0       if gui.current_gpu  == 0 else p.bus.gpu1
     gui.switch_gpu  = true
 
     // init

@@ -21,30 +21,23 @@ import "core:time"
 
 import "vendor:sdl2"
 
-Config :: struct {
-    disk0:  string,             // XXX: todo
-    disk1:  string,             // XXX: todo
-    gpu_id: int,
-    files:  [dynamic]string,    // XXX: todo
-}
-
-
-read_args :: proc(p: ^platform.Platform) -> (c: ^Config, args_ok: bool = true) {
+read_args :: proc(p: ^platform.Platform) -> (c: ^emu.Config, args_ok: bool = true) {
     payload: string
     ok:      bool
 
-    c = new(Config)
+    c = new(emu.Config)
     argp := getargs.make_getargs()
     getargs.add_arg(&argp, "disk0", "",       .Optional)
-    getargs.add_arg(&argp, "rom", "",         .Optional)
+    getargs.add_arg(&argp, "rom",   "",         .Optional)
     getargs.add_arg(&argp, "gpu",   "",       .Optional)
+    getargs.add_arg(&argp, "scale", "",       .Required)
     getargs.add_arg(&argp, "h",     "help",   .None)
 
     getargs.read_args(&argp, os.args)
 
     if ((len(os.args) == 1) || (getargs.get_flag(&argp, "h"))) {
         args_ok = false
-        fmt.printf("\nUsage: morfeo [--gpu=0 or 1] [--disk0 path-to-image] file1.hex [file2.hex]\n")
+        fmt.printf("\nUsage: morfeo [--gpu=0 or 1] [--scale=1,2,3] [--disk0 path-to-image] file1.hex [file2.hex]\n")
         return
     }
 
@@ -55,6 +48,15 @@ read_args :: proc(p: ^platform.Platform) -> (c: ^Config, args_ok: bool = true) {
         log.errorf("Invalid gpu number (should be 0 or 1)")
         args_ok  = false
         c.gpu_id = 1
+    }
+
+    // GUI scale factor 
+    payload         = getargs.get_payload(&argp, "scale") or_else "3"
+    c.gui_scale, ok = strconv.parse_int(payload)
+    if !ok {
+        log.errorf("Invalid GUI scale (should be number)")
+        args_ok  = false
+        c.gui_scale = 3
     }
 
     // disk0 attach - XXX maybe should be moved to outside?
@@ -172,7 +174,7 @@ main :: proc() {
     config, ok := read_args(p)
     if !ok do os.exit(1)
 
-    init_sdl(p, config.gpu_id)
+    init_sdl(p, config)
     
     // running ----------------------------------------------------------
     main_loop(p)
