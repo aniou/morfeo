@@ -180,31 +180,41 @@ unsupported_write_size :: proc(procedure, dev_name: string, dev_id: int, mode: B
 }
 
 // used by devices
-write_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr, val: u32) {
+write_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr, val, ea: u32) {
     display_val : string 
     switch bits {
         case .bits_8:  display_val = fmt.aprintf("%02X",        u8(val & 0x0000_00ff))
         case .bits_16: display_val = fmt.aprintf("%04X",       u16(val & 0x0000_ffff))
         case .bits_32: display_val = fmt.aprintf("%04X:%04X",  u16(addr >> 16), u16(val & 0x0000_ffff))
     }
+    
+    if ea == 0 {    // if ea is not defined (non-mmu machine)
+        ea = addr
+    }
 
-    log.errorf("%-12s %s write bits%2d   addr %04X:%04X val %9s not implemented at all", 
+    log.errorf("%-12s %s write bits%2d   addr %04X:%04X (%04X:%04X) val %9s not implemented at all", 
                 procedure, 
                 dev_name, 
                 bits, 
                 u16(addr >> 16), u16(addr & 0x0000_ffff),
+                u16(ea   >> 16), u16(ea   & 0x0000_ffff),
                 display_val
     )
 
     delete(display_val)
 }
 
-read_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr: u32) {
-    log.errorf("%-12s %s read  bits%2d   addr %04X:%04X               not implemented at all", 
+read_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr, ea: u32) {
+    if ea == 0 {    // if ea is not defined (non-mmu machine)
+        ea = addr
+    }
+
+    log.errorf("%-12s %s read  bits%2d   addr %04X:%04X (%04X:%04X)               not implemented at all", 
                 procedure, 
                 dev_name, 
                 bits, 
                 u16(addr >> 16), u16(addr & 0x0000_ffff)
+                u16(ea   >> 16), u16(ea   & 0x0000_ffff)
     )
 }
 
