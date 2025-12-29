@@ -38,6 +38,9 @@ Bus :: struct {
     ram0:     ^ram.RAM,	    // first slot (ram/sram/flash...)
     ram1:     ^ram.RAM,     // second...
     ram2:     ^ram.RAM,     // third...
+    ram3:     ^ram.RAM,     // fourth... 
+    cart0:    ^ram.RAM,     // f256: cart: sram/flash
+    flash0:   ^ram.RAM,     // f256:       flash
     rom0:     ^ram.RAM,	    // first slot, yes - the same backend here
     inu0:     ^inu.INU,
     timer0: ^timer.TIMER,

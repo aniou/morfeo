@@ -61,6 +61,8 @@ c256u+_rel:
 	odin build cmd/c256 -define:TARGET=c256u+ -out:c256u+ -no-bounds-check -disable-assert $(build_flags)
 c256u+:
 	odin build cmd/c256 -define:TARGET=c256u+ -out:c256u+ -debug $(build_flags)
+f256k2:
+	odin build cmd/f256 -define:TARGET=f256k2 -out:f256k2 -debug $(build_flags)
 
 test_65c816:
 	odin build cmd/test_65c816 -debug $(build_flags)
