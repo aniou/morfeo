@@ -13,7 +13,7 @@ odin_defs        += -collection:lib=lib
 build_flags_rele += $(odin_defs) -o:speed
 build_flags      += $(odin_defs)
 
-.PHONY: doc a2560x test_w65c02s test_65c816 c256fmx c256u c256u+
+.PHONY: doc a2560x test_w65c02s test_65c816 c256fmx c256u c256u+ f256k2
 
 #all: a2560x test_w65c02s test_65c816 c256fmx c256u c256u+
 all: help
@@ -33,7 +33,7 @@ help:
 	@echo "make clean-all    - clean-up binaries and object files"
 
 clean:
-	rm -fv a2560x test_w65c02s test_65c816 c256fmx c256u c256u+
+	rm -fv a2560x test_w65c02s test_65c816 c256fmx c256u c256u+ f256k2
 
 clean-all: $(musashi_objects)
 	rm -fv a2560x test_w65c02s test_65c816 c256fmx c256u c256u+

@@ -115,6 +115,9 @@ make_tvicky :: proc(name: string, memory: ^ram.RAM) -> ^GPU {
 
     g.text    = make([dynamic]u32,    0x2000)
     g.tc      = make([dynamic]u32,    0x2000)
+    g.fg      = make([dynamic]u32,    0x2000) // text foreground LUT cache
+    g.bg      = make([dynamic]u32,    0x2000) // text backround  LUT cache
+    g.font    = make([dynamic]u8,  0x100*8*8) // font cache 256 chars * 8 lines * 8 columns
 
     g.TFB     = new([1024*768]u32)            // text    framebuffer (max size)
     g.BM0FB   = new([1024*768]u32)            // bitmap0 framebuffer (max size)

@@ -45,10 +45,16 @@ f256_make :: proc(name: string, pic: ^pic.PIC, config: ^emu.Config) -> ^Bus {
     d.delete  = f256_delete
 
     b          := BUS_F256{}
-    for mlut in 0 ..= 3 {
-        b.mlut_mem[mlut] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 0x7F}
+    f256_mmu_write(&b, 0, 0x80)
+    mlut_values := []u32{0, 1, 2, 3, 4, 5, 6, 0x7f} 
+    for val, index in mlut_values  {
+        f256_mmu_write(&b, u32(index)+8, val)
     }
-    f256_mmu_write(&b, 0, 0x33)          // select MLUT and re-calculate MLUT cache
+    f256_mmu_write(&b, 0, 0x00) // lock edit to prevent overflow by stack during debug runs
+
+    for index in 0 ..= 7 {
+        log.debugf("%s MLUT %i %16b %08x", #procedure, index, b.mlut_cur[index], b.mlut_cur[index])
+    }
 
     d.model   = b
     return d
@@ -65,8 +71,10 @@ f256_read_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32 
     bank  := addr & 0xE000                      // A15..A13 from addr - index in MLUT
     bank >>= 13
     ea    := addr & 0x1FFF                      // A12..A0
-    ea    |= b.mlut_val[b.mlut_active][bank]    // A22..A13 from pre-calculated values
+    ea    |= b.mlut_cur[bank]                   // A22..A13 from pre-calculated values
 
+
+    //log.debugf("%-12s %s read-pre  bits%2d addr %04x bank %2x a0-12 %04x ea %08x", #procedure, "bus0", size, addr, bank, addr & 0x1FFF, ea)
     switch addr {
     case 0x00      ..= 0x0F     : val = f256_mmu_read(b, addr)
                                   return
@@ -76,15 +84,25 @@ f256_read_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32 
     case 0xF8_0000 ..= 0xFF_FFFF: if b.move_flash do ea = addr - 0xF0_0000
     }
 
+    //log.debugf("%-12s %s read-post bits%2d addr %04x bank %2x a0-12 %04x ea %08x", #procedure, "bus0", size, addr, bank, addr & 0x1FFF, ea)
+
     switch ea {
     case  0x00_0002 ..= 0x07_FFFF:  val =   bus.ram0->read(size, 0x00_0000, ea)    // SRAM0     512
-    case  0x08_0000 ..= 0x0F_FFFF:  val = bus.flash0->read(size, 0x08_0000, ea)    // CART0     512
+    case  0x08_0000 ..= 0x0F_FFFF:  val = bus.flash0->read(size, 0x08_0000, ea)    // FLASH0    512
     case  0x10_0000 ..= 0x13_FFFF:  val =  bus.cart0->read(size, 0x10_0000, ea)    // RAM/FLASH 256
     case  0x18_0000 ..= 0x18_FFFF:  emu.read_not_implemented(#procedure, "io0",    size, addr, ea)     // misc IO - XXX: tbd
     case  0x20_0000 ..= 0x27_FFFF:  val = bus.ram1->read(size, 0x20_0000, addr)    // SRAM1     512
     case  0x40_0000 ..= 0x47_FFFF:  val = bus.ram2->read(size, 0x40_0000, addr)    // SRAM2     512
     case  0x60_0000 ..= 0x67_FFFF:  val = bus.ram3->read(size, 0x60_0000, addr)    // SRAM3     512
     case                         :  emu.read_not_implemented(#procedure, "bus0",   size, addr, ea)
+    }
+
+    if bus.debug {
+        log.debugf("%s read%d  %08x from 0x %04X:%04X ea %04X:%04X", 
+                    bus.name, size, val, 
+                    u16(addr >> 16), u16(addr & 0x0000_ffff),
+                    u16(ea   >> 16), u16(ea   & 0x0000_ffff)
+        )
     }
     return
 }
@@ -94,7 +112,7 @@ f256_write_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     bank  := addr & 0xE000                      // A15..A13 from addr - index in MLUT
     bank >>= 13
     ea    := addr & 0x1FFF                      // A12..A0
-    ea    |= b.mlut_val[b.mlut_active][bank]    // A22..A13 from pre-calculated values
+    ea    |= b.mlut_cur[bank]                   // A22..A13 from pre-calculated values
 
     switch addr {
     case 0x00      ..= 0x0F     : f256_mmu_write(b, addr, val)
@@ -138,13 +156,13 @@ f256_mmu_read :: proc(b: ^BUS_F256, addr: u32) -> (val: u32) {
 f256_mmu_write :: proc(b: ^BUS_F256, addr, val: u32) {
     switch addr {
     case  0x00:
-        b.mmu_mem[0]     = val
+        b.mmu_mem[0]   = val
         b.mlut_edit_en = (val & 0x80) == 0x80
         b.mlut_edited  = (val & 0x30) >> 4 
         b.sram_en      = (val & 0x08) == 0x08    // core2x: flat access to SRAM
         b.mlut_active  = (val & 0x03)
     case  0x01:
-        b.mmu_mem[1]     = val
+        b.mmu_mem[1]   = val
         b.io_disable   = (val & 0x04) == 0x04
         b.io_page      = (val & 0x03)
         b.io_page     |= (val & 0x08) >> 1       // core2x: IO_PAGE_EXT

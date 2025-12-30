@@ -2,12 +2,14 @@
 package platform
 
 import "core:encoding/hex"
+import "core:path/filepath"
 import "core:fmt"
 import "core:log"
 import "core:mem"
 import "core:os"
 import "core:slice"
 import "core:strings"
+import "core:strconv"
 
 import "emulator:cpu"
 import "emulator:bus"
@@ -375,6 +377,50 @@ File_Type :: enum {
     SREC,
     BIN
 }
+
+// specialised routine for f256
+// I'dont like it, but wait for a moment for a bus code to settle
+// and provide something more elegant then
+read_file_f256 :: proc(p: ^Platform, fpath: string) -> (ok: bool = true) {
+    data, status := os.read_entire_file_from_filename(fpath)
+    if !status {
+        log.errorf("%s read file %s failed: %s", #procedure, fpath, os.error_string)
+        return false
+    }
+    directory    := filepath.dir(fpath)
+    content      := string(data)
+    for line in strings.split_lines_iterator(&content) {
+        tok          := strings.split(line, ",")
+        bank, status := strconv.parse_int(tok[0], 16)
+        if !status {
+            log.errorf("%s conversion failed for %s, skipping. Line: %s", #procedure, tok[0], line)
+            continue
+        }
+        
+        //if bank < 0x40 || bank > 0x7f {
+        //    log.errorf("%s for a moment there is only support for rom ($40-$7f), skipping line %s", #procedure, line)
+        //}
+
+        tmp          := string(tok[1])
+        fname        := filepath.join({directory, tok[1]})
+        data, status2:= os.read_entire_file_from_filename(fname)        // fucking hate this
+        if !status2 {
+            log.errorf("%s read file %s failed: %s", #procedure, fname, os.error_string)
+            return false
+        }
+        index    : u32 = 0
+        position : u32 = u32(bank) * 0x2000 
+
+        //log.infof("%s reading %s", #procedure, line)
+        for value in data {
+            p.bus.flash0->write(.bits_8, 0, position + index, u32(value))
+            index += 1
+        }
+        log.infof("%s file %s %d bytes read at position %08x", #procedure, fname, index, position)
+    }
+    return
+}
+
 
 // general procedure for reading/writing hex files
 read_file :: proc(p: ^Platform, filepath: string, move_segment: u32 = 0) -> (ok: bool) {

@@ -189,11 +189,7 @@ write_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr, 
     }
     
     ea := addr if ea == 0 else ea
-    //if ea == 0 {    // if ea is not defined (non-mmu machine)
-    //    ea = addr
-    //}
-
-    log.errorf("%-12s %s write bits%2d   addr %04X:%04X (%04X:%04X) val %9s not implemented at all", 
+    log.errorf("%-12s %s write bits%2d   addr %04X:%04X ea %04X:%04X val %9s not implemented at all", 
                 procedure, 
                 dev_name, 
                 bits, 
@@ -207,13 +203,7 @@ write_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr, 
 
 read_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr: u32, ea: u32 = 0) {
     ea := addr if ea == 0 else ea
-
-    //ea := ea        // implicit shadowing
-    //if ea == 0 {    // if ea is not defined (non-mmu machine)
-    //    ea = addr
-    //}
-
-    log.errorf("%-12s %s read  bits%2d   addr %04X:%04X (%04X:%04X)               not implemented at all", 
+    log.errorf("%-12s %s read  bits%2d   addr %04X:%04X ea %04X:%04X               not implemented at all", 
                 procedure, 
                 dev_name, 
                 bits, 
