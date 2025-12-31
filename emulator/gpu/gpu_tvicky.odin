@@ -9,57 +9,58 @@ import "lib:emu"
 
 import "emulator:ram"
 
-Register_tVicky :: enum u32 {
-    MASTER_CTRL_REG_L       = 0x0000,       // base: 0xD000
-    MASTER_CTRL_REG_H       = 0x0001,
-    VKY_RESERVED_00         = 0x0002,
-    VKY_RESERVED_01         = 0x0003,
-    BORDER_CTRL_REG         = 0x0004,
-    BORDER_COLOR_B          = 0x0005,
-    BORDER_COLOR_G          = 0x0006,
-    BORDER_COLOR_R          = 0x0007,
-    BORDER_X_SIZE           = 0x0008,       // X: 0-32
-    BORDER_Y_SIZE           = 0x0009,       // Y: 0-32
-    VKY_RESERVED_02         = 0x000A,
-    VKY_RESERVED_03         = 0x000B,
-    VKY_RESERVED_04         = 0x000C,
-    BACKGROUND_COLOR_B      = 0x000D,
-    BACKGROUND_COLOR_G      = 0x000E,
-    BACKGROUND_COLOR_R      = 0x000F,
-    VKY_TXT_CURSOR_CTRL_REG = 0x0010,       // [0]  Enable Text Mode
-    VKY_TXT_START_ADD_PTR   = 0x0011,       // offset to change the Starting address of the Text Mode Buffer (in x)
-    VKY_TXT_CURSOR_CHAR_REG = 0x0012,
-    VKY_TXT_CURSOR_COLR_REG = 0x0013,
-    VKY_TXT_CURSOR_X_REG_L  = 0x0014,
-    VKY_TXT_CURSOR_X_REG_H  = 0x0015,
-    VKY_TXT_CURSOR_Y_REG_L  = 0x0016,
-    VKY_TXT_CURSOR_Y_REG_H  = 0x0017,
-    VKY_LINE_IRQ_CTRL_REG   = 0x0018,       // [0] - Enable Line 0 - WRITE ONLY
-    VKY_LINE_CMP_VALUE_LO   = 0x0019,       // Write Only [7:0]
-    VKY_LINE_CMP_VALUE_HI   = 0x001A,       // Write Only [3:0]
-    VKY_PIXEL_X_POS_LO      = 0x0018,       // This is Where on the video line is the Pixel
-    VKY_PIXEL_X_POS_HI      = 0x0019,       //  Or what pixel is being displayed when the register is read
-    VKY_LINE_Y_POS_LO       = 0x001A,       //  This is the Line Value of the Raster
-    VKY_LINE_Y_POS_HI       = 0x001B,
+Register_tVicky :: enum u32 {         //       $D000
+    TVKY_MCR_L         = 0x_00_00,    // A   - master control register
+    TVKY_MCR_H         = 0x_00_01,    // A   - master control register
+                                      //     - reserved
+                                      //     - reserved
+    TVKY_BCR           = 0x_00_04,    // A   - border control register
+    TVKY_BRD_COL_B     = 0x_00_05,    // A   - border color Blue
+    TVKY_BRD_COL_G     = 0x_00_06,    // A   - border color Green
+    TVKY_BRD_COL_R     = 0x_00_07,    // A   - border color Red
+    TVKY_BRD_XSIZE     = 0x_00_08,    // A   - border X size, 0-32 (32)
+    TVKY_BRD_YSIZE     = 0x_00_09,    // A   - border X size, 0-32 (32)
+                                      //     - unknown
+                                      //     - unknown
+                                      //     - unknown
+    TVKY_BGR_COL_B     = 0x_00_0D,    // A   - background color Blue    - graphics mode only
+    TVKY_BGR_COL_G     = 0x_00_0E,    // A   - background color Green   - graphics mode only
+    TVKY_BGR_COL_R     = 0x_00_0F,    // A   - background color Red     - graphics mode only
+    TVKY_CCR           = 0x_00_10,    // A   - cursor control register
+    TVKY_TXT_SAPTR     = 0x_00_11,    // A   - offset to change the Starting address of the Text Mode Buffer (in x)
+    TVKY_TXT_CUR_CHAR  = 0x_00_12,    // A   - text cursor character
+    TVKY_TXT_CUR_CLR   = 0x_00_13,    // A   - text cursor color
+    TVKY_TXT_CUR_XL    = 0x_00_14,    // A   - text cursor X position (low)
+    TVKY_TXT_CUR_XH    = 0x_00_15,    // A   - text cursor X position (high)
+    TVKY_TXT_CUR_YL    = 0x_00_16,    // A   - text cursor Y position (low)
+    TVKY_TXT_CUR_YH    = 0x_00_17,    // A   - text cursor Y position (high)
+
+    VKY_LINE_ICR       = 0x_00_18,    // A   -  [0] - Enable Line 0 - WRITE ONLY
+    VKY_LINE_CMP_VAL_L = 0x_00_19,    // A   -  Write Only [7:0]
+    VKY_LINE_CMP_VAL_H = 0x_00_1A,    // A   -  Write Only [3:0]
+
+    VKY_PIXEL_X_POS_L  = 0x_00_18,    // A    - This is Where on the video line is the Pixel
+    VKY_PIXEL_X_POS_H  = 0x_00_19,    // A    - Or what pixel is being displayed when the register is read
+    VKY_LINE_Y_POS_L   = 0x_00_1A,    // A    - This is the Line Value of the Raster
+    VKY_LINE_Y_POS_H   = 0x_00_1B,
 }
 
-MSTR_CTRL_TEXT_MODE_EN  :: 0x01  // Enable the Text Mode
-MSTR_CTRL_TEXT_OVERLAY  :: 0x02  // Enable the Overlay of the text mode 
-                                 // on top of Graphic Mode (the Background Color is ignored)
-MSTR_CTRL_GRAPH_MODE_EN :: 0x04  // Enable the Graphic Mode
-MSTR_CTRL_BITMAP_EN     :: 0x08  // Enable the Bitmap Module In Vicky
+// Master Control LOW
+TVKY_MCR_TEXT          :: 0x_00_00_00_01  // A   - enable text mode
+TVKY_MCR_TEXT_OVERLAY  :: 0x_00_00_00_02  // A   - enable text overlay
+TVKY_MCR_GRAPHIC       :: 0x_00_00_00_04  // A   - enable graphic engine
+TVKY_MCR_BITMAP        :: 0x_00_00_00_08  // A   - enable bitmap engine
+TVKY_MCR_TILE          :: 0x_00_00_00_10  // A   - enable tile engine
+TVKY_MCR_SPRITE        :: 0x_00_00_00_20  // A   - enable sprite engine
+TVKY_MCR_GAMMA_ENABLE  :: 0x_00_00_00_40  // A   - enable gamma correction
+TVKY_MCR_VIDEO_DISABLE :: 0x_00_00_00_80  // A   - disable video engine
 
-MSTR_CTRL_TILEMAP_EN    :: 0x10  // Enable the Tile Module in Vicky
-MSTR_CTRL_SPRITE_EN     :: 0x20  // Enable the Sprite Module in Vicky
-MSTR_CTRL_GAMMA_EN      :: 0x40  // this Enable the GAMMA correction - The Analog and DVI 
-                                 // have different color value, the GAMMA is great to correct the difference
-MSTR_CTRL_DISABLE_VID   :: 0x80  // This will disable the Scanning of the Video hence 
-                                 //giving 100% bandwith to the CPU
+// XXX: check it
+TVKY_CCR_ENABLE        :: 0x_00_00_00_01  // A   -  cursor enable
+TVKY_CCR_RATE_MASK     :: 0x_00_00_00_06  // A   -  flash rate: 00 - 1/Sec, 01 - 2/Sec, 10 - 4/Sec, 11 - 5/Sec
 
-BORDER_CTRL_ENABLE      :: 0x01
-VKY_CURSOR_ENABLE       :: 0x01
-VKY_CURSOR_FLASH_RATE0  :: 0x02
-VKY_CURSOR_FLASH_RATE1  :: 0x04
+TVKY_BCR_ENABLE        :: 0x_00_00_00_01
+TVKY_BCR_X_SCROLL      :: 0x_00_00_00_70  // A   -  border scroll, at bit 4..6 (val: 0-7)  
 
 
 //CURSOR_BLINK_RATE           :: [4]i32{1000, 500, 250, 200}
@@ -70,18 +71,20 @@ GPU_tVicky :: struct {
 
     text:    [dynamic]u32,   // text memory
     tc:      [dynamic]u32,   // text color memory
-    font:    [dynamic]u8,    // font cache       : 256 chars  * 8 lines * 8 columns
+    fg:      [dynamic]u32,   // text foreground LUT cache
+    bg:      [dynamic]u32,   // text background LUT cache
 
+    m_tclut_fg: [64]u8,
+    m_tclut_bg: [64]u8,
+    c_tclut_fg: [16]u32, // 16 pre-calculated RGBA colors for text fore-
+    c_tclut_bg: [16]u32, // ...and background
+
+    font:    [dynamic]u8,    // font cache       : 256 chars  * 8 lines * 8 columns
     // To Be Checked:
     pointer: [dynamic]u8,    // pointer memory (16 x 16 x 4 bytes)
     lut:     [dynamic]u8,    // LUT memory block (lut0 to lut7 ARGB)
     blut:    [dynamic]u32,   // bitmap LUT cache : 256 colors * 8 banks (lut0 to lut7)
-    fg:      [dynamic]u32,   // text foreground LUT cache
-    bg:      [dynamic]u32,   // text background LUT cache
-    cram:    [dynamic]u8,    // XXX - temporary ram for FG clut/BG clut and others
 
-    fg_clut: [16]u32,         // 16 pre-calculated RGBA colors for text fore-
-    bg_clut: [16]u32,         // ...and background
 
     starting_fb_row_pos: u32,
     text_cols:           u32,
@@ -101,16 +104,16 @@ GPU_tVicky :: struct {
 
 // --------------------------------------------------------------------
 
-make_tvicky :: proc(name: string, memory: ^ram.RAM) -> ^GPU {
+tvicky_make :: proc(name: string) -> ^GPU {
     log.infof("tvicky: gpu%d initialization start, name %s", 0, name)
 
     gpu       := new(GPU)
     gpu.name   = name
     gpu.id     = 0
-    gpu.read   = read_tvicky
-    gpu.write  = write_tvicky
-    gpu.delete = delete_tvicky
-    gpu.render = render_tvicky
+    gpu.read   = tvicky_read
+    gpu.write  = tvicky_write
+    gpu.delete = tvicky_delete
+    gpu.render = tvicky_render
     g         := GPU_tVicky{gpu = gpu}
 
     g.text    = make([dynamic]u32,    0x2000)
@@ -127,17 +130,22 @@ make_tvicky :: proc(name: string, memory: ^ram.RAM) -> ^GPU {
     // maybe they should be set by tvicky_write?
     g.screen_x_size  = 640
     g.screen_y_size  = 480
-
-
-
     g.resolution     = 2 << 8  
     g.screen_resized = false
+
+    // ok
+    g.text_enabled     = true
+    g.overlay_enabled  = false
+    g.graphic_enabled  = false
+    g.bitmap_enabled   = true
+    g.tile_enabled     = false
+    g.sprite_enabled   = false
+    g.gamma_enabled    = false
+    g.gpu_enabled      = true
 
     g.pixel_size     = 1
     g.cursor_enabled = true
     g.cursor_visible = true
-    g.bitmap_enabled = true // xxx: there is no way to change it in tvicky?
-    g.text_enabled   = true 
 
     g.border_color_b      = 0x20
     g.border_color_g      = 0x00
@@ -151,29 +159,66 @@ make_tvicky :: proc(name: string, memory: ^ram.RAM) -> ^GPU {
     g.bm1_blut_pos        = 0x00
     g.bm0_start_addr      = 0x00 // relative from beginning of vram
     g.bm1_start_addr      = 0x00 // relative from beginning of vram
-
     g.delay               = 16 * time.Millisecond  // 16 milliseconds for ~60Hz
 
+    // looks like tvicky has embedded font
+    font := #load("f256jr_font_micah_jan25th.bin")
+    for val, addr in font {
+        tvicky_update_font_cache(&g, u32(addr), u8(val))  // every bit in font cache is mapped to byte
+    }
+
     // fake init
-    //v.mem[MASTER_CTRL_REG_L] = 0x01
     for _, i in g.text {
         g.text[i] = 35   // u32('#')
-        g.fg[i]   = 2    // green in FoenixMCP
-        g.bg[i]   = 0    // black in FoenixMCP
+        g.fg[i]   = 4    // yellow(?)
+        g.bg[i]   = 0    // black
     }
 
-    for _, i in g.fg_clut {
-        g.fg_clut[i] = u32(0xff00_00ff)
-        g.bg_clut[i] = u32(0xffcc_dd00)
+    // initial character (text) foreground LUT
+    g.c_tclut_fg = [16]u32 {
+		0xff000000,
+		0xff800000,
+		0xff008000,
+		0xff000080,
+		0xff808000,
+		0xff008080,
+		0xff800080,
+		0xff808080,
+		0xffff4500,
+		0xff8b4513,
+		0xff200000,
+		0xff002000,
+		0xff000020,
+		0xff202020,
+		0xff606060,
+		0xffffffff,
     }
 
+    g.c_tclut_bg = [16]u32 {
+		0xff000000,
+		0xff800000,
+		0xff008000,
+		0xff000080,
+		0xff202000,
+		0xff002020,
+		0xff200020,
+		0xff202020,
+		0xffd2691e,
+		0xff8b4513,
+		0xff200000,
+		0xff002000,
+		0xff000040,
+		0xff303030,
+		0xff404040,
+		0xffffffff,
+    }
 
     gpu.model  = g
     tvicky_recalculate_screen(g)
     return gpu
 }
 
-delete_tvicky :: proc(gpu: ^GPU) {
+tvicky_delete :: proc(gpu: ^GPU) {
     g         := &gpu.model.(GPU_tVicky)
 
     delete(g.text)
@@ -183,7 +228,6 @@ delete_tvicky :: proc(gpu: ^GPU) {
     delete(g.bg)
     delete(g.lut)
     delete(g.blut)
-    delete(g.cram)
     delete(g.font)
     delete(g.pointer)
 
@@ -197,34 +241,30 @@ delete_tvicky :: proc(gpu: ^GPU) {
     return
 }
 
-// ok
-read_tvicky :: proc(gpu: ^GPU, size: emu.Bitsize, addr_orig, addr: u32, mode: emu.Region = .MAIN) -> (val: u32) {
+tvicky_read :: proc(gpu: ^GPU, size: BITS, base, busaddr: u32, mode: emu.Region = .MAIN) -> (val: u32) {
+    d    := &gpu.model.(GPU_tVicky)
+    addr := busaddr - base
+
     if size != .bits_8 {
-        emu.unsupported_read_size(#procedure, gpu.name, gpu.id, size, addr_orig)
+        emu.unsupported_read_size(#procedure, d.name, d.id, size, busaddr)
     }
 
-    d := &gpu.model.(GPU_tVicky)
     #partial switch mode {
-    case .MAIN_A: 
-        val = tvicky_read_register(d, size, addr_orig, addr, mode)
-    case .MAIN_B: 
-        val = tvicky_read_register(d, size, addr_orig, addr, mode)
+    case .MAIN_A:       val = tvicky_read_register(d, size, busaddr, addr, mode)                                                              
+    case .TEXT:         val = d.text[addr]
+    case .TEXT_COLOR:   val = d.tc[addr]
+    case .TEXT_FG_LUT:  val = u32(d.m_tclut_fg[addr])
+    case .TEXT_BG_LUT:  val = u32(d.m_tclut_bg[addr])
+    //case .LUT:        val = cast(u32) d.lut[addr]
+    //case .VRAM0:      val = d.vram0[addr]
+    //case .FONT_BANK0: val = d.fontmem[addr]
+    //case .MOUSEPTR0:  val = d.mouseptr0[addr]
+    //case .MOUSEPTR1:  val = d.mouseptr1[addr]
+    //case .TILEMAP:    val = vicky2_read_tilemap(d, size, busaddr, addr, mode)
+    //case .TILESET:    val = vicky2_read_tileset(d, size, busaddr, addr, mode)
 
 
-    case .TEXT:                 // IO bank 1
-        val = d.text[addr]
-
-    case .TEXT_COLOR:           // IO bank 2
-        val = d.tc[addr]
-
-    case .TEXT_FG_LUT:
-            color := addr >> 2 // every color ARGB bytes, assume 4-byte align
-            val = d.fg_clut[color]
-
-    case .TEXT_BG_LUT:
-            color := addr >> 2 // every color ARGB bytes, assume 4-byte align
-            val = d.bg_clut[color]
-
+    /*
     case .LUT:
         switch size {
         case .bits_8:
@@ -236,28 +276,25 @@ read_tvicky :: proc(gpu: ^GPU, size: emu.Bitsize, addr_orig, addr: u32, mode: em
             ptr := transmute(^u32be) &d.lut[addr]
             val  = cast(u32) ptr^
         }
-
+    */
     case: 
-        emu.read_not_implemented(#procedure, d.name, size, addr_orig)
+        emu.read_not_implemented(#procedure, d.name, size, addr) 
     }
     return
 }
 
 
-write_tvicky :: proc(gpu: ^GPU, size: emu.Bitsize, addr_orig, addr, val: u32, mode: emu.Region = .MAIN) {
+tvicky_write :: proc(gpu: ^GPU, size: BITS, base, busaddr, val: u32, mode: emu.Region = .MAIN) {
+    d    := &gpu.model.(GPU_tVicky)
+    addr := busaddr - base
+
     if size != .bits_8 {
-        emu.unsupported_read_size(#procedure, gpu.name, gpu.id, size, addr_orig)
+        emu.unsupported_read_size(#procedure, d.name, d.id, size, busaddr)
     }
 
-    d := &gpu.model.(GPU_tVicky)
     #partial switch mode {
-    case .MAIN_A: 
-        tvicky_write_register(&d.model.(GPU_tVicky), size, addr_orig, addr, val, mode)
-
-    case .MAIN_B: 
-        tvicky_write_register(&d.model.(GPU_tVicky), size, addr_orig, addr, val, mode)
-
-    // ok
+    case .MAIN_A: tvicky_write_register(&d.model.(GPU_tVicky), size, busaddr, addr, val, mode)
+    case .MAIN_B: tvicky_write_register(&d.model.(GPU_tVicky), size, busaddr, addr, val, mode)
     case .TEXT:                         // IO bank 1
         d.text[addr] = val & 0xff
 
@@ -267,14 +304,24 @@ write_tvicky :: proc(gpu: ^GPU, size: emu.Bitsize, addr_orig, addr, val: u32, mo
         d.tc[addr] =  val & 0xff
         
     case .TEXT_FG_LUT:
-            color := addr >> 2 // every color ARGB bytes, assume 4-byte align
-            d.fg_clut[color] = val
+        cpos                := addr  & 0xFFFC   // align to every four bytes
+        cnum                := addr >> 2        // number of color in LUT cache
+        d.m_tclut_fg[cpos+3] = 0xff             // 4th byte of RGBA always 0xFF
+        d.m_tclut_fg[addr]   = u8(val)
+        d.c_tclut_fg[cnum]   = (transmute(^u32) &d.m_tclut_fg[cpos])^
+        //log.debugf("fg_lut %v color %08x addr %d cpos %d", d.m_tclut_fg[cpos:cpos+4], d.c_tclut_fg[cnum], addr, cpos)
 
     case .TEXT_BG_LUT:
-            color := addr >> 2 // every color ARGB bytes, assume 4-byte align
-            d.bg_clut[color] = val
+        cpos                := addr  & 0xFFFC   // align to every four bytes
+        cnum                := addr >> 2        // number of color in LUT cache
+        d.m_tclut_bg[cpos+3] = 0xff             // 4th byte of RGBA always 0xFF
+        d.m_tclut_bg[addr]   = u8(val)
+        d.c_tclut_bg[cnum]   = (transmute(^u32) &d.m_tclut_bg[cpos])^
+        //log.debugf("bg_lut %v color %08x addr %d cpos %d", d.m_tclut_bg[cpos:cpos+4], d.c_tclut_bg[cnum], addr, cpos)
 
+    /*
     case .FONT_BANK0:
+        log.debugf("font called %2x", val)
         tvicky_update_font_cache(d, addr, u8(val))  // every bit in font cache is mapped to byte
 
     case .LUT:
@@ -286,28 +333,69 @@ write_tvicky :: proc(gpu: ^GPU, size: emu.Bitsize, addr_orig, addr, val: u32, mo
         case .bits_32:
             (transmute(^u32be) &d.lut[addr])^ = cast(u32be) val
         }
+    */
         
-    case        : 
-        emu.write_not_implemented(#procedure, d.name, size, addr_orig, val)
+    case: 
+        emu.write_not_implemented(#procedure, d.name, size, addr, val) 
     }
     return
 }
 
 
 @private
-tvicky_write_register :: proc(d: ^GPU_tVicky, size: emu.Bitsize, addr_orig, addr, val: u32, mode: emu.Region) {
-    if size != .bits_32 {
-        emu.unsupported_write_size(#procedure, d.name, d.id, size, addr_orig, val)
+tvicky_write_register :: proc(d: ^GPU_tVicky, size: BITS, busaddr, addr, val: u32, mode: emu.Region) {                                      
+
+    if size != .bits_8 {
+        emu.unsupported_write_size(#procedure, d.name, d.id, size, busaddr, val)
         return
     }
 
     reg := Register_tVicky(addr)
+    #partial switch reg {
+    case .TVKY_MCR_L:
+        d.text_enabled    = (val & TVKY_MCR_TEXT )         != 0
+        d.overlay_enabled = (val & TVKY_MCR_TEXT_OVERLAY ) != 0
+        d.graphic_enabled = (val & TVKY_MCR_GRAPHIC )      != 0
+        d.bitmap_enabled  = (val & TVKY_MCR_BITMAP )       != 0
+        d.tile_enabled    = (val & TVKY_MCR_TILE )         != 0
+        d.sprite_enabled  = (val & TVKY_MCR_SPRITE )       != 0
+        d.gamma_enabled   = (val & TVKY_MCR_GAMMA_ENABLE)  != 0
+        d.gpu_enabled     = (val & TVKY_MCR_VIDEO_DISABLE) == 0
+    case .TVKY_BCR:
+        d.border_enabled = (val & TVKY_BCR_ENABLE )       != 0
+
+        if (val & TVKY_BCR_X_SCROLL) != 0 {                                                                                                 
+            emu.write_not_implemented(#procedure, "TVKY_A_BCR_X_SCROLL", size, busaddr, val)
+        }
+
+    case .TVKY_BRD_COL_B: d.border_color_b =  u8(val); if d.border_enabled do tvicky_recalculate_screen(d)
+    case .TVKY_BRD_COL_G: d.border_color_g =  u8(val); if d.border_enabled do tvicky_recalculate_screen(d)
+    case .TVKY_BRD_COL_R: d.border_color_r =  u8(val); if d.border_enabled do tvicky_recalculate_screen(d)
+    case .TVKY_BRD_XSIZE: d.border_x_size  = i32(val); if d.border_enabled do tvicky_recalculate_screen(d)
+    case .TVKY_BRD_YSIZE: d.border_y_size  = i32(val); if d.border_enabled do tvicky_recalculate_screen(d)
+    case .TVKY_BGR_COL_B: d.bg_color_b     =  u8(val)
+    case .TVKY_BGR_COL_G: d.bg_color_g     =  u8(val)
+    case .TVKY_BGR_COL_R: d.bg_color_r     =  u8(val)
+
+    case .TVKY_CCR:
+        d.cursor_enabled   =     (val & TVKY_CCR_ENABLE    ) != 0
+        d.cursor_rate      = i32((val & TVKY_CCR_RATE_MASK ) >> 1)   // XXX - why i32?
+
     /*
-    switch reg {
-    case                 :
-        emu.not_implemented(#procedure, "UNKNOWN", size, addr_orig)
-    }
+    VKY_TXT_CURSOR_CHAR_REG = $D012
+    VKY_TXT_CURSOR_COLR_REG = $D013
+    VKY_TXT_CURSOR_X_REG_L  = $D014
+    VKY_TXT_CURSOR_X_REG_H  = $D015
+    VKY_TXT_CURSOR_Y_REG_L  = $D016
+    VKY_TXT_CURSOR_Y_REG_H  = $D017
+    ; Line Interrupt 
+    VKY_LINE_IRQ_CTRL_REG   = $D018 ;[0] - Enable Line 0 - WRITE ONLY
+    VKY_LINE_CMP_VALUE_LO  = $D019 ;Write Only [7:0]
+    VKY_LINE_CMP_VALUE_HI  = $D01A ;Write Only [3:0]
     */
+    case:    emu.write_not_implemented(#procedure, "TVKY.MAIN_A", size, busaddr, val)
+
+    }
 }
 
 @private
@@ -327,25 +415,13 @@ tvicky_read_register :: proc(d: ^GPU_tVicky, size: emu.Bitsize, addr_orig, addr:
     return
 }
 
-@private
-tvicky_b_write_register :: proc(d: ^GPU_tVicky, size: emu.Bitsize, addr_orig, addr, val: u32) {
-    emu.write_not_implemented(#procedure, d.name, size, addr_orig, val)
-}
-
-@private
-tvicky_b_read_register :: proc(d: ^GPU_tVicky, size: emu.Bitsize, addr_orig, addr: u32) -> (val: u32) {
-    emu.read_not_implemented(#procedure, d.name, size, addr_orig)
-    return
-}
-
-
 // GUI-specific
 // updates font cache by converting bits to bytes
 // position - position of indyvidual byte in font bank
 // val      - particular value
 @private
 tvicky_update_font_cache :: proc(g: ^GPU_tVicky, position: u32, value: u8) {
-    //log.debugf("tvicky: %s update font cache position %d value %d", g.name, position, value)
+       log.debugf("tvicky: %s update font cache position %04x value %08b", g.name, position, value)
        pos := position * 8
        val := value
         for j := u32(8); j > 0; j = j - 1 {          // counting down spares from shifting val left
@@ -376,10 +452,11 @@ tvicky_recalculate_screen :: proc(gpu: ^GPU) {
     log.debugf("tvicky: %s text_cols: %d", g.name, g.text_cols)
     log.debugf("tvicky: %s border: %v %d %d", g.name, g.border_enabled, g.border_x_size, g.border_y_size)
     log.debugf("tvicky: %s resolution %08x", g.name, g.resolution)
+    log.debugf("tvicky: %s text_enabled %v", g.name, g.text_enabled)
     return
 }
 
-render_tvicky :: proc(gpu: ^GPU) {
+tvicky_render :: proc(gpu: ^GPU) {
     if gpu.text_enabled do tvicky_render_text(gpu)
     //if gpu.bm0_enabled  do tvicky_render_bm0(gpu)
     //if gpu.bm1_enabled  do tvicky_render_bm1(gpu)
@@ -414,7 +491,7 @@ tvicky_render_bm1 :: proc(gpu: ^GPU) {
 
 tvicky_render_text :: proc(gpu: ^GPU) {
         g         := &gpu.model.(GPU_tVicky)
-
+        
         cursor_x, cursor_y: u32 // row and column of cursor
         text_row_pos:       u32 // beginning of current text row in text memory
         fb_row_pos:         u32 // beginning of current FB   row in memory
@@ -445,11 +522,11 @@ tvicky_render_text :: proc(gpu: ^GPU) {
         // I prefer to keep it because it allow to simply re-drawing single line in future,
         // by manupipulating starting point (now 0) and end clause (now <g.text_rows)
         // xxx - bad workaround
-            if g.border_enabled {
+        if g.border_enabled {
             g.starting_fb_row_pos = u32(g.screen_x_size) * u32(g.border_y_size) + u32(g.border_x_size)
-    } else {
+        } else {
             g.starting_fb_row_pos = 0
-    }
+        }
         fb_row_pos = g.starting_fb_row_pos
         //fb_row_pos = 0
         //fmt.printf("border %v text_rows %d text_cols %d\n", g.border_enabled, g.text_rows, g.text_cols)
@@ -468,9 +545,9 @@ tvicky_render_text :: proc(gpu: ^GPU) {
                                 fnttmp[text_x] = g.cursor_character * 64 // XXX precalculate?
                         }
 
-                        fgctmp[text_x] = g.fg_clut[f]
+                        fgctmp[text_x] = g.c_tclut_fg[f]
                         if g.overlay_enabled == false {
-                                bgctmp[text_x] = g.bg_clut[b]
+                                bgctmp[text_x] = g.c_tclut_bg[b]
                         } else {
                                 bgctmp[text_x] = 0x000000FF                    // full alph
                         }
@@ -482,13 +559,13 @@ tvicky_render_text :: proc(gpu: ^GPU) {
                                 fb_pos   = dsttmp[text_x] + fb_row_pos
                                 for i in u32(0)..<8 { // for every font iterate over 8 pixels of font
                                         if g.font[font_pos+i] == 0 {
-                                                /*
-                                                if g.text_cols == 128 {
-//                                                    fmt.printf("fb_row_pos %d pos %d text_x %d i %d\n", fb_row_pos, fb_pos+i, text_x, i)
-                                                }*/
-                                                g.TFB[fb_pos+i] = bgctmp[text_x]
+                                           /*
+                                            if g.text_cols == 128 {
+//                                              fmt.printf("fb_row_pos %d pos %d text_x %d i %d\n", fb_row_pos, fb_pos+i, text_x, i)
+                                            } */
+                                            g.TFB[fb_pos+i] = bgctmp[text_x]
                                         } else {
-                                                g.TFB[fb_pos+i] = fgctmp[text_x]
+                                            g.TFB[fb_pos+i] = fgctmp[text_x]
                                         }
                                 }
                         }

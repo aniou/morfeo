@@ -14,5 +14,5 @@ TIMER :: struct {
     delete:     proc(^TIMER),
     tick:       proc(^TIMER, int),
 
-    model: union {TIMER_C256, TIMER_A2560X}
+    model: union {TIMER_F256, TIMER_C256, TIMER_A2560X}
 }
