@@ -110,8 +110,8 @@ tvicky_make :: proc(name: string) -> ^GPU {
     gpu       := new(GPU)
     gpu.name   = name
     gpu.id     = 0
-    gpu.read   = tvicky_read
-    gpu.write  = tvicky_write
+    gpu.nread  = tvicky_nread
+    gpu.nwrite = tvicky_nwrite
     gpu.delete = tvicky_delete
     gpu.render = tvicky_render
     g         := GPU_tVicky{gpu = gpu}
@@ -241,16 +241,16 @@ tvicky_delete :: proc(gpu: ^GPU) {
     return
 }
 
-tvicky_read :: proc(gpu: ^GPU, size: BITS, base, busaddr: u32, mode: emu.Region = .MAIN) -> (val: u32) {
+tvicky_nread :: proc(gpu: ^GPU, ba: ADDR) -> (val: u32) {
     d    := &gpu.model.(GPU_tVicky)
-    addr := busaddr - base
+    addr := ba.ea - ba.base
 
-    if size != .bits_8 {
-        emu.unsupported_read_size(#procedure, d.name, d.id, size, busaddr)
+    if ba.size != .bits_8 {
+        emu.unsupported_read_size(#procedure, d.name, ba)
     }
 
-    #partial switch mode {
-    case .MAIN_A:       val = tvicky_read_register(d, size, busaddr, addr, mode)                                                              
+    #partial switch ba.region {
+    case .MAIN_A:       val = tvicky_read_register(d, ba)                                                              
     case .TEXT:         val = d.text[addr]
     case .TEXT_COLOR:   val = d.tc[addr]
     case .TEXT_FG_LUT:  val = u32(d.m_tclut_fg[addr])
@@ -278,23 +278,22 @@ tvicky_read :: proc(gpu: ^GPU, size: BITS, base, busaddr: u32, mode: emu.Region 
         }
     */
     case: 
-        emu.read_not_implemented(#procedure, d.name, size, addr) 
+        emu.read_not_implemented(#procedure, d.name, ba) 
     }
     return
 }
 
-
-tvicky_write :: proc(gpu: ^GPU, size: BITS, base, busaddr, val: u32, mode: emu.Region = .MAIN) {
+tvicky_nwrite :: proc(gpu: ^GPU, ba: ADDR, val: u32) {
     d    := &gpu.model.(GPU_tVicky)
-    addr := busaddr - base
+    addr := ba.ea - ba.base
 
-    if size != .bits_8 {
-        emu.unsupported_read_size(#procedure, d.name, d.id, size, busaddr)
+    if ba.size != .bits_8 {
+        emu.unsupported_read_size(#procedure, d.name, ba)
     }
 
-    #partial switch mode {
-    case .MAIN_A: tvicky_write_register(&d.model.(GPU_tVicky), size, busaddr, addr, val, mode)
-    case .MAIN_B: tvicky_write_register(&d.model.(GPU_tVicky), size, busaddr, addr, val, mode)
+    #partial switch ba.region {
+    case .MAIN_A: tvicky_write_register(&d.model.(GPU_tVicky), ba, val)
+    case .MAIN_B: tvicky_write_register(&d.model.(GPU_tVicky), ba, val)
     case .TEXT:                         // IO bank 1
         d.text[addr] = val & 0xff
 
@@ -336,21 +335,21 @@ tvicky_write :: proc(gpu: ^GPU, size: BITS, base, busaddr, val: u32, mode: emu.R
     */
         
     case: 
-        emu.write_not_implemented(#procedure, d.name, size, addr, val) 
+        emu.write_not_implemented(#procedure, d.name, ba, val) 
     }
     return
 }
 
 
 @private
-tvicky_write_register :: proc(d: ^GPU_tVicky, size: BITS, busaddr, addr, val: u32, mode: emu.Region) {                                      
-
-    if size != .bits_8 {
-        emu.unsupported_write_size(#procedure, d.name, d.id, size, busaddr, val)
+tvicky_write_register :: proc(d: ^GPU_tVicky, ba: ADDR, val: u32) {                                      
+    if ba.size != .bits_8 {
+        emu.unsupported_write_size(#procedure, d.name, ba, val)
         return
     }
 
-    reg := Register_tVicky(addr)
+    addr := ba.ea - ba.base
+    reg  := Register_tVicky(addr)
     #partial switch reg {
     case .TVKY_MCR_L:
         d.text_enabled    = (val & TVKY_MCR_TEXT )         != 0
@@ -365,7 +364,7 @@ tvicky_write_register :: proc(d: ^GPU_tVicky, size: BITS, busaddr, addr, val: u3
         d.border_enabled = (val & TVKY_BCR_ENABLE )       != 0
 
         if (val & TVKY_BCR_X_SCROLL) != 0 {                                                                                                 
-            emu.write_not_implemented(#procedure, "TVKY_A_BCR_X_SCROLL", size, busaddr, val)
+            emu.write_not_implemented(#procedure, d.name, ba, val, "TVKY_BCR_X_SCROLL")
         }
 
     case .TVKY_BRD_COL_B: d.border_color_b =  u8(val); if d.border_enabled do tvicky_recalculate_screen(d)
@@ -393,25 +392,24 @@ tvicky_write_register :: proc(d: ^GPU_tVicky, size: BITS, busaddr, addr, val: u3
     VKY_LINE_CMP_VALUE_LO  = $D019 ;Write Only [7:0]
     VKY_LINE_CMP_VALUE_HI  = $D01A ;Write Only [3:0]
     */
-    case:    emu.write_not_implemented(#procedure, "TVKY.MAIN_A", size, busaddr, val)
+    case:    emu.write_not_implemented(#procedure, d.name, ba, val, "TVKY.MAIN_A")
 
     }
 }
 
 @private
-tvicky_read_register :: proc(d: ^GPU_tVicky, size: emu.Bitsize, addr_orig, addr: u32, mode: emu.Region) -> (val: u32) {
-    if size != .bits_32 {
-        emu.unsupported_read_size(#procedure, d.name, d.id, size, addr_orig)
+tvicky_read_register :: proc(d: ^GPU_tVicky, ba: ADDR) -> (val: u32) {
+    if ba.size != .bits_32 {
+        emu.unsupported_read_size(#procedure, d.name, ba)
         return
     }
 
-    reg := Register_tVicky(addr)
-    /*
-    switch reg {
+    addr := ba.ea - ba.base
+    reg  := Register_tVicky(addr)
+    #partial switch reg {
     case                 :
-        emu.not_implemented(#procedure, "UNKNOWN", size, addr_orig)
+        emu.read_not_implemented(#procedure, d.name, ba, "TVKY.MAIN_A")
     }
-    */
     return
 }
 

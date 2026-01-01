@@ -7,11 +7,16 @@ import "lib:emu"
 import "emulator:pic"
 
 BITS :: emu.Bitsize
+ADDR :: emu.BusAddress
+
 GPU  :: struct {
-    read:    proc(^GPU, BITS, u32, u32, emu.Region) -> u32,
-    write:   proc(^GPU, BITS, u32, u32, u32,    emu.Region),
+    read:    proc(^GPU,  BITS, u32, u32, emu.Region) -> u32,
+    write:   proc(^GPU,  BITS, u32, u32, u32,    emu.Region),
+    nread:   proc(^GPU,  ADDR) -> u32,
+    nwrite:  proc(^GPU,  ADDR,    u32),
     delete:  proc(^GPU            ),
     render:  proc(^GPU            ),
+
 
     //dma_read8:   proc(^GPU, u32) -> u32,
     //dma_write8:  proc(^GPU, u32,    u32),

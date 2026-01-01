@@ -12,6 +12,8 @@ import "lib:emu"
 
 import "core:prof/spall"
 
+ADDR :: emu.BusAddress
+
 BUS_F256 :: struct {
     using bus: ^Bus,
 
@@ -93,13 +95,13 @@ f256_read_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32 
     case  0x18_1622              :  val = 0 // XXX: just for test
     case  0x18_1650 ..= 0x18_1657:  val = bus.timer0->read(size, 0x18_1650, ea)
     case  0x18_1658 ..= 0x18_165F:  val = bus.timer1->read(size, 0x18_1658, ea)
-    case  0x18_1800 ..= 0x18_183F:  val =   bus.gpu0->read(size, 0x18_1800, ea, .TEXT_FG_LUT)
-    case  0x18_1840 ..= 0x18_187F:  val =   bus.gpu0->read(size, 0x18_1840, ea, .TEXT_BG_LUT)
-    case  0x18_0000 ..= 0x18_FFFF:  emu.read_not_implemented(#procedure, "io0",    size, addr, ea)     // misc IO - XXX: tbd
+    case  0x18_1800 ..= 0x18_183F:  val =  bus.gpu0->nread({size, 0x18_1800, addr, ea, .TEXT_FG_LUT})
+    case  0x18_1840 ..= 0x18_187F:  val =  bus.gpu0->nread({size, 0x18_1840, addr, ea, .TEXT_BG_LUT})
+    case  0x18_0000 ..= 0x18_FFFF:  emu.read_not_implemented(#procedure, "bus0", {size, 0x18_0000, addr, ea, .UNKN})
     case  0x20_0000 ..= 0x27_FFFF:  val = bus.ram1->read(size, 0x20_0000, addr)    // SRAM1     512
     case  0x40_0000 ..= 0x47_FFFF:  val = bus.ram2->read(size, 0x40_0000, addr)    // SRAM2     512
     case  0x60_0000 ..= 0x67_FFFF:  val = bus.ram3->read(size, 0x60_0000, addr)    // SRAM3     512
-    case                         :  emu.read_not_implemented(#procedure, "bus0",   size, addr, ea)
+    case                         :  emu.read_not_implemented(#procedure, "bus0", {size, 0, addr, ea, .UNKN})
     }
 
     if bus.debug {
@@ -140,19 +142,19 @@ f256_write_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     case  0x00_0002 ..= 0x07_FFFF:    bus.ram0->write(size, 0x00_0000, ea, val)     // SRAM0     512
     case  0x08_0000 ..= 0x0F_FFFF:  bus.flash0->write(size, 0x08_0000, ea, val)     // FLASH     512
     case  0x10_0000 ..= 0x13_FFFF:   bus.cart0->write(size, 0x10_0000, ea, val)     // RAM/FLASH 256
-    case  0x18_1000 ..= 0x18_101B:    bus.gpu0->write(size, 0x18_1000, ea, val, .MAIN_A)
+    case  0x18_1000 ..= 0x18_101B:    bus.gpu0->nwrite({size, 0x18_1000, addr, ea, .MAIN       }, val)
     case  0x18_1650 ..= 0x18_1657:  bus.timer0->write(size, 0x18_1650, ea, val)
     case  0x18_1658 ..= 0x18_165F:  bus.timer1->write(size, 0x18_1658, ea, val)
-    case  0x18_1800 ..= 0x18_183F:    bus.gpu0->write(size, 0x18_1800, ea, val, .TEXT_FG_LUT)
-    case  0x18_1840 ..= 0x18_187F:    bus.gpu0->write(size, 0x18_1840, ea, val, .TEXT_BG_LUT)
-    case  0x18_2000 ..= 0x18_277F:    bus.gpu0->write(size, 0x18_2000, ea, val, .FONT_BANK0)
-    case  0x18_4000 ..= 0x18_5FFF:    bus.gpu0->write(size, 0x18_4000, ea, val, .TEXT)
-    case  0x18_6000 ..= 0x18_7FFF:    bus.gpu0->write(size, 0x18_6000, ea, val, .TEXT_COLOR)
-    case  0x18_0000 ..= 0x18_FFFF:  emu.write_not_implemented(#procedure, "io0",  size, addr, val, ea) // misc IO - XXX: tbd
+    case  0x18_1800 ..= 0x18_183F:    bus.gpu0->nwrite({size, 0x18_1800, addr, ea, .TEXT_FG_LUT}, val)
+    case  0x18_1840 ..= 0x18_187F:    bus.gpu0->nwrite({size, 0x18_1840, addr, ea, .TEXT_BG_LUT}, val)
+    case  0x18_2000 ..= 0x18_277F:    bus.gpu0->nwrite({size, 0x18_2000, addr, ea, .FONT_BANK0 }, val)
+    case  0x18_4000 ..= 0x18_5FFF:    bus.gpu0->nwrite({size, 0x18_4000, addr, ea, .TEXT       }, val)
+    case  0x18_6000 ..= 0x18_7FFF:    bus.gpu0->nwrite({size, 0x18_6000, addr, ea, .TEXT_COLOR }, val)
+    case  0x18_0000 ..= 0x18_FFFF:  emu.write_not_implemented(#procedure, "bus0", {size, 0x18_0000, addr, ea, .UNKN}, val)
     case  0x20_0000 ..= 0x27_FFFF:    bus.ram1->write(size, 0x20_0000, ea, val)     // SRAM1     512
     case  0x40_0000 ..= 0x47_FFFF:    bus.ram2->write(size, 0x40_0000, ea, val)     // SRAM2     512
     case  0x60_0000 ..= 0x67_FFFF:    bus.ram3->write(size, 0x60_0000, ea, val)     // SRAM3     512
-    case                         :  emu.write_not_implemented(#procedure, "bus0", size, addr, val, ea)
+    case                         :  emu.write_not_implemented(#procedure, "bus0", {size,         0, addr, ea, .UNKN}, val)
     }
 }
 

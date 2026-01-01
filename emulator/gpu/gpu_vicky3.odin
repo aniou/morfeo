@@ -427,7 +427,7 @@ vicky3_write_register :: proc(d: ^GPU_Vicky3, size: BITS, busaddr, addr, val: u3
         d.border_enabled = (val & VKY3_BCR_ENABLE )       != 0
 
         if (val & VKY3_BCR_X_SCROLL) != 0 {
-            emu.write_not_implemented(#procedure, "VKY3_A_BCR_X_SCROLL", .bits_32, busaddr, val)
+            emu.write_not_implemented_old(#procedure, "VKY3_A_BCR_X_SCROLL", .bits_32, busaddr, val)
         }
 
         d.border_x_size = i32((val & VKY3_BCR_X_SIZE) >>  8)
@@ -453,7 +453,7 @@ vicky3_write_register :: proc(d: ^GPU_Vicky3, size: BITS, busaddr, addr, val: u3
         d.cursor_fg        = u32((val & VKY3_CCR_BG        ) >> 28)
 
         if (val & VKY3_CCR_OFFSET) != 0 {
-            emu.write_not_implemented(#procedure, "VKY3_A_CCR_OFFSET", .bits_32, busaddr, val)
+            emu.write_not_implemented_old(#procedure, "VKY3_A_CCR_OFFSET", .bits_32, busaddr, val)
         }
 
     case .VKY3_CPR:

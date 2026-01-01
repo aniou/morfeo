@@ -69,6 +69,15 @@ Bitsize :: enum {
     bits_32  = 32
 }
 
+// not used yet
+BusAddress :: struct {
+    size:   Bitsize,
+    base:   u32,          // base addr (i.e. block address)
+    ra:     u32,          // requested address - for example, from CPU
+    ea:     u32,          // effective address - after MMU changes
+    region: Region
+}
+
 /* variations about new structure names
 
 Bitsize :: enum {
@@ -114,6 +123,7 @@ Access_Type :: enum {
 
 // used by devices to denote function
 Region :: enum {
+    UNKN,
     MAIN,
     MAIN_A,
     MAIN_B,
@@ -157,7 +167,22 @@ Config :: struct {
 }   
 
 // used by devices
-unsupported_read_size :: proc(procedure, dev_name: string, dev_id: int, mode: Bitsize, addr: u32) {
+unsupported_read_size :: proc{unsupported_read_size_new, unsupported_read_size_old}
+
+// new routine, required by mmu-capable systems
+unsupported_read_size_new :: proc(procedure, dev_name: string, ba: BusAddress) {
+    ea := ba.ra if ba.ea == 0 else ba.ea
+    log.errorf("%-12s %s read  bits%2d       from ra %04X:%04X ea %04X:%04X not supported", 
+                procedure, 
+                dev_name, 
+                ba.region, 
+                u16(ba.ra >> 16), u16(ba.ra & 0x0000_ffff),
+                u16(ea    >> 16), u16(ea    & 0x0000_ffff)
+    )
+}
+
+// old routine, should be slowly removed
+unsupported_read_size_old :: proc(procedure, dev_name: string, dev_id: int, mode: Bitsize, addr: u32) {
     log.errorf("%-12s %s%d read%-2d          from %04X:%04X not supported", 
                 procedure, 
                 dev_name, 
@@ -167,8 +192,34 @@ unsupported_read_size :: proc(procedure, dev_name: string, dev_id: int, mode: Bi
     )
 }
 
-// used by devices
-unsupported_write_size :: proc(procedure, dev_name: string, dev_id: int, mode: Bitsize, addr, val: u32) {
+// --------------------------------------------------------------------------------------------------------
+// new routine, required by mmu-capable systems but can be used by others
+// old routine should be slowly removed from code
+// ba.ra - "real addresss",     requested by device from memory, for example $C000
+// ba.ea - "effective address", calculated by mmu, for example $18:2000
+unsupported_write_size :: proc{unsupported_write_size_new, unsupported_write_size_old}
+
+// new routine, required by mmu-capable systems
+unsupported_write_size_new :: proc(procedure, dev_name: string, ba: BusAddress, val: u32) {
+    display_val : string 
+    switch ba.size {
+        case .bits_8:  display_val = fmt.aprintf("%02X",        u8(val & 0x0000_00ff))
+        case .bits_16: display_val = fmt.aprintf("%04X",       u16(val & 0x0000_ffff))
+        case .bits_32: display_val = fmt.aprintf("%04X:%04X",  u16(val >> 16), u16(val & 0x0000_ffff))
+    }
+    
+    ea := ba.ra if ba.ea == 0 else ba.ea
+    log.errorf("%-12s %s write bits%2d val %9s to ra %04X:%04X ea %04X:%04X not supported", 
+                procedure, 
+                dev_name, 
+                ba.size, 
+                u16(ba.ra >> 16), u16(ba.ra & 0x0000_ffff),
+                u16(ba.ea >> 16), u16(ba.ea & 0x0000_ffff)
+    )
+}
+
+// old routine, should be slowly removed
+unsupported_write_size_old :: proc(procedure, dev_name: string, dev_id: int, mode: Bitsize, addr, val: u32) {
     log.errorf("%-12s %s%d write%-2d %04X:%04X to %04X:%04X not supported", 
                 procedure, 
                 dev_name, 
@@ -179,8 +230,35 @@ unsupported_write_size :: proc(procedure, dev_name: string, dev_id: int, mode: B
     )
 }
 
-// used by devices
-write_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr, val: u32, ea: u32 = 0) {
+// --------------------------------------------------------------------------------------------------------
+// new routine, required by mmu-capable systems but can be used by others
+// old routine should be slowly removed from code
+// ba.ra - "real addresss",     requested by device from memory, for example $C000
+// ba.ea - "effective address", calculated by mmu, for example $18:2000
+write_not_implemented     :: proc{write_not_implemented_new, write_not_implemented_old}
+write_not_implemented_new :: proc(procedure, dev_name: string, ba: BusAddress, val: u32, desc: string = "") {
+    display_val : string 
+    switch ba.size {
+        case .bits_8:  display_val = fmt.aprintf("%02X",        u8(val & 0x0000_00ff))
+        case .bits_16: display_val = fmt.aprintf("%04X",       u16(val & 0x0000_ffff))
+        case .bits_32: display_val = fmt.aprintf("%04X:%04X",  u16(val >> 16), u16(val & 0x0000_ffff))
+    }
+    
+    ea := ba.ra if ba.ea == 0 else ba.ea
+    log.errorf("%-8s write bits%2d   ra %04X:%04X ea %04X:%04X val %9s not implemented at all in %s %s", 
+                dev_name, 
+                ba.size, 
+                u16(ba.ra >> 16), u16(ba.ra & 0x0000_ffff),
+                u16(ea    >> 16), u16(ea    & 0x0000_ffff),
+                display_val,
+                procedure,
+                desc
+    )
+
+    delete(display_val)
+}
+
+write_not_implemented_old :: proc(procedure, dev_name: string, bits: Bitsize, addr, val: u32, ea: u32 = 0) {
     display_val : string 
     switch bits {
         case .bits_8:  display_val = fmt.aprintf("%02X",        u8(val & 0x0000_00ff))
@@ -201,7 +279,25 @@ write_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr, 
     delete(display_val)
 }
 
-read_not_implemented :: proc(procedure, dev_name: string, bits: Bitsize, addr: u32, ea: u32 = 0) {
+// --------------------------------------------------------------------------------------------------------
+// new routine, required by mmu-capable systems but can be used by others
+// old routine should be slowly removed from code
+// ba.ra - "real addresss",     requested by device from memory, for example $C000
+// ba.ea - "effective address", calculated by mmu, for example $18:2000
+read_not_implemented     :: proc{read_not_implemented_new, read_not_implemented_old}
+read_not_implemented_new :: proc(procedure, dev_name: string, ba: BusAddress, desc: string = "") {
+    ea := ba.ra if ba.ea == 0 else ba.ea
+    log.errorf("%-8s read  bits%2d   ra %04X:%04X ea %04X:%04X               not implemented at all in %s %s", 
+                dev_name, 
+                ba.size, 
+                u16(ba.ra >> 16), u16(ba.ra & 0x0000_ffff),
+                u16(ea   >> 16),  u16(ea    & 0x0000_ffff),
+                procedure,
+                desc
+    )
+}
+
+read_not_implemented_old :: proc(procedure, dev_name: string, bits: Bitsize, addr: u32, ea: u32 = 0) {
     ea := addr if ea == 0 else ea
     log.errorf("%-12s %s read  bits%2d   addr %04X:%04X ea %04X:%04X               not implemented at all", 
                 procedure, 

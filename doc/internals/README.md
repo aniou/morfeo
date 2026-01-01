@@ -22,7 +22,7 @@
 Main binary (``c256fmx``, ``a2560x``) responsible for parsing
 parameters, setting flags and so on - I'm trying to keep it
 separated from GUI routines as possible - it may be an important 
-factor when different GUI backends comes to play It is also
+factor when different GUI back-ends comes to play It is also
 responsible for calling CPU (or stopping/starting when it is
 implemented as separate thread) and GPU rendering
 
