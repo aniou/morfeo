@@ -250,7 +250,7 @@ tvicky_nread :: proc(gpu: ^GPU, ba: ADDR) -> (val: u32) {
     }
 
     #partial switch ba.region {
-    case .MAIN_A:       val = tvicky_read_register(d, ba)                                                              
+    case .MAIN:         val = tvicky_read_register(d, ba)                                                              
     case .TEXT:         val = d.text[addr]
     case .TEXT_COLOR:   val = d.tc[addr]
     case .TEXT_FG_LUT:  val = u32(d.m_tclut_fg[addr])
@@ -292,16 +292,14 @@ tvicky_nwrite :: proc(gpu: ^GPU, ba: ADDR, val: u32) {
     }
 
     #partial switch ba.region {
-    case .MAIN_A: tvicky_write_register(&d.model.(GPU_tVicky), ba, val)
-    case .MAIN_B: tvicky_write_register(&d.model.(GPU_tVicky), ba, val)
+    case .MAIN:   
+        tvicky_write_register(&d.model.(GPU_tVicky), ba, val)
     case .TEXT:                         // IO bank 1
         d.text[addr] = val & 0xff
-
     case .TEXT_COLOR:                   // IO bank 2
         d.fg[addr] = (val & 0xf0) >> 4
         d.bg[addr] =  val & 0x0f
         d.tc[addr] =  val & 0xff
-        
     case .TEXT_FG_LUT:
         cpos                := addr  & 0xFFFC   // align to every four bytes
         cnum                := addr >> 2        // number of color in LUT cache
@@ -309,7 +307,6 @@ tvicky_nwrite :: proc(gpu: ^GPU, ba: ADDR, val: u32) {
         d.m_tclut_fg[addr]   = u8(val)
         d.c_tclut_fg[cnum]   = (transmute(^u32) &d.m_tclut_fg[cpos])^
         //log.debugf("fg_lut %v color %08x addr %d cpos %d", d.m_tclut_fg[cpos:cpos+4], d.c_tclut_fg[cnum], addr, cpos)
-
     case .TEXT_BG_LUT:
         cpos                := addr  & 0xFFFC   // align to every four bytes
         cnum                := addr >> 2        // number of color in LUT cache
@@ -379,14 +376,23 @@ tvicky_write_register :: proc(d: ^GPU_tVicky, ba: ADDR, val: u32) {
     case .TVKY_CCR:
         d.cursor_enabled   =     (val & TVKY_CCR_ENABLE    ) != 0
         d.cursor_rate      = i32((val & TVKY_CCR_RATE_MASK ) >> 1)   // XXX - why i32?
+    case .TVKY_TXT_CUR_CHAR:
+        d.cursor_character = val
+    case .TVKY_TXT_CUR_XL:
+        d.cursor_x        &= 0xFF00
+        d.cursor_x        |= (val & 0xFF)
+    case .TVKY_TXT_CUR_XH:
+        d.cursor_x        &= 0x00FF
+        d.cursor_x        |= (val << 8)
+    case .TVKY_TXT_CUR_YL:
+        d.cursor_y        &= 0xFF00
+        d.cursor_y        |= (val & 0xFF)
+    case .TVKY_TXT_CUR_YH:
+        d.cursor_y        &= 0x00FF
+        d.cursor_y        |= (val << 8)
 
     /*
-    VKY_TXT_CURSOR_CHAR_REG = $D012
-    VKY_TXT_CURSOR_COLR_REG = $D013
-    VKY_TXT_CURSOR_X_REG_L  = $D014
-    VKY_TXT_CURSOR_X_REG_H  = $D015
-    VKY_TXT_CURSOR_Y_REG_L  = $D016
-    VKY_TXT_CURSOR_Y_REG_H  = $D017
+    TVKY_TXT_SAPTR     = 0x_00_11,    // A   - offset to change the Starting address of the Text Mode Buffer (in x)
     ; Line Interrupt 
     VKY_LINE_IRQ_CTRL_REG   = $D018 ;[0] - Enable Line 0 - WRITE ONLY
     VKY_LINE_CMP_VALUE_LO  = $D019 ;Write Only [7:0]
@@ -490,7 +496,6 @@ tvicky_render_bm1 :: proc(gpu: ^GPU) {
 tvicky_render_text :: proc(gpu: ^GPU) {
         g         := &gpu.model.(GPU_tVicky)
         
-        cursor_x, cursor_y: u32 // row and column of cursor
         text_row_pos:       u32 // beginning of current text row in text memory
         fb_row_pos:         u32 // beginning of current FB   row in memory
         font_pos:           u32 // position in font array (char * 64 + char_line * 8)
@@ -508,13 +513,6 @@ tvicky_render_text :: proc(gpu: ^GPU) {
         fgctmp: [128]u32    // foreground color cache (rgba) for one line
         bgctmp: [128]u32    // background color cache (rgba) for one line
         dsttmp: [128]u32    // position in destination memory array
-
-        // XXX: it should be rather updated on register write?
-        // cursor_x       = u32(g.mem[ CURSOR_X_H ]) << 16 | u32(g.mem[ CURSOR_X_L ])
-        // cursor_y       = u32(g.mem[ CURSOR_Y_H ]) << 16 | u32(g.mem[ CURSOR_Y_L ])
-        // XXX: fix it to g.cursor_x/y in code
-        cursor_x = g.cursor_x
-        cursor_y = g.cursor_y
 
         // render text - start
         // I prefer to keep it because it allow to simply re-drawing single line in future,
@@ -537,9 +535,9 @@ tvicky_render_text :: proc(gpu: ^GPU) {
                         f := g.fg[text_row_pos+text_x] // fg and bg colors
                         b := g.bg[text_row_pos+text_x]
 
-                        if g.cursor_visible && g.cursor_enabled && (cursor_y == text_y) && (cursor_x == text_x) {
-                                f = g.cursor_fg
-                                b = g.cursor_bg
+                        if g.cursor_visible && g.cursor_enabled && (g.cursor_y == text_y) && (g.cursor_x == text_x) {
+                                //f = g.cursor_fg - on tiny vicky there is no separate cursor color
+                                //b = g.cursor_bg
                                 fnttmp[text_x] = g.cursor_character * 64 // XXX precalculate?
                         }
 
