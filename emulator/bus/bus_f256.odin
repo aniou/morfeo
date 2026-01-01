@@ -105,10 +105,10 @@ f256_read_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32 
     }
 
     if bus.debug {
-        log.debugf("%s read%d  %08x from 0x %04X:%04X ea %04X:%04X", 
+        log.debugf("%s read%d    %02x from  %04X   ea %02X:%04X", 
                     bus.name, size, val, 
-                    u16(addr >> 16), u16(addr & 0x0000_ffff),
-                    u16(ea   >> 16), u16(ea   & 0x0000_ffff)
+                    u16(addr & 0x0000_ffff),
+                    u8(ea   >> 16), u16(ea   & 0x0000_ffff)
         )
     }
     return
@@ -131,10 +131,10 @@ f256_write_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     }
 
     if bus.debug {
-        log.debugf("%s write%d  %08x   to 0x %04X:%04X ea %04X:%04X", 
+        log.debugf("%s write%d   %02x   to  %04X   ea %02X:%04X", 
                     bus.name, size, val, 
-                    u16(addr >> 16), u16(addr & 0x0000_ffff),
-                    u16(ea   >> 16), u16(ea   & 0x0000_ffff)
+                    u16(addr & 0x0000_ffff),
+                    u8(ea   >> 16), u16(ea   & 0x0000_ffff)
         )
     }
 
