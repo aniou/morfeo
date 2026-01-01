@@ -243,18 +243,34 @@ write_not_implemented_new :: proc(procedure, dev_name: string, ba: BusAddress, v
         case .bits_16: display_val = fmt.aprintf("%04X",       u16(val & 0x0000_ffff))
         case .bits_32: display_val = fmt.aprintf("%04X:%04X",  u16(val >> 16), u16(val & 0x0000_ffff))
     }
+
+    ra          : string  
+    switch {
+        case ba.ra < 0x00_FFFF: ra = fmt.aprintf("%04X",                         u16(ba.ra & 0xFFFF))
+        case ba.ra < 0xFF_FFFF: ra = fmt.aprintf("%02X:%04X",   u8(ba.ra >> 16), u16(ba.ra & 0xFFFF))
+        case                  : ra = fmt.aprintf("%04X:%04X",  u16(ba.ra >> 16), u16(ba.ra & 0xFFFF))
+    }
     
-    ea := ba.ra if ba.ea == 0 else ba.ea
-    log.errorf("%-8s write bits%2d   ra %04X:%04X ea %04X:%04X val %9s not implemented at all in %s %s", 
+    tmpea := ba.ra if ba.ea == 0 else ba.ea
+    ea          : string  
+    switch {
+        case tmpea < 0x00_FFFF: ea = fmt.aprintf("%04X",                         u16(tmpea & 0xFFFF))
+        case tmpea < 0xFF_FFFF: ea = fmt.aprintf("%02X:%04X",   u8(tmpea >> 16), u16(tmpea & 0xFFFF))
+        case                  : ea = fmt.aprintf("%04X:%04X",  u16(tmpea >> 16), u16(tmpea & 0xFFFF))
+    }
+
+    log.errorf("%-8s write bits%2d   ra %9s  ea %9s val %9s not implemented at all in %s %s", 
                 dev_name, 
                 ba.size, 
-                u16(ba.ra >> 16), u16(ba.ra & 0x0000_ffff),
-                u16(ea    >> 16), u16(ea    & 0x0000_ffff),
+                ra,
+                ea,
                 display_val,
                 procedure,
                 desc
     )
 
+    delete(ra)
+    delete(ea)
     delete(display_val)
 }
 
@@ -286,15 +302,32 @@ write_not_implemented_old :: proc(procedure, dev_name: string, bits: Bitsize, ad
 // ba.ea - "effective address", calculated by mmu, for example $18:2000
 read_not_implemented     :: proc{read_not_implemented_new, read_not_implemented_old}
 read_not_implemented_new :: proc(procedure, dev_name: string, ba: BusAddress, desc: string = "") {
-    ea := ba.ra if ba.ea == 0 else ba.ea
-    log.errorf("%-8s read  bits%2d   ra %04X:%04X ea %04X:%04X               not implemented at all in %s %s", 
+    ra          : string  
+    switch {
+        case ba.ra < 0x00_FFFF: ra = fmt.aprintf("%04X",                         u16(ba.ra & 0xFFFF))
+        case ba.ra < 0xFF_FFFF: ra = fmt.aprintf("%02X:%04X",   u8(ba.ra >> 16), u16(ba.ra & 0xFFFF))
+        case                  : ra = fmt.aprintf("%04X:%04X",  u16(ba.ra >> 16), u16(ba.ra & 0xFFFF))
+    }
+    
+    tmpea := ba.ra if ba.ea == 0 else ba.ea
+    ea          : string  
+    switch {
+        case tmpea < 0x00_FFFF: ea = fmt.aprintf("%04X",                         u16(tmpea & 0xFFFF))
+        case tmpea < 0xFF_FFFF: ea = fmt.aprintf("%02X:%04X",   u8(tmpea >> 16), u16(tmpea & 0xFFFF))
+        case                  : ea = fmt.aprintf("%04X:%04X",  u16(tmpea >> 16), u16(tmpea & 0xFFFF))
+    }
+
+    log.errorf("%-8s read  bits%2d   ra %9s  ea %9s               not implemented at all in %s %s", 
                 dev_name, 
                 ba.size, 
-                u16(ba.ra >> 16), u16(ba.ra & 0x0000_ffff),
-                u16(ea   >> 16),  u16(ea    & 0x0000_ffff),
+                ra,
+                ea,
                 procedure,
                 desc
     )
+
+    delete(ra)
+    delete(ea)
 }
 
 read_not_implemented_old :: proc(procedure, dev_name: string, bits: Bitsize, addr: u32, ea: u32 = 0) {
