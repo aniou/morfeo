@@ -682,7 +682,7 @@ vicky2_write_register :: proc(d: ^GPU_Vicky2, size: BITS, busaddr, addr, val: u3
 
     case .VKY2_CCR:
         d.cursor_enabled   =     (val & VKY2_CCR_ENABLE    ) != 0
-        d.cursor_rate      = i32((val & VKY2_CCR_RATE_MASK ) >> 1)   // XXX - why i32?
+        d.cursor_rate      =     (val & VKY2_CCR_RATE_MASK ) >> 1
 
         if (val & VKY2_CCR_FONT_PAGE0) != 0 {
             emu.write_not_implemented(#procedure, "VKY2_CCR_FONT_PAGE0", size, busaddr, val)

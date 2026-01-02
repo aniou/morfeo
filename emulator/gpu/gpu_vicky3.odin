@@ -446,8 +446,8 @@ vicky3_write_register :: proc(d: ^GPU_Vicky3, size: BITS, busaddr, addr, val: u3
         d.bg_color_r = u8((val & 0x_00_ff_00_00) >> 16)
 
     case .VKY3_CCR:
-        d.cursor_enabled   =     (val & VKY3_CCR_ENABLE    ) != 0
-        d.cursor_rate      = i32((val & VKY3_CCR_RATE      ) >>  1)   // XXX - why i32?
+        d.cursor_enabled   =     (val & VKY3_CCR_ENABLE    ) !=  0
+        d.cursor_rate      =     (val & VKY3_CCR_RATE      ) >>  1
         d.cursor_character = u32((val & VKY3_CCR_CHARACTER ) >> 16)
         d.cursor_bg        = u32((val & VKY3_CCR_BG        ) >> 24)
         d.cursor_fg        = u32((val & VKY3_CCR_BG        ) >> 28)

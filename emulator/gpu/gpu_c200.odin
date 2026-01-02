@@ -365,7 +365,7 @@ C200_write_register :: proc(d: ^GPU_C200, size: BITS, busaddr, addr, val: u32, m
 
     case .C200_CCR:
         d.cursor_enabled   =     (val & C200_CCR_ENABLE    ) != 0
-        d.cursor_rate      = i32((val & C200_CCR_RATE_MASK ) >> 1)   // XXX - why i32?
+        d.cursor_rate      =     (val & C200_CCR_RATE_MASK ) >> 1
 
         if (val & C200_CCR_FONT_PAGE0) != 0 {
             emu.write_not_implemented(#procedure, "C200_CCR_FONT_PAGE0", size, busaddr, val)

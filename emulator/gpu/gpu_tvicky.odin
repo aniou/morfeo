@@ -64,6 +64,10 @@ TVKY_BCR_X_SCROLL      :: 0x_00_00_00_70  // A   -  border scroll, at bit 4..6 (
 
 
 //CURSOR_BLINK_RATE           :: [4]i32{1000, 500, 250, 200}
+CURSOR_BLINK_RATE           := [4]time.Duration{1000 * time.Millisecond,
+                                                 500 * time.Millisecond,
+                                                 250 * time.Millisecond,
+                                                 200 * time.Millisecond}
 
 
 GPU_tVicky :: struct {
@@ -134,6 +138,8 @@ tvicky_make :: proc(name: string) -> ^GPU {
     g.screen_resized = false
 
     // ok
+    g.cursor_rate      = 1
+    g.cursor_rate_ms   = CURSOR_BLINK_RATE[g.cursor_rate]
     g.text_enabled     = true
     g.overlay_enabled  = false
     g.graphic_enabled  = false
@@ -374,10 +380,14 @@ tvicky_write_register :: proc(d: ^GPU_tVicky, ba: ADDR, val: u32) {
     case .TVKY_BGR_COL_R: d.bg_color_r     =  u8(val)
 
     case .TVKY_CCR:
-        d.cursor_enabled   =     (val & TVKY_CCR_ENABLE    ) != 0
-        d.cursor_rate      = i32((val & TVKY_CCR_RATE_MASK ) >> 1)   // XXX - why i32?
+        d.cursor_enabled   = (val & TVKY_CCR_ENABLE    ) != 0
+        d.cursor_rate      = (val & TVKY_CCR_RATE_MASK ) >> 1
+        d.cursor_rate_ms   = CURSOR_BLINK_RATE[d.cursor_rate]
     case .TVKY_TXT_CUR_CHAR:
         d.cursor_character = val
+    case .TVKY_TXT_CUR_CLR:                         // warning: in tvicky it does nothing
+        d.cursor_bg        =  val & 0x0f
+        d.cursor_fg        = (val & 0xf0) >> 4
     case .TVKY_TXT_CUR_XL:
         d.cursor_x        &= 0xFF00
         d.cursor_x        |= (val & 0xFF)

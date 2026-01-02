@@ -57,7 +57,9 @@ GPU  :: struct {
     screen_y_size:     i32,
 
     cursor_enabled:    bool,
-    cursor_rate:       i32,
+    cursor_rate:       u32,      // 0..4
+    cursor_rate_ms:    time.Duration,      // re-calculated in milliseconds
+    cursor_last_tick:  time.Tick,          // when cursor was changed, used externallly
     cursor_visible:    bool,     // set by timer in main GUI, for blinking
     cursor_x:          u32,
     cursor_y:          u32,
