@@ -28,6 +28,9 @@ BUS_F256 :: struct {
     mlut_ext:   [4][8]u32,  // re-calculated bits 9..10  of MLUT: moved to A22..A21
     mlut_cur:      [8]u32,  // reals addr for current mlut, usually mlut_val | mlut_ext
 
+    machine_id:    [9]u32,  // read-only array of machine ID data
+    pcb_id:        [5]u32,  // read-only array of pcb ID data
+
     sprite_high:     bool,
     sram_en:         bool,
     move_io:         bool,
@@ -57,6 +60,11 @@ f256_make :: proc(name: string, pic: ^pic.PIC, config: ^emu.Config) -> ^Bus {
     for index in 0 ..= 7 {
         log.debugf("%s MLUT %i %16b %08x", #procedure, index, b.mlut_cur[index], b.mlut_cur[index])
     }
+
+    // id data
+    //b.machine_id = [9]u32{0x91, 0x30, 0x43, 0x13, 0x00, 0x01, 0x02, 0x02, 0x56}
+    b.machine_id = [9]u32{0x12, 0x30, 0x43, 0x13, 0x00, 0x01, 0x02, 0x02, 0x56}
+    b.pcb_id     = [5]u32{0x42, 0x30, 0x18, 0x01, 0x23}
 
     d.model   = b
     return d
@@ -95,6 +103,9 @@ f256_read_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32 
     case  0x18_1622              :  val = 0 // XXX: just for test
     case  0x18_1650 ..= 0x18_1657:  val = bus.timer0->read(size, 0x18_1650, ea)
     case  0x18_1658 ..= 0x18_165F:  val = bus.timer1->read(size, 0x18_1658, ea)
+    case  0x18_1660 ..= 0x18_166E:  val =  bus.pic0->nread({size, 0x18_1660, addr, ea, .MAIN})
+    case  0x18_16A7 ..= 0x18_16AF:  val = b.machine_id[ea - 0x18_16A7]
+    case  0x18_16EB ..= 0x18_16EF:  val = b.pcb_id[ea - 0x18_16EB]
     case  0x18_1800 ..= 0x18_183F:  val =  bus.gpu0->nread({size, 0x18_1800, addr, ea, .TEXT_FG_LUT})
     case  0x18_1840 ..= 0x18_187F:  val =  bus.gpu0->nread({size, 0x18_1840, addr, ea, .TEXT_BG_LUT})
     case  0x18_0000 ..= 0x18_FFFF:  emu.read_not_implemented(#procedure, "bus0", {size, 0x18_0000, addr, ea, .UNKN})
@@ -145,6 +156,7 @@ f256_write_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     case  0x18_1000 ..= 0x18_101B:    bus.gpu0->nwrite({size, 0x18_1000, addr, ea, .MAIN       }, val)
     case  0x18_1650 ..= 0x18_1657:  bus.timer0->write(size, 0x18_1650, ea, val)
     case  0x18_1658 ..= 0x18_165F:  bus.timer1->write(size, 0x18_1658, ea, val)
+    case  0x18_1660 ..= 0x18_166E:    bus.pic0->nwrite({size, 0x18_1660, addr, ea, .MAIN       }, val)
     case  0x18_1800 ..= 0x18_183F:    bus.gpu0->nwrite({size, 0x18_1800, addr, ea, .TEXT_FG_LUT}, val)
     case  0x18_1840 ..= 0x18_187F:    bus.gpu0->nwrite({size, 0x18_1840, addr, ea, .TEXT_BG_LUT}, val)
     case  0x18_2000 ..= 0x18_277F:    bus.gpu0->nwrite({size, 0x18_2000, addr, ea, .FONT_BANK0 }, val)

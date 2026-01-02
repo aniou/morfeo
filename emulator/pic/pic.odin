@@ -4,12 +4,15 @@ package pic
 import "lib:emu"
 
 BITS :: emu.Bitsize
+ADDR :: emu.BusAddress
 PIC  :: struct {
     name:       string,
     id:         int, 
 
     read:       proc(^PIC, BITS, u32, u32) -> u32,
     write:      proc(^PIC, BITS, u32, u32,    u32),
+    nread:      proc(^PIC, ADDR) -> u32,
+    nwrite:     proc(^PIC, ADDR,    u32),
     read8:      proc(^PIC, u32) -> u8,
     write8:     proc(^PIC, u32, u8),
     trigger:    proc(^PIC, IRQ),
@@ -28,6 +31,6 @@ PIC  :: struct {
     irq_active: bool,            // IRQ is processed?
     irq_clear:  bool,            // IRQ should be cleared?
 
-    model: union {PIC_M68K, PIC_C256}
+    model: union {PIC_M68K, PIC_C256, PIC_F256}
 }
 
