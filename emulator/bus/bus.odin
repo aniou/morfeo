@@ -6,6 +6,7 @@ import "emulator:ata"
 import "emulator:gpu"
 import "emulator:inu"
 import "emulator:joy"
+import "emulator:kbd"
 import "emulator:pic"
 import "emulator:ps2"
 import "emulator:rtc"
@@ -52,6 +53,7 @@ Bus :: struct {
     joy3:     ^joy.JOY,     // not supported yet
     rng:      ^rng.RNG,
     tty0:     ^tty.TTY,
+    kbd0:     ^kbd.KBD,     // built-in, non-PS2 keyboard
 
     dip_user: u32,          // switches 3 to 5
     dip_boot: u32,          // switches 1, 2 and 8

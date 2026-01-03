@@ -390,11 +390,9 @@ pic_f256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_F256)  {
 
 pic_f256_trigger :: proc(pic: ^PIC, irq: IRQ)  {
     #partial switch irq {
-//    case      .KBD_PS2: pic_f256_internal_trigger(pic, .GRP0_INT02_PS2_KBD)
-    case      .KBD_PS2: pic_f256_internal_trigger(pic, .GRP1_INT06_VIA1)
+    case   .KBD_A2560K: pic_f256_internal_trigger(pic, .GRP1_INT00_UART)
+    //case   .KBD_A2560K: pic_f256_internal_trigger(pic, .GRP1_INT06_VIA1)
     case  .VICKY_A_SOF: pic_f256_internal_trigger(pic, .GRP0_INT00_SOF)
-//    case   .RESERVED_5: pic_f256_internal_trigger(pic, .FNX2_INT03_SDMA)    // too bad, too bad we
-//    case   .RESERVED_6: pic_f256_internal_trigger(pic, .FNX2_INT04_VDMA)    // need abstract irq names
     case       .TIMER0: pic_f256_internal_trigger(pic, .GRP0_INT04_TIMER0)
     case       .TIMER1: pic_f256_internal_trigger(pic, .GRP0_INT05_TIMER1)
     case          .RTC: pic_f256_internal_trigger(pic, .GRP1_INT04_RTC)

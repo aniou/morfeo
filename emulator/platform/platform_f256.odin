@@ -4,6 +4,7 @@ import "emulator:ata"
 import "emulator:bus"
 import "emulator:cpu"
 import "emulator:gpu"
+import "emulator:kbd"
 import "emulator:pic"
 import "emulator:ps2"
 import "emulator:rtc"
@@ -19,7 +20,7 @@ f256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
     p            =   new(Platform)
     pic         :=   pic.pic_f256_make  ("pic0")
     p.bus        =   bus.f256_make      ("bus0",   pic, config)
-    p.bus.ps20   =   ps2.ps2_make       ("ps2",    pic)     // XXX: dummy
+    p.bus.kbd0   =   kbd.kbd_make       ("kbd0",   pic)
     p.bus.ram0   =   ram.ram_make       ("ram0",   0x08_0000) 
     p.bus.ram1   =   ram.ram_make       ("ram1",   0x08_0000) 
     p.bus.ram2   =   ram.ram_make       ("ram2",   0x08_0000) 

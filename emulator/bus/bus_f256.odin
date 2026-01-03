@@ -62,8 +62,8 @@ f256_make :: proc(name: string, pic: ^pic.PIC, config: ^emu.Config) -> ^Bus {
     }
 
     // id data
-    //b.machine_id = [9]u32{0x91, 0x30, 0x43, 0x13, 0x00, 0x01, 0x02, 0x02, 0x56}
-    b.machine_id = [9]u32{0x12, 0x30, 0x43, 0x13, 0x00, 0x01, 0x02, 0x02, 0x56}
+    b.machine_id = [9]u32{0x91, 0x30, 0x43, 0x13, 0x00, 0x01, 0x02, 0x02, 0x56}
+    //b.machine_id = [9]u32{0x12, 0x30, 0x43, 0x13, 0x00, 0x01, 0x02, 0x02, 0x56}
     b.pcb_id     = [5]u32{0x42, 0x30, 0x18, 0x01, 0x23}
 
     d.model   = b
@@ -108,6 +108,8 @@ f256_read_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32 
     case  0x18_16EB ..= 0x18_16EF:  val = b.pcb_id[ea - 0x18_16EB]
     case  0x18_1800 ..= 0x18_183F:  val =  bus.gpu0->nread({size, 0x18_1800, addr, ea, .TEXT_FG_LUT})
     case  0x18_1840 ..= 0x18_187F:  val =  bus.gpu0->nread({size, 0x18_1840, addr, ea, .TEXT_BG_LUT})
+    case  0x18_1D63              :  val = 1 // XXX: just for test
+    case  0x18_1DC0 ..= 0x18_1DC3:  val =  bus.kbd0->nread({size, 0x18_1DC0, addr, ea, .MAIN})
     case  0x18_0000 ..= 0x18_FFFF:  emu.read_not_implemented(#procedure, "bus0", {size, 0x18_0000, addr, ea, .UNKN})
     case  0x20_0000 ..= 0x27_FFFF:  val = bus.ram1->read(size, 0x20_0000, addr)    // SRAM1     512
     case  0x40_0000 ..= 0x47_FFFF:  val = bus.ram2->read(size, 0x40_0000, addr)    // SRAM2     512
