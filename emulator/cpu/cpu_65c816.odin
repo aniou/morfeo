@@ -368,7 +368,7 @@ debug_w65c816 :: proc(c: ^CPU_65xxx) {
         "e" if c.f.E else "."
     )
 
-	if c.f.M {
+	if c.f.M || c.f.E {
     	fmt.printf("A %02x %02x|",
 			c.a.b   & 0xFF,
 			c.a.val & 0xFF
@@ -379,7 +379,7 @@ debug_w65c816 :: proc(c: ^CPU_65xxx) {
 		)
 	}
 
-	if c.f.X {
+	if c.f.X || c.f.E {
     	fmt.printf("X   %02x|Y   %02x|",
 			c.x.val & 0xFF,
 			c.y.val & 0xFF
