@@ -7,6 +7,7 @@ import "core:time"
 
 import "lib:emu"
 
+import "emulator:pic"
 import "emulator:ram"
 
 Register_tVicky :: enum u32 {         //       $D000
@@ -108,7 +109,7 @@ GPU_tVicky :: struct {
 
 // --------------------------------------------------------------------
 
-tvicky_make :: proc(name: string) -> ^GPU {
+tvicky_make :: proc(name: string, pic: ^pic.PIC) -> ^GPU {
     log.infof("tvicky: gpu%d initialization start, name %s", 0, name)
 
     gpu       := new(GPU)
@@ -118,6 +119,7 @@ tvicky_make :: proc(name: string) -> ^GPU {
     gpu.nwrite = tvicky_nwrite
     gpu.delete = tvicky_delete
     gpu.render = tvicky_render
+    gpu.pic    = pic
     g         := GPU_tVicky{gpu = gpu}
 
     g.text    = make([dynamic]u32,    0x2000)
@@ -471,6 +473,7 @@ tvicky_recalculate_screen :: proc(gpu: ^GPU) {
 }
 
 tvicky_render :: proc(gpu: ^GPU) {
+    gpu.pic->trigger(.VICKY_A_SOF)
     if gpu.text_enabled do tvicky_render_text(gpu)
     //if gpu.bm0_enabled  do tvicky_render_bm0(gpu)
     //if gpu.bm1_enabled  do tvicky_render_bm1(gpu)

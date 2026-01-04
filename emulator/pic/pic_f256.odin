@@ -313,7 +313,7 @@ pic_f256_write :: proc(pic: ^PIC, ba: ADDR, val: u32)  {
         // d.edge[]  = (val & 0x40) != 0
         // d.edge[]  = (val & 0x80) != 0
     case .INT_MASK_REG0:
-        //log.debugf("pic0: %6s write   .INT_MASK_REG0: val %02x", d.name, val)
+        log.debugf("pic0: %6s write   .INT_MASK_REG0: val %02x - %v", d.name, val, d.mask)
         d.mask[.GRP0_INT00_SOF         ]  = (val & 0x01) != 0
         d.mask[.GRP0_INT01_SOL         ]  = (val & 0x02) != 0
         d.mask[.GRP0_INT02_PS2_KBD     ]  = (val & 0x04) != 0
@@ -323,7 +323,7 @@ pic_f256_write :: proc(pic: ^PIC, ba: ADDR, val: u32)  {
         // d.mask[                        ]  = (val & 0x40) != 0
         d.mask[.GRP0_INT07_CART        ]  = (val & 0x80) != 0
     case .INT_MASK_REG1:
-        //log.debugf("pic0: %6s write  .INT_MASK_REG1: val %02x", d.name, val)
+        log.debugf("pic0: %6s write  .INT_MASK_REG1: val %02x - %v", d.name, val, d.mask)
         d.mask[.GRP1_INT00_UART        ]  = (val & 0x01) != 0
         // d.mask[                        ]  = (val & 0x02) != 0
         // d.mask[                        ]  = (val & 0x04) != 0
@@ -383,15 +383,18 @@ pic_f256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_F256)  {
     if d.mask[irq] == false {
         //log.debugf("IRQ: %v", irq)
         d.irq_active   = true
-    } 
+    } else {
+        //log.debugf("masked IRQ: %v", irq)
+        //log.debugf("maske: %v", d.mask)
+    }
     
     return
 }
 
 pic_f256_trigger :: proc(pic: ^PIC, irq: IRQ)  {
     #partial switch irq {
-    case   .KBD_A2560K: pic_f256_internal_trigger(pic, .GRP1_INT00_UART)
     //case   .KBD_A2560K: pic_f256_internal_trigger(pic, .GRP1_INT06_VIA1)
+    case   .KBD_A2560K: pic_f256_internal_trigger(pic, .GRP0_INT02_PS2_KBD)
     case  .VICKY_A_SOF: pic_f256_internal_trigger(pic, .GRP0_INT00_SOF)
     case       .TIMER0: pic_f256_internal_trigger(pic, .GRP0_INT04_TIMER0)
     case       .TIMER1: pic_f256_internal_trigger(pic, .GRP0_INT05_TIMER1)

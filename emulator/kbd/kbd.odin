@@ -48,6 +48,10 @@ kbd_make :: proc(name: string, pic: ^pic.PIC) -> ^KBD {
     s.debug        = true
     s.name         = name
 
+    for a in 0..=7 {
+        s.key_state[a][0] = u32(a << 4)
+    }
+
     queue.init(&s.outbuf)
     return s
 }
@@ -106,7 +110,7 @@ kbd_send_key :: proc(s: ^KBD, key: emu.KEY, state: emu.KEY_STATE) {
             return
         }
 
-        s.key_state[row][0] = high
+        s.key_state[row][0] = row << 4 
         if state == .DOWN {
             s.key_state[row][0]   |= bit9
             s.key_state[row][1]   |= low

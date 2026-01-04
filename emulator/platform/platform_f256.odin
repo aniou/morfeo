@@ -27,11 +27,11 @@ f256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
     p.bus.ram3   =   ram.ram_make       ("ram3",   0x08_0000) 
     p.bus.cart0  =   ram.ram_make       ("cart0",  0x04_0000) 
     p.bus.flash0 =   ram.ram_make       ("flash0", 0x08_0000) 
-    p.bus.gpu0   =   gpu.tvicky_make    ("gpu0")
+    p.bus.gpu0   =   gpu.tvicky_make    ("gpu0",   pic)
     p.bus.timer0 = timer.timer_f256_make("timer0", pic, 0)
     p.bus.timer1 = timer.timer_f256_make("timer1", pic, 1)
     p.cpu        =   cpu.make_w65c816   ("cpu0",   p.bus)
-    //p.bus.rtc    =   rtc.bq4802_make ("rtc0",   pic)
+    p.bus.rtc0   =   rtc.bq4802_make    ("rtc0",   pic)
 
     p.cfg        = config
 
