@@ -17,6 +17,14 @@ tags
 
 # built binaries
 c256
+c256u
+c256u+
+c256fmx
+f256k2
 a2560x
 test_65c816
 test_w65c02s
+
+# local tmp
+tmp/*
+
