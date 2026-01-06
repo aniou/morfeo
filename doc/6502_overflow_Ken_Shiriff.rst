@@ -126,8 +126,8 @@ each set of input bits, the table shows the carry out (C7), the top bit of the
 sum (S7), which is the sign bit, and the overflow bit V. This covers the
 4 possibilities for sign of the arguments (positive + positive, positive
 + negative, negative + positive, negative + negative), with and without carry
-  from bit 6. The table shows an example sum for each line, first expressed in
-  hexadecimal, and then interpreted as unsigned addition and signed addition.
+from bit 6. The table shows an example sum for each line, first expressed in
+hexadecimal, and then interpreted as unsigned addition and signed addition.
 
   ::
 
