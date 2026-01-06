@@ -110,7 +110,10 @@ f256_read_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32 
     case  0x18_1840 ..= 0x18_187F:  val =  bus.gpu0->nread({size, 0x18_1840, addr, ea, .TEXT_BG_LUT})
     case  0x18_1D63              :  val = 1 // XXX: just for test
     case  0x18_1DC0 ..= 0x18_1DC3:  val =  bus.kbd0->nread({size, 0x18_1DC0, addr, ea, .MAIN})
+    case  0x18_1E00 ..= 0x18_1E1B:  val =  bus.inu0->nread({size, 0x18_1E00, addr, ea, .MAIN})
     case  0x18_3690 ..= 0x18_369F:  val =  bus.rtc0->read(size, 0x18_3690, ea)
+    case  0x18_4000 ..= 0x18_5FFF:  val = bus.gpu0->nread({size, 0x18_4000, addr, ea, .TEXT       })
+    case  0x18_6000 ..= 0x18_7FFF:  val = bus.gpu0->nread({size, 0x18_6000, addr, ea, .TEXT_COLOR })
     case  0x18_0000 ..= 0x18_FFFF:  emu.read_not_implemented(#procedure, "bus0", {size, 0x18_0000, addr, ea, .UNKN})
     case  0x20_0000 ..= 0x27_FFFF:  val = bus.ram1->read(size, 0x20_0000, ea)    // SRAM1     512
     case  0x40_0000 ..= 0x47_FFFF:  val = bus.ram2->read(size, 0x40_0000, ea)    // SRAM2     512
@@ -119,8 +122,11 @@ f256_read_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32 
     }
 
     if bus.debug {
-        log.debugf("%s read%d    %02x from  %04X   ea %02X:%04X", 
-                    bus.name, size, val, 
+        log.debugf("%s pc %02x:%04x read%d    %02x from  %04X   ea %02X:%04X", 
+                    bus.name, 
+                    (bus.pc & 0x00FF_0000) >> 16,
+                     bus.pc & 0x0000_FFFF,
+                    size, val, 
                     u16(addr & 0x0000_ffff),
                     u8(ea   >> 16), u16(ea   & 0x0000_ffff)
         )
@@ -137,6 +143,15 @@ f256_write_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
 
     switch addr {
     case 0x00      ..= 0x0F     : f256_mmu_write(b, addr, val)
+                                    if bus.debug {
+                                        log.debugf("%s pc %02x:%04x write%d   %02x   to  %04X   (MMU)", 
+                                                    bus.name, 
+                                                    (bus.pc & 0x00FF_0000) >> 16,
+                                                     bus.pc & 0x0000_FFFF,
+                                                    size, val, 
+                                                    u16(addr & 0x0000_ffff)
+                                        )
+                                    }
                                   return
     case 0x10      ..= 0xEF_FFFF: // do not modify ea
     case 0xF0_0000 ..= 0xF3_FFFF: if b.move_io    do ea = addr - 0xD8_0000
@@ -145,8 +160,11 @@ f256_write_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     }
 
     if bus.debug {
-        log.debugf("%s write%d   %02x   to  %04X   ea %02X:%04X", 
-                    bus.name, size, val, 
+        log.debugf("%s pc %02x:%04x write%d   %02x   to  %04X   ea %02X:%04X", 
+                    bus.name, 
+                    (bus.pc & 0x00FF_0000) >> 16,
+                     bus.pc & 0x0000_FFFF,
+                    size, val, 
                     u16(addr & 0x0000_ffff),
                     u8(ea   >> 16), u16(ea   & 0x0000_ffff)
         )
@@ -162,6 +180,7 @@ f256_write_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     case  0x18_1660 ..= 0x18_166E:    bus.pic0->nwrite({size, 0x18_1660, addr, ea, .MAIN       }, val)
     case  0x18_1800 ..= 0x18_183F:    bus.gpu0->nwrite({size, 0x18_1800, addr, ea, .TEXT_FG_LUT}, val)
     case  0x18_1840 ..= 0x18_187F:    bus.gpu0->nwrite({size, 0x18_1840, addr, ea, .TEXT_BG_LUT}, val)
+    case  0x18_1E00 ..= 0x18_1E1B:    bus.inu0->nwrite({size, 0x18_1E00, addr, ea, .MAIN       }, val)
     case  0x18_2000 ..= 0x18_277F:    bus.gpu0->nwrite({size, 0x18_2000, addr, ea, .FONT_BANK0 }, val)
     case  0x18_3690 ..= 0x18_369F:    bus.rtc0->write(size, 0x18_3690, ea, val)
     case  0x18_4000 ..= 0x18_5FFF:    bus.gpu0->nwrite({size, 0x18_4000, addr, ea, .TEXT       }, val)

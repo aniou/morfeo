@@ -59,6 +59,7 @@ Bus :: struct {
     dip_boot: u32,          // switches 1, 2 and 8
 
     debug:     bool,          // enable/disable debug
+    pc:       u32,          // debug test
 
     model: union {BUS_C256, BUS_F256}
 }

@@ -5,6 +5,7 @@ import "emulator:bus"
 import "emulator:cpu"
 import "emulator:gpu"
 import "emulator:kbd"
+import "emulator:inu"
 import "emulator:pic"
 import "emulator:ps2"
 import "emulator:rtc"
@@ -28,6 +29,7 @@ f256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
     p.bus.cart0  =   ram.ram_make       ("cart0",  0x04_0000) 
     p.bus.flash0 =   ram.ram_make       ("flash0", 0x08_0000) 
     p.bus.gpu0   =   gpu.tvicky_make    ("gpu0",   pic)
+    p.bus.inu0   =   inu.inu_f256_make  ("inu0")
     p.bus.timer0 = timer.timer_f256_make("timer0", pic, 0)
     p.bus.timer1 = timer.timer_f256_make("timer1", pic, 1)
     p.cpu        =   cpu.make_w65c816   ("cpu0",   p.bus)
@@ -44,6 +46,10 @@ f256_delete :: proc(p: ^Platform) {
     p.bus.gpu0->delete()
     // p.bus.pic->delete()
     p.bus.ram0->delete()
+    p.bus.ram1->delete()
+    p.bus.ram2->delete()
+    p.bus.ram3->delete()
+    p.bus.inu0->delete()
     // p.bus.rtc->delete()
          p.cpu->delete()
          p.bus->delete()
