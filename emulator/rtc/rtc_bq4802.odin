@@ -34,6 +34,29 @@ BITS :: emu.Bitsize
   Microsecond :: 1000 * Nanosecond
                  1 μs = 10-6 s = 1/1 000 000 s
 
+  - XXX: fix situation, where a bad values are accepted by module and lead
+    to crash due following sequence:
+
+    [DEBUG] --- rtc0 bq4802 write8 e0   to 183693  RTC_ALRM_MIN   
+	[DEBUG] --- rtc0 bq4802 write8 a0   to 183692  RTC_MIN        
+	[DEBUG] --- rtc0 bq4802 write8 20   to 183691  RTC_ALRM_SEC   
+	[DEBUG] --- rtc0 bq4802 write8 00   to 183690  RTC_SEC        
+	[DEBUG] --- rtc0 bq4802 write8 e0   to 183697  RTC_ALRM_DAY   
+	[DEBUG] --- rtc0 bq4802 write8 a0   to 183696  RTC_DAY        
+	[DEBUG] --- rtc0 bq4802 write8 20   to 183695  RTC_ALRM_HOUR  
+	[DEBUG] --- rtc0 bq4802 write8 40   to 183694  RTC_HOUR       
+	[DEBUG] --- rtc0 bq4802 write8 e0   to 18369b  RTC_RATES      
+	[DEBUG] --- rtc0 bq4802 write8 a0   to 18369a  RTC_YEAR       
+	[DEBUG] --- rtc0 bq4802 write8 20   to 183699  RTC_MONTH      
+	[DEBUG] --- rtc0 bq4802 write8 80   to 183698  RTC_DAY_OF_WEEK
+	[WARN ] --- rtc0 bq4802 write8 80   to 183698  RTC_DAY_OF_WEEK does nothing
+	[DEBUG] --- rtc0 bq4802 write8 e0   to 18369f  RTC_CENTURY    
+	[DEBUG] --- rtc0 bq4802 write8 a0   to 18369e  RTC_CTRL       
+	[DEBUG] --- rtc0 bq4802 write8 20   to 18369d  RTC_FLAGS      
+	[DEBUG] --- rtc0 bq4802 write8 c0   to 18369c  RTC_ENABLES    
+	[DEBUG] --- rtc0 bq4802 140100-20-100 (4) 40:100:1 (uti: false)
+	[DEBUG] --- rtc0 bq4802 140100-20-100 (4) 40:100:2 (uti: false)
+
 */
 
 Register_bq4802 :: enum u32 {
@@ -75,8 +98,8 @@ REGISTERS :: [?]string {
 }
 
 BQ4802_Rates :: bit_field u32 {
-    periodic:           int | 4,
-    watchdog:           int | 3,
+    periodic:          uint | 4,
+    watchdog:          uint | 3,
 }
 
 BQ4802_Flags :: bit_field u32 {
@@ -238,7 +261,7 @@ bq4802_write :: proc(r: ^RTC, mode: BITS, base, busaddr, val: u32) {
         emu.unsupported_write_size(#procedure, r.name, r.id, mode, busaddr, val)
     } 
 
-    //log.debugf("%s bq4802 write%d %02x   to %x  %-15s", r.name, mode, val, busaddr, addr_name(addr))
+    log.debugf("%s bq4802 write%d %02x   to %x  %-15s", r.name, mode, val, busaddr, addr_name(addr))
     switch Register_bq4802(addr) {
     case .RTC_SEC        : r.pub.second   = time_from_bcd(val)
     case .RTC_ALRM_SEC   : r.alarm.second = time_from_bcd(val)
@@ -308,7 +331,8 @@ bq4802_worker_clock :: proc(p: rawptr) {
                 r.own.dow.val += 1
                 r.own.dow.val &= 7
                 r.own.day.val         += 1
-                if r.own.day.val      <= r.days[r.own.month.val - 1] do break clock
+                previous_month        := 11 if r.own.month.val == 0 else r.own.month.val - 1
+                if r.own.day.val      <= r.days[previous_month] do break clock
                 r.own.day.val          = 1
 
                 r.own.month.val       += 1
@@ -344,11 +368,9 @@ bq4802_worker_clock :: proc(p: rawptr) {
                 //            r.name, r.own.day.val, r.own.hour.val, r.own.minute.val, r.own.second.val)
             }
 
-            /*
             log.debugf("%s bq4802 %2d%2d-%2d-%2d (%d) %d:%d:%d (uti: %v)", r.name, 
                         r.own.century.val, r.own.year.val, r.own.month.val, r.own.day.val, r.own.dow.val,
                         r.own.hour.val, r.own.minute.val, r.own.second.val, r.control.uti)
-            */
 
             time.sleep(time.Second)
         }
