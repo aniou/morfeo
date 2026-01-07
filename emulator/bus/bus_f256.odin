@@ -104,6 +104,7 @@ f256_read_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32 
     case  0x18_1650 ..= 0x18_1657:  val = bus.timer0->read(size, 0x18_1650, ea)
     case  0x18_1658 ..= 0x18_165F:  val = bus.timer1->read(size, 0x18_1658, ea)
     case  0x18_1660 ..= 0x18_166E:  val =  bus.pic0->nread({size, 0x18_1660, addr, ea, .MAIN})
+    case  0x18_1690 ..= 0x18_169F:  val =  bus.rtc0->read(size, 0x18_1690, ea)
     case  0x18_16A7 ..= 0x18_16AF:  val = b.machine_id[ea - 0x18_16A7]
     case  0x18_16EB ..= 0x18_16EF:  val = b.pcb_id[ea - 0x18_16EB]
     case  0x18_1800 ..= 0x18_183F:  val =  bus.gpu0->nread({size, 0x18_1800, addr, ea, .TEXT_FG_LUT})
@@ -111,7 +112,6 @@ f256_read_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr: u32) -> (val: u32 
     case  0x18_1D63              :  val = 1 // XXX: just for test
     case  0x18_1DC0 ..= 0x18_1DC3:  val =  bus.kbd0->nread({size, 0x18_1DC0, addr, ea, .MAIN})
     case  0x18_1E00 ..= 0x18_1E1B:  val =  bus.inu0->nread({size, 0x18_1E00, addr, ea, .MAIN})
-    case  0x18_3690 ..= 0x18_369F:  val =  bus.rtc0->read(size, 0x18_3690, ea)
     case  0x18_4000 ..= 0x18_5FFF:  val = bus.gpu0->nread({size, 0x18_4000, addr, ea, .TEXT       })
     case  0x18_6000 ..= 0x18_7FFF:  val = bus.gpu0->nread({size, 0x18_6000, addr, ea, .TEXT_COLOR })
     case  0x18_0000 ..= 0x18_FFFF:  emu.read_not_implemented(#procedure, "bus0", {size, 0x18_0000, addr, ea, .UNKN})
@@ -178,11 +178,13 @@ f256_write_via_mmu :: proc(bus: ^Bus, size: emu.Bitsize, addr, val: u32) {
     case  0x18_1650 ..= 0x18_1657:  bus.timer0->write(size, 0x18_1650, ea, val)
     case  0x18_1658 ..= 0x18_165F:  bus.timer1->write(size, 0x18_1658, ea, val)
     case  0x18_1660 ..= 0x18_166E:    bus.pic0->nwrite({size, 0x18_1660, addr, ea, .MAIN       }, val)
+    case  0x18_1690 ..= 0x18_169F:    bus.rtc0->write(size, 0x18_1690, ea, val)
     case  0x18_1800 ..= 0x18_183F:    bus.gpu0->nwrite({size, 0x18_1800, addr, ea, .TEXT_FG_LUT}, val)
     case  0x18_1840 ..= 0x18_187F:    bus.gpu0->nwrite({size, 0x18_1840, addr, ea, .TEXT_BG_LUT}, val)
     case  0x18_1E00 ..= 0x18_1E1B:    bus.inu0->nwrite({size, 0x18_1E00, addr, ea, .MAIN       }, val)
     case  0x18_2000 ..= 0x18_277F:    bus.gpu0->nwrite({size, 0x18_2000, addr, ea, .FONT_BANK0 }, val)
-    case  0x18_3690 ..= 0x18_369F:    bus.rtc0->write(size, 0x18_3690, ea, val)
+    // bad one, keep for testing fix in module
+    //case  0x18_3690 ..= 0x18_369F:    bus.rtc0->write(size, 0x18_3690, ea, val)
     case  0x18_4000 ..= 0x18_5FFF:    bus.gpu0->nwrite({size, 0x18_4000, addr, ea, .TEXT       }, val)
     case  0x18_6000 ..= 0x18_7FFF:    bus.gpu0->nwrite({size, 0x18_6000, addr, ea, .TEXT_COLOR }, val)
     case  0x18_0000 ..= 0x18_FFFF:  emu.write_not_implemented(#procedure, "bus0", {size, 0x18_0000, addr, ea, .UNKN}, val)
