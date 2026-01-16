@@ -421,7 +421,7 @@ math_test :: proc(p: ^platform.Platform) -> (ok: bool) {
     c->setpc(0x400)
     for {
         c->run(3000)
-        if c.in_stp do break
+        if c.in_stp do break  // we use modified code, STP is used to finish
     }
 
     status := p.bus.ram0->read(.bits_8, 0x00, 0x0b)
