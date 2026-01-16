@@ -8,13 +8,14 @@ import "emulator:ram"
 import "core:fmt"
 import "core:log"
 
-test816_make :: proc() -> ^Platform {
+test816_make   :: proc() -> ^Platform {
     p          := new(Platform)
     pic        := pic.pic_c256_make ("pic0")
     p.bus       = bus.test816_make  ("bus0", pic)
     p.bus.ram0  = ram.ram_make      ("ram0", 256 * 65536)      // 16 megabytes
     p.cpu       = cpu.make_w65c816  ("cpu0", p.bus)
 
+    p.init      = test816_init
     p.delete    = test816_delete
     return p
 }
@@ -29,4 +30,7 @@ test816_delete :: proc(p: ^Platform) {
     return
 }
 
+test816_init   :: proc(p: ^Platform) {
+    log.errorf("%s not implemented", #procedure)
+}
 
