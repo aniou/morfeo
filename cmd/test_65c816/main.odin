@@ -295,6 +295,7 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, mode: string, 
     // do work
     count       := 0
     c           := &p.cpu.model.(cpu.CPU_65xxx) 
+    c.in_stp     = false
     start       := time.tick_now() 
     test_cycles :  int
     for test in tests {
@@ -420,7 +421,7 @@ math_test :: proc(p: ^platform.Platform) -> (ok: bool) {
     c->setpc(0x400)
     for {
         c->run(3000)
-        if c.abort do break
+        if c.in_stp do break
     }
 
     status := p.bus.ram0->read(.bits_8, 0x00, 0x0b)
@@ -440,7 +441,25 @@ math_test :: proc(p: ^platform.Platform) -> (ok: bool) {
     return true
 }
 
+// a simple, but unreliable due to impact from cpu cache,
+// test for a bus speed (even if a this routine shows an
+// improvement like 50% then real load may be 20% slower)
+//
+bus_test :: proc(p: ^platform.Platform, name: string) {
+    val : u32
+    rounds := 100_000_000
+    start_time := time.tick_now()
+    for _ in 0..<rounds {
+        val = p.bus->read(.bits_8, 0x0 + u32(rounds & 0xFF_FFFF))
+        p.bus->write(.bits_8, 0xFF_FFFF - u32(rounds & 0xFF_FFFF), val)
+    }
+    elapsed := time.tick_since(start_time)
+    fmt.printfln("%s rounds %d : elapsed %5.5f : %.3e/sec", name,
+            rounds, time.duration_milliseconds(elapsed), f64(rounds) / time.duration_seconds(elapsed))
+}
+
 all_tests :: proc(p: ^platform.Platform) -> (ok: bool) {
+    bus_test(p, "bus_speed")
     math_test(p) or_return
     step_test(p) or_return
     return true
@@ -451,7 +470,6 @@ main :: proc() {
     context.logger  = log.create_console_logger(opt = logger_options) 
 
     // init -------------------------------------------------------------
-    //log.info("Running...")
     p       := platform.test816_make()
     c       := &p.cpu.model.(cpu.CPU_65xxx) 
     c.debug  = false
@@ -461,7 +479,6 @@ main :: proc() {
 
     // exiting ----------------------------------------------------------
     p->delete()
-    //log.info("Exiting...")
     log.destroy_console_logger(context.logger)
     os.exit(0)
 }
