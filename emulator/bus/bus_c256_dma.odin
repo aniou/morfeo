@@ -153,8 +153,8 @@ assign_byte4  :: #force_inline proc(dst, arg: u32) -> (val: u32) {
 @private
 c256_dma_read8 :: #force_inline proc(bus: ^BUS_C256, kind: DMATYPE, addr: u32) -> (val: u32) {
     switch kind {
-    case .SRAM:    val = bus.ram0->read(.mode_8, 0x00, addr)
-    case .VRAM:    val = bus.gpu0->read(.mode_8, 0x00, addr, .VRAM0)
+    case .SRAM:    val = bus.ram0->read(.mode_8, addr, addr)
+    case .VRAM:    val = bus.gpu0->read(.mode_8, addr, addr, .VRAM0)
     }
     return
 }
@@ -163,9 +163,9 @@ c256_dma_read8 :: #force_inline proc(bus: ^BUS_C256, kind: DMATYPE, addr: u32) -
 c256_dma_write8 :: #force_inline proc(bus: ^BUS_C256, kind: DMATYPE, addr, val: u32)        {
     switch kind {
     case .SRAM:    //log.debugf("c256_dma_write8: SRAM %04X VAL %02X", addr, val)
-                   bus.ram0->write(.mode_8, 0x00, addr, val)
+                   bus.ram0->write(.mode_8, addr, addr, val)
     case .VRAM:    //log.debugf("c256_dma_write8: VRAM %04X VAL %02X (%v)", addr, val, bus.gpu0.write)
-                   bus.gpu0->write(.mode_8, 0x00, addr, val, .VRAM0)
+                   bus.gpu0->write(.mode_8, addr, addr, val, .VRAM0)
     }
     return
 }
