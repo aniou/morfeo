@@ -413,7 +413,7 @@ read_file_f256 :: proc(p: ^Platform, fpath: string) -> (ok: bool = true) {
 
         //log.infof("%s reading %s", #procedure, line)
         for value in data {
-            p.bus.flash0->write(.mode_8, 0, position + index, u32(value))
+            p.bus.flash0->write(.mode_8, position+index, position+index, u32(value))
             index += 1
         }
         log.infof("%s file %s %d bytes read at position %08x", #procedure, fname, index, position)
