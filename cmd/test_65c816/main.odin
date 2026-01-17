@@ -96,7 +96,7 @@ prepare_test :: proc(p: ^platform.Platform, state: CPU_State) {
 
     // step 2: prepare memory
     for entry in state.ram {
-        p.bus.ram0->write(.mode_8, entry[0], entry[0], entry[1])
+        p.bus->write(.mode_8, entry[0], entry[1])
     }
 
     return
@@ -209,12 +209,12 @@ verify_test :: proc(p: ^platform.Platform, cycles: int, state: CPU_State) -> (er
     // step 3: check memory
     val : u32
     for entry in state.ram {
-        val = p.bus.ram0->read(.mode_8, entry[0], entry[0])
+        val = p.bus->read(.mode_8, entry[0])
         if val != entry[1] {
             log.errorf("MEM   %06x  %02x expected   %02x", entry[0], val, entry[1])
             err = true
         } else {
-            p.bus.ram0->write(.mode_8, entry[0], entry[0], 0)
+            p.bus->write(.mode_8, entry[0], 0)
         }
     }
 
@@ -424,7 +424,7 @@ math_test :: proc(p: ^platform.Platform) -> (ok: bool) {
         if c.in_stp do break  // we use modified code, STP is used to finish
     }
 
-    status := p.bus.ram0->read(.mode_8, 0x0b, 0x0b)
+    status := p.bus->read(.mode_8, 0x0b)
     if status == 0 {
         log.infof("65c816_decimal_test passed (%02x)", status)
     } else {
