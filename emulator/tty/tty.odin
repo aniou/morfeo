@@ -18,14 +18,12 @@ when ODIN_OS == .Linux {
     }
 }
 
-BITS :: emu.Bitsize
+MODE :: emu.OpMode
 TTY  :: struct {
-    read:     proc(^TTY, BITS, u32, u32) -> u32,
-    write:    proc(^TTY, BITS, u32, u32,    u32),
+    name:     string,
+    read:     proc(^TTY, MODE, u32, u32) -> u32,
+    write:    proc(^TTY, MODE, u32, u32,    u32),
     delete:   proc(^TTY),
-
-    name:       string,
-    id:         int,
 
     master:     os.Handle,
     slave:      os.Handle,
@@ -33,9 +31,9 @@ TTY  :: struct {
     debug:      bool,
 }
 
-tty_make :: proc(name: string) -> ^TTY {
+make_tty :: proc(name: string) -> ^TTY {
     d         := new(TTY)
-    d.delete   = tty_delete
+    d.delete   = delete_tty
     d.name     = name
 
     pty_ok    := false
@@ -49,12 +47,11 @@ tty_make :: proc(name: string) -> ^TTY {
     }
 
     if pty_ok {
-        d.read     = tty_read
-        //d.read     = tty_fake_read      // read support not ready yet
-        d.write    = tty_write
+        d.read     =  read_tty
+        d.write    = write_tty
     } else {
-        d.read     = tty_fake_read
-        d.write    = tty_fake_write
+        d.read     =  read_tty_fake
+        d.write    = write_tty_fake
         log.warnf("tty: PTY not available or not supported, using dummy routines")
     }
 
@@ -62,15 +59,15 @@ tty_make :: proc(name: string) -> ^TTY {
 }
 
 // not used yet
-tty_read :: proc(d: ^TTY, mode: BITS, base, busaddr: u32) -> (val: u32) {
+read_tty :: proc(tty: ^TTY, mode: MODE, addr, ra: u32) -> (out: u32) {
 
-    if mode != .bits_8 {
-        emu.unsupported_read_size(#procedure, d.name, d.id, mode, busaddr)
+    if mode != .mode_8 {
+        emu.error_read(tty.name, .BAD_MODE, mode, addr, ra, .NONE)
         return
     }
     v : [1]u8
 
-    _, err := os.read(d.master, v[0:])
+    _, err := os.read(tty.master, v[0:])
     if err != 0 {
         log.errorf("TTY read error: %s", err)
         return 0
@@ -79,10 +76,20 @@ tty_read :: proc(d: ^TTY, mode: BITS, base, busaddr: u32) -> (val: u32) {
     return u32(v[0])
 }
 
-tty_write :: proc(d: ^TTY, mode: BITS, base, busaddr, val: u32) {
+delete_tty :: proc(d: ^TTY) {
+    when ODIN_OS == .Linux {
+        fmt.fprintf(d.master, "\n\n\n*** exiting\n")
+        //time.sleep(time.Second * 10)
+        os.close(d.master)
+        os.close(d.slave)
+    }
+    free(d)
+}
 
-    if mode != .bits_8 {
-        emu.unsupported_write_size(#procedure, d.name, d.id, mode, busaddr, val)
+write_tty :: proc(d: ^TTY, mode: MODE, addr, ra, val: u32) {
+
+    if mode != .mode_8 {
+        emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val, .NONE)
         return
     }
 
@@ -92,24 +99,13 @@ tty_write :: proc(d: ^TTY, mode: BITS, base, busaddr, val: u32) {
     return
 }
 
-tty_fake_read :: proc(d: ^TTY, mode: BITS, base, busaddr: u32) -> (val: u32) {
-    log.warnf("tty: %6s Read  addr %6x is not implemented, 0xFF returned", d.name, busaddr)
-    return 0xFF
+read_tty_fake :: proc(d: ^TTY, mode: MODE, addr, ra: u32) -> (out: u32 = 0x55) {
+	emu.error_read(d.name, .BAD_MODE, mode, addr, ra, .NONE)
+	return
 }
 
-tty_fake_write :: proc(d: ^TTY, mode: BITS, base, busaddr, val: u32)         {
-    log.warnf("tty: %6s Write addr %6x val %2x is not implemented", d.name, busaddr, val)
-    return
-}
-
-tty_delete :: proc(d: ^TTY) {
-    when ODIN_OS == .Linux {
-        fmt.fprintf(d.master, "\n\n\n*** exiting\n")
-        //time.sleep(time.Second * 10)
-        os.close(d.master)
-        os.close(d.slave)
-    }
-    free(d)
+write_tty_fake :: proc(d: ^TTY, mode: MODE, addr, ra, val: u32)         {
+    emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val, .NONE)
 }
 
 

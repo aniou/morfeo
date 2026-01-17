@@ -1,14 +1,7 @@
 package platform
 
-import "emulator:ata"
 import "emulator:bus"
 import "emulator:cpu"
-import "emulator:gpu"
-import "emulator:inu"
-import "emulator:pic"
-import "emulator:ps2"
-import "emulator:rtc"
-import "emulator:ram"
 
 import "lib:emu"
 
@@ -19,9 +12,7 @@ Platform   :: struct {
     delete: proc(^Platform),
     init:   proc(^Platform),
 
-    cfg:    ^emu.Config,
-
+    cfg:     ^emu.Config,
     cpu:     ^cpu.CPU,
     bus:     ^bus.Bus,
-
 }

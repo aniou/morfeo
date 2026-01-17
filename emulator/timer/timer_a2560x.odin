@@ -102,15 +102,14 @@ timer_a2560x_make :: proc(name: string, pic_ctrl: ^pic.PIC, id: int) -> ^TIMER {
 }
 
 // according to behaviour from FoenixIDE
-timer_a2560x_read :: proc(d: ^TIMER, mode: BITS, base, busaddr: u32) -> (val: u32) {
+timer_a2560x_read :: proc(d: ^TIMER, mode: MODE, addr, ra: u32) -> (val: u32) {
 
-    if mode != .bits_32 {
-        emu.unsupported_read_size(#procedure, d.name, d.id, mode, busaddr)
+    if mode != .mode_32be {
+        emu.error_read(d.name, .BAD_MODE, mode, addr, ra, .NONE)
         return
     }
 
     t    := &d.model.(TIMER_A2560X)
-    addr := busaddr - base
     switch addr {
 	case TIMER_A2560X_CTRL_0  : 
         val = u32(t.tth[0].ctrl)       | 
@@ -142,15 +141,14 @@ timer_a2560x_read :: proc(d: ^TIMER, mode: BITS, base, busaddr: u32) -> (val: u3
     return
 }
 
-timer_a2560x_write :: proc(d: ^TIMER, mode: BITS, base, busaddr, val: u32) {
+timer_a2560x_write :: proc(d: ^TIMER, mode: MODE, addr, ra, val: u32) {
 
-    if mode != .bits_32 {
-        emu.unsupported_write_size(#procedure, d.name, d.id, mode, busaddr, val)
+    if mode != .mode_32be {
+        emu.error_read(d.name, .BAD_MODE, mode, addr, ra, .NONE)
         return
     }
 
     t    := &d.model.(TIMER_A2560X)
-    addr := busaddr - base
     switch addr {
 	case TIMER_A2560X_CTRL_0  : 
         //log.debugf("WRITE TIMER CTRL_0 %08x", val)

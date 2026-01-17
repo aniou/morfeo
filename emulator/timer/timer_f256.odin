@@ -60,14 +60,15 @@ TIMER_F256 :: struct {
     shutdown:     bool,           // used by thread to graceful shutdown
 }
 
-timer_f256_make :: proc(name: string, pic: ^pic.PIC, id: int) -> ^TIMER {
+make_timer_f256 :: proc(name: string, pic: ^pic.PIC, id: int) -> ^TIMER {
     timer         := new(TIMER)
     timer.name     = name
     timer.id       = id
-    timer.delete   = timer_f256_delete
-    timer.read     = timer_f256_read
-    timer.write    = timer_f256_write
-    timer.tick     = timer_f256_external_tick
+
+    timer.delete   = delete_timer_f256
+    timer.read     =   read_timer_f256
+    timer.write    =  write_timer_f256
+    timer.tick     =   tick_timer_f256_externally
     t             := TIMER_F256{timer = timer}
 
     t.pic_ctrl     = pic
@@ -78,7 +79,7 @@ timer_f256_make :: proc(name: string, pic: ^pic.PIC, id: int) -> ^TIMER {
     switch id {
     case 0: t.irq = .TIMER0
     case 1: t.irq = .TIMER1
-    case  : log.errorf("%s cannot assign IRQ for timer id %d", #procedure, id)
+    case  : log.errorf("%s cannot assign IRQ for timer name %s", #procedure, name)
     }
 
     // TIMER2 is ticked by start of frame (in fact - from SDL code)
@@ -95,26 +96,37 @@ timer_f256_make :: proc(name: string, pic: ^pic.PIC, id: int) -> ^TIMER {
     return timer
 }
 
-// according to behaviour from FoenixIDE
-timer_f256_read :: proc(d: ^TIMER, mode: BITS, base, busaddr: u32) -> (val: u32) {
+delete_timer_f256 :: proc(d: ^TIMER) {
     t    := &d.model.(TIMER_F256)
-    addr := busaddr - base
+    t.shutdown = true
+
+    // timer2 in f256 doesn't have a clock thread
+    if t.id != 2 {
+        thread.join(t.clock)
+        free(t.clock)
+    }
+
+    free(d)
+}
+
+// according to behaviour from FoenixIDE
+read_timer_f256 :: proc(d: ^TIMER, mode: MODE, addr, ra: u32) -> (out: u32) {
+    t    := &d.model.(TIMER_F256)
     switch addr {
-    case TIMER_CTRL_REG: val = 1 if t.counter == t.compare else 0
-    case TIMER_CHARGE_L: val = emu.get_byte1(t.counter)     // not charge
-    case TIMER_CHARGE_M: val = emu.get_byte2(t.counter)     // not charge
-    case TIMER_CHARGE_H: val = emu.get_byte3(t.counter)     // not charge
-    case TIMER_CMP_REG : val = u32(t.cmp)
-    case TIMER_CMP_L   : val = emu.get_byte1(t.compare)
-    case TIMER_CMP_M   : val = emu.get_byte1(t.compare)
-    case TIMER_CMP_H   : val = emu.get_byte1(t.compare)
+    case TIMER_CTRL_REG: out = 1 if t.counter == t.compare else 0
+    case TIMER_CHARGE_L: out = emu.get_byte1(t.counter)     // not charge
+    case TIMER_CHARGE_M: out = emu.get_byte2(t.counter)     // not charge
+    case TIMER_CHARGE_H: out = emu.get_byte3(t.counter)     // not charge
+    case TIMER_CMP_REG : out = u32(t.cmp)
+    case TIMER_CMP_L   : out = emu.get_byte1(t.compare)
+    case TIMER_CMP_M   : out = emu.get_byte1(t.compare)
+    case TIMER_CMP_H   : out = emu.get_byte1(t.compare)
     }
     return
 }
 
-timer_f256_write :: proc(d: ^TIMER, mode: BITS, base, busaddr, val: u32) {
+write_timer_f256 :: proc(d: ^TIMER, mode: MODE, addr, ra, val: u32) {
     t    := &d.model.(TIMER_F256)
-    addr := busaddr - base
     switch addr {
     case TIMER_CTRL_REG: 
         t.ctrl       = cast(Timer_f256_ctrl) val
@@ -135,25 +147,12 @@ timer_f256_write :: proc(d: ^TIMER, mode: BITS, base, busaddr, val: u32) {
     }
 }
 
-timer_f256_delete :: proc(d: ^TIMER) {
+tick_timer_f256_externally :: proc(d: ^TIMER, id: int = 0) {
     t    := &d.model.(TIMER_F256)
-    t.shutdown = true
-
-    // timer2 in f256 doesn't have a clock thread
-    if t.id != 2 {
-        thread.join(t.clock)
-        free(t.clock)
-    }
-
-    free(d)
+    tick_timer_f256_internally(t)
 }
 
-timer_f256_external_tick :: proc(d: ^TIMER, id: int = 0) {
-    t    := &d.model.(TIMER_F256)
-    timer_f256_internal_tick(t)
-}
-
-timer_f256_internal_tick :: proc(t: ^TIMER_F256) {
+tick_timer_f256_internally :: proc(t: ^TIMER_F256) {
     if !t.ctrl.enabled {
         return
     }
@@ -198,7 +197,7 @@ timer_f256_worker_proc :: proc(p: rawptr) {
         log.debugf("%s TIMER thread created, shutdown is %v", t.name, t.shutdown)
         for !t.shutdown {
             time.sleep(t.sleep)
-            timer_f256_internal_tick(t)
+            tick_timer_f256_internally(t)
         }
         log.debugf("%s TIMER shutdown clock thread", t.name)
         log.destroy_console_logger(context.logger)

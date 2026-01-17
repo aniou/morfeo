@@ -215,7 +215,7 @@ m68k_cpu_irq_ack :: proc "c" (level: uint) -> uint {
 m68k_read_disassembler_16 :: proc "c" (address: uint) -> uint {
     context = ctx
 
-    val := uint(localbus->read(.bits_16, u32(address)))
+    val := uint(localbus->read(.mode_16be, u32(address)))
     return val
 }
 
@@ -223,7 +223,7 @@ m68k_read_disassembler_16 :: proc "c" (address: uint) -> uint {
 m68k_read_disassembler_32 :: proc "c" (address: uint) -> uint {
     context = ctx
 
-    val := uint(localbus->read(.bits_32, u32(address)))
+    val := uint(localbus->read(.mode_32be, u32(address)))
     return val
 }
 
@@ -232,7 +232,7 @@ m68k_read_memory_8 :: proc "c" (address: uint) -> uint {
     context = ctx
     //spall.SCOPED_EVENT(&bus.spall_ctx, &bus.spall_buffer, #procedure)
 
-    val := uint(localbus->read(.bits_8, u32(address)))
+    val := uint(localbus->read(.mode_8, u32(address)))
 
     return val
 }
@@ -242,7 +242,7 @@ m68k_read_memory_16 :: proc "c" (address: uint) -> uint {
     context = ctx
     //spall.SCOPED_EVENT(&bus.spall_ctx, &bus.spall_buffer, #procedure)
 
-    val := uint(localbus->read(.bits_16, u32(address)))
+    val := uint(localbus->read(.mode_16be, u32(address)))
     return val
 }
 
@@ -251,7 +251,7 @@ m68k_read_memory_32 :: proc "c" (address: uint) -> uint {
     context = ctx
     //spall.SCOPED_EVENT(&bus.spall_ctx, &bus.spall_buffer, #procedure)
 
-    val := uint(localbus->read(.bits_32, u32(address)))
+    val := uint(localbus->read(.mode_32be, u32(address)))
     return val
 }
 
@@ -259,7 +259,7 @@ m68k_read_memory_32 :: proc "c" (address: uint) -> uint {
 m68k_write_memory_8 :: proc "c" (address: uint, value: uint) {
     context = ctx
 
-    localbus->write(.bits_8, u32(address), u32(value))
+    localbus->write(.mode_8, u32(address), u32(value))
     return
 }
 
@@ -267,7 +267,7 @@ m68k_write_memory_8 :: proc "c" (address: uint, value: uint) {
 m68k_write_memory_16 :: proc "c" (address: uint, value: uint) {
     context = ctx
 
-    localbus->write(.bits_16, u32(address), u32(value))
+    localbus->write(.mode_16be, u32(address), u32(value))
 
     return
 }
@@ -276,7 +276,7 @@ m68k_write_memory_16 :: proc "c" (address: uint, value: uint) {
 m68k_write_memory_32 :: proc "c" (address: uint, value: uint) {
     context = ctx
 
-    localbus->write(.bits_32, u32(address), u32(value))
+    localbus->write(.mode_32be, u32(address), u32(value))
 
     return
 }

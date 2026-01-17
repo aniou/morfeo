@@ -35,32 +35,30 @@ else                                { PLATFORM_ID :: 0xFF             // silly w
                                       PS2_END     :: 0x04 }
 
 BUS_C256 :: struct {
-    using bus: ^Bus,
-    vdma:       DMA,
-    sdma:       DMA,
-    sys_stat:   u32,   // GABE_SYS_STAT
+    using entity: ^Bus,
+    vdma:          DMA,
+    sdma:          DMA,
+    sys_stat:      u32,   // GABE_SYS_STAT
 }
 
 c256_make :: proc(name: string, pic: ^pic.PIC, config: ^emu.Config) -> ^Bus {
-    d         := new(Bus)
-    d.name     = name
-    d.pic0     = pic
-    d.delete   = c256_delete
-    d.debug    = false
-    d.read     = c256_read
-    d.write    = c256_write
-    d.dip_boot = (transmute(u32)config.dipoff & 0b1000_0011)       // only boot and hdd switches here
-    d.dip_user = (transmute(u32)config.dipoff & 0b0001_1100) >> 2  // user: 3-5
+    bus         := new(Bus)
+    bus.name     = name
+    bus.pic0     = pic
+    bus.debug    = false
+    bus.dip_boot = (transmute(u32)config.dipoff & 0b1000_0011)       // only boot and hdd switches here
+    bus.dip_user = (transmute(u32)config.dipoff & 0b0001_1100) >> 2  // user: 3-5
+    bus.model    = BUS_C256{
+        sdma     = DMA{},
+        vdma     = DMA{},
+        sys_stat = PLATFORM_ID | 0x10 // 0x10 for expansion card present - XXX - parametrize that
+    }
 
-    b            := BUS_C256{sdma = DMA{}, vdma = DMA{}}
-    b.sys_stat    = PLATFORM_ID | 0x10 // 0x10 for expansion card present - XXX - parametrize that
-
-    d.model       = b
-    return d
+    return bus
 }
 
-c256_delete :: proc(bus: ^Bus) {
-    free(bus)
+delete_c256 :: proc(b: ^Bus) {
+    //delete(b)
     return
 }
 
@@ -84,118 +82,107 @@ c256_delete :: proc(bus: ^Bus) {
 // $f0:0000 - $f7:ffff - 512KB System Flash
 // $f8:0000 - $ff:ffff - 512KB User Flash (if populated)
 
-c256_read :: proc(bus: ^Bus, size: BITS, addr: u32) -> (val: u32) {
-    b  := &bus.model.(BUS_C256) // silly workaround
-
-    //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
+c256_read :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
+    b  := &bus.model.(BUS_C256)  // temporary workaround
+    //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer)
     //log.debugf("%s read     from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
 
-    switch addr {
-    case 0x00_0100 ..= 0x00_012B:  val =   bus.inu0->read(size, 0x00_0100, addr)
-    case 0x00_0140 ..= 0x00_014F:  val =   bus.pic0->read(size, 0x00_0140, addr)
-    case 0x00_0160 ..= 0x00_0167:  val = bus.timer0->read(size, 0x00_0160, addr)
-    case 0x00_0168 ..= 0x00_016F:  val = bus.timer1->read(size, 0x00_0168, addr)
-    case 0x00_0170 ..= 0x00_0177:  val = bus.timer2->read(size, 0x00_0170, addr)
-    case 0x00_0000 ..= SRAM_END :  val =   bus.ram0->read(size, 0x00_0000, addr)  // 2 or 4 MB
-    case PS2_START ..= PS2_END  :  val =   bus.ps20->read(size, PS2_START, addr)  // AF_1803-7 or AF_1060-4
+    switch ra {
+    case 0x00_0100 ..= 0x00_012B:  out =   bus.inu0->read(mode, ra - 0x00_0100, ra)
+    case 0x00_0140 ..= 0x00_014F:  out =   bus.pic0->read(mode, ra - 0x00_0140, ra)
+    case 0x00_0160 ..= 0x00_0167:  out = bus.timer0->read(mode, ra - 0x00_0160, ra)
+    case 0x00_0168 ..= 0x00_016F:  out = bus.timer1->read(mode, ra - 0x00_0168, ra)
+    case 0x00_0170 ..= 0x00_0177:  out = bus.timer2->read(mode, ra - 0x00_0170, ra)
+    case 0x00_0000 ..= SRAM_END :  out =   bus.ram0->read(mode, ra - 0x00_0000, ra)  // 2 or 4 MB
+    case PS2_START ..= PS2_END  :  out =   bus.ps20->read(mode, ra - PS2_START, ra)  // AF_1803-7 or AF_1060-4
 
-    case 0xAE_0000 ..= 0xAE_001F:  val =   bus.gpu1->read(size, 0xAE_0000, addr, .ID_CARD    )
-    case 0xAE_1000 ..= 0xAE_17FF:  val =   bus.gpu1->read(size, 0xAE_1000, addr, .FONT_BANK0 )
-    case 0xAE_1B00 ..= 0xAE_1B3F:  val =   bus.gpu1->read(size, 0xAE_1B00, addr, .TEXT_FG_LUT)
-    case 0xAE_1B40 ..= 0xAE_1B7F:  val =   bus.gpu1->read(size, 0xAE_1B40, addr, .TEXT_BG_LUT)
-    case 0xAE_1E00 ..= 0xAE_1E1F:  val =   bus.gpu1->read(size, 0xAE_1E00, addr, .MAIN       )
-    case 0xAE_2000 ..= 0xAE_3FFF:  val =   bus.gpu1->read(size, 0xAE_2000, addr, .TEXT       )
-    case 0xAE_4000 ..= 0xAE_5FFF:  val =   bus.gpu1->read(size, 0xAE_4000, addr, .TEXT_COLOR )
+    case 0xAE_0000 ..= 0xAE_001F:  out =   bus.gpu1->read(mode, ra - 0xAE_0000, ra, .ID_CARD    )
+    case 0xAE_1000 ..= 0xAE_17FF:  out =   bus.gpu1->read(mode, ra - 0xAE_1000, ra, .FONT_BANK0 )
+    case 0xAE_1B00 ..= 0xAE_1B3F:  out =   bus.gpu1->read(mode, ra - 0xAE_1B00, ra, .TEXT_FG_LUT)
+    case 0xAE_1B40 ..= 0xAE_1B7F:  out =   bus.gpu1->read(mode, ra - 0xAE_1B40, ra, .TEXT_BG_LUT)
+    case 0xAE_1E00 ..= 0xAE_1E1F:  out =   bus.gpu1->read(mode, ra - 0xAE_1E00, ra, .MAIN       )
+    case 0xAE_2000 ..= 0xAE_3FFF:  out =   bus.gpu1->read(mode, ra - 0xAE_2000, ra, .TEXT       )
+    case 0xAE_4000 ..= 0xAE_5FFF:  out =   bus.gpu1->read(mode, ra - 0xAE_4000, ra, .TEXT_COLOR )
 
-    case 0xAF_0200 ..= 0xAF_022F:  val =   bus.gpu0->read(size, 0xAF_0200, addr, .TILEMAP    )
-    case 0xAF_0280 ..= 0xAF_029F:  val =   bus.gpu0->read(size, 0xAF_0280, addr, .TILESET    )
-    case 0xAF_0400 ..= 0xAF_040F:  val =    c256_dma_read(bus, size, addr)
-    case 0xAF_0420 ..= 0xAF_0430:  val =    c256_dma_read(bus, size, addr)
-    case 0xAF_0500 ..= 0xAF_05FF:  val =   bus.gpu0->read(size, 0xAF_0500, addr, .MOUSEPTR0  )
-    case 0xAF_0600 ..= 0xAF_06FF:  val =   bus.gpu0->read(size, 0xAF_0600, addr, .MOUSEPTR1  )
-    case 0xAF_0000 ..= 0xAF_07FF:  val =   bus.gpu0->read(size, 0xAF_0000, addr, .MAIN_A     )
-    case 0xAF_0800 ..= 0xAF_080F:  val =   bus.rtc0->read(size, 0xAF_0800, addr)
-    case 0xAF_1F40 ..= 0xAF_1F7F:  val =   bus.gpu0->read(size, 0xAF_1F40, addr, .TEXT_FG_LUT)
-    case 0xAF_1F80 ..= 0xAF_1FFF:  val =   bus.gpu0->read(size, 0xAF_1F80, addr, .TEXT_BG_LUT)
-    case 0xAF_2000 ..= 0xAF_3FFF:  val =   bus.gpu0->read(size, 0xAF_1F80, addr, .LUT        )
-    case 0xAF_8000 ..= 0xAF_87FF:  val =   bus.gpu0->read(size, 0xAF_8000, addr, .FONT_BANK0 )
-    case 0xAF_A000 ..= 0xAF_BFFF:  val =   bus.gpu0->read(size, 0xAF_A000, addr, .TEXT       )
-    case 0xAF_C000 ..= 0xAF_DFFF:  val =   bus.gpu0->read(size, 0xAF_C000, addr, .TEXT_COLOR )
-    case 0xAF_E400 ..= 0xAF_E41f:  val =   0    // SID0 - silence it for a while
-    case 0xAF_E800              :  val =   bus.joy0->read(size, 0xAF_E800, addr)
-    case 0xAF_E80D              :  val =   bus.dip_user
-    case 0xAF_E80E              :  val =   bus.dip_boot
-    case 0xAF_E830 ..= 0xAF_E839:  val =   bus.ata0->read(size, 0xAF_E830, addr)
-    case 0xAF_E884 ..= 0xAF_E885:  val =    bus.rng->read(size, 0xAF_E884, addr)
-    case 0xAF_E887              :  val =   b.sys_stat
-    case 0xAF_E000 ..= 0xAF_FFFF:  emu.read_not_implemented(#procedure, "io",     size, addr)
-    case 0xB0_0000 ..= VRAM_END :  val =   bus.gpu0->read(size, 0xB0_0000, addr, .VRAM0      ) // 2 or 4MB
-    case 0xF0_0000 ..= 0xF7_FFFF:  emu.read_not_implemented(#procedure, "flash0", size, addr)
-    case 0xF8_0000 ..= 0xFF_FFFF:  emu.read_not_implemented(#procedure, "flash1", size, addr)
-    case                        :  c256_bus_error(bus, "read", size, addr)
+    case 0xAF_0200 ..= 0xAF_022F:  out =   bus.gpu0->read(mode, ra - 0xAF_0200, ra, .TILEMAP    )
+    case 0xAF_0280 ..= 0xAF_029F:  out =   bus.gpu0->read(mode, ra - 0xAF_0280, ra, .TILESET    )
+    case 0xAF_0400 ..= 0xAF_040F:  out =    c256_dma_read(b, mode, ra - 0xAF_0400)
+    case 0xAF_0420 ..= 0xAF_0430:  out =    c256_dma_read(b, mode, ra - 0xAF_0420)
+    case 0xAF_0500 ..= 0xAF_05FF:  out =   bus.gpu0->read(mode, ra - 0xAF_0500, ra, .MOUSEPTR0  )
+    case 0xAF_0600 ..= 0xAF_06FF:  out =   bus.gpu0->read(mode, ra - 0xAF_0600, ra, .MOUSEPTR1  )
+    case 0xAF_0000 ..= 0xAF_07FF:  out =   bus.gpu0->read(mode, ra - 0xAF_0000, ra, .MAIN_A     )
+    case 0xAF_0800 ..= 0xAF_080F:  out =   bus.rtc0->read(mode, ra - 0xAF_0800, ra)
+    case 0xAF_1F40 ..= 0xAF_1F7F:  out =   bus.gpu0->read(mode, ra - 0xAF_1F40, ra, .TEXT_FG_LUT)
+    case 0xAF_1F80 ..= 0xAF_1FFF:  out =   bus.gpu0->read(mode, ra - 0xAF_1F80, ra, .TEXT_BG_LUT)
+    case 0xAF_2000 ..= 0xAF_3FFF:  out =   bus.gpu0->read(mode, ra - 0xAF_1F80, ra, .LUT        )
+    case 0xAF_8000 ..= 0xAF_87FF:  out =   bus.gpu0->read(mode, ra - 0xAF_8000, ra, .FONT_BANK0 )
+    case 0xAF_A000 ..= 0xAF_BFFF:  out =   bus.gpu0->read(mode, ra - 0xAF_A000, ra, .TEXT       )
+    case 0xAF_C000 ..= 0xAF_DFFF:  out =   bus.gpu0->read(mode, ra - 0xAF_C000, ra, .TEXT_COLOR )
+    case 0xAF_E400 ..= 0xAF_E41f:  out =   0    // SID0 - silence it for a while
+    case 0xAF_E800              :  out =   bus.joy0->read(mode, ra - 0xAF_E800, ra)
+    case 0xAF_E80D              :  out =   b.dip_user
+    case 0xAF_E80E              :  out =   b.dip_boot
+    case 0xAF_E830 ..= 0xAF_E839:  out =   bus.ata0->read(mode, ra - 0xAF_E830, ra)
+    case 0xAF_E884 ..= 0xAF_E885:  out =    bus.rng->read(mode, ra - 0xAF_E884, ra)
+    case 0xAF_E887              :  out =   b.sys_stat
+    case 0xAF_E000 ..= 0xAF_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra - 0xAF_E000, ra, .IO)
+    case 0xB0_0000 ..= VRAM_END :  out =   bus.gpu0->read(mode, ra - 0xB0_0000, ra, .VRAM0      ) // 2 or 4MB
+    case 0xF0_0000 ..= 0xF7_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra - 0xF0_0000, ra, .FLASH0)
+    case 0xF8_0000 ..= 0xFF_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra - 0xF8_0000, ra, .FLASH1)
+    case                        :  emu.error_read(bus.name, .NOT_IMPL, mode, ra            , ra, .NONE)
     }
 
     if bus.debug {
-        log.debugf("%s read%d  %08x from 0x %04X:%04X", bus.name, size, val, u16(addr >> 16), u16(addr & 0x0000_ffff))
+        log.debugf("%s read%d  %08x from 0x %04X:%04X", bus.name, mode, out, u16(ra >> 16), u16(ra & 0x0000_ffff))
     }
     return
 }
 
-c256_write :: proc(bus: ^Bus, size: BITS, addr, val: u32) {
-    //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
+c256_write :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
+    b  := &bus.model.(BUS_C256)  // temporary workaround
+    //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer)
     if bus.debug {
-        log.debugf("%s write%d %08x   to 0x %04X:%04X", bus.name, size, val, u16(addr >> 16), u16(addr & 0x0000_ffff))
+        log.debugf("%s write%d %08x   to 0x %04X:%04X", bus.name, mode, val, u16(ra >> 16), u16(ra & 0x0000_ffff))
     }
 
-    switch addr {
-    case 0x00_0100 ..= 0x00_012B:    bus.inu0->write(size, 0x00_0100, addr, val)
-    case 0x00_0140 ..= 0x00_014F:    bus.pic0->write(size, 0x00_0140, addr, val)
-    case 0x00_0160 ..= 0x00_0167:  bus.timer0->write(size, 0x00_0160, addr, val)
-    case 0x00_0168 ..= 0x00_016F:  bus.timer1->write(size, 0x00_0168, addr, val)
-    case 0x00_0170 ..= 0x00_0177:  bus.timer2->write(size, 0x00_0170, addr, val)
-    case 0x00_0000 ..= SRAM_END :    bus.ram0->write(size, 0x00_0000, addr, val)
-    case PS2_START ..= PS2_END  :    bus.ps20->write(size, PS2_START, addr, val)
+    switch ra {
+    case 0x00_0100 ..= 0x00_012B:    bus.inu0->write(mode, ra - 0x00_0100, ra, val)
+    case 0x00_0140 ..= 0x00_014F:    bus.pic0->write(mode, ra - 0x00_0140, ra, val)
+    case 0x00_0160 ..= 0x00_0167:  bus.timer0->write(mode, ra - 0x00_0160, ra, val)
+    case 0x00_0168 ..= 0x00_016F:  bus.timer1->write(mode, ra - 0x00_0168, ra, val)
+    case 0x00_0170 ..= 0x00_0177:  bus.timer2->write(mode, ra - 0x00_0170, ra, val)
+    case 0x00_0000 ..= SRAM_END :    bus.ram0->write(mode, ra - 0x00_0000, ra, val)
+    case PS2_START ..= PS2_END  :    bus.ps20->write(mode, ra - PS2_START, ra, val)
 
-    case 0xAE_1000 ..= 0xAE_17FF:    bus.gpu1->write(size, 0xAE_1000, addr, val, .FONT_BANK0 )
-    case 0xAE_1B00 ..= 0xAE_1B3F:    bus.gpu1->write(size, 0xAE_1B00, addr, val, .TEXT_FG_LUT)
-    case 0xAE_1B40 ..= 0xAE_1B7F:    bus.gpu1->write(size, 0xAE_1B40, addr, val, .TEXT_BG_LUT)
-    case 0xAE_1E00 ..= 0xAE_1E1F:    bus.gpu1->write(size, 0xAE_1E00, addr, val, .MAIN       )
-    case 0xAE_2000 ..= 0xAE_3FFF:    bus.gpu1->write(size, 0xAE_2000, addr, val, .TEXT       )
-    case 0xAE_4000 ..= 0xAE_5FFF:    bus.gpu1->write(size, 0xAE_4000, addr, val, .TEXT_COLOR )
+    case 0xAE_1000 ..= 0xAE_17FF:    bus.gpu1->write(mode, ra - 0xAE_1000, ra, val, .FONT_BANK0 )
+    case 0xAE_1B00 ..= 0xAE_1B3F:    bus.gpu1->write(mode, ra - 0xAE_1B00, ra, val, .TEXT_FG_LUT)
+    case 0xAE_1B40 ..= 0xAE_1B7F:    bus.gpu1->write(mode, ra - 0xAE_1B40, ra, val, .TEXT_BG_LUT)
+    case 0xAE_1E00 ..= 0xAE_1E1F:    bus.gpu1->write(mode, ra - 0xAE_1E00, ra, val, .MAIN       )
+    case 0xAE_2000 ..= 0xAE_3FFF:    bus.gpu1->write(mode, ra - 0xAE_2000, ra, val, .TEXT       )
+    case 0xAE_4000 ..= 0xAE_5FFF:    bus.gpu1->write(mode, ra - 0xAE_4000, ra, val, .TEXT_COLOR )
 
-    case 0xAF_0200 ..= 0xAF_022F:    bus.gpu0->write(size, 0xAF_0200, addr, val, .TILEMAP    )
-    case 0xAF_0280 ..= 0xAF_029F:    bus.gpu0->write(size, 0xAF_0280, addr, val, .TILESET    )
-    case 0xAF_0400 ..= 0xAF_040F:    c256_dma_write(bus, size, addr, val)
-    case 0xAF_0420 ..= 0xAF_0430:    c256_dma_write(bus, size, addr, val)
-    case 0xAF_0500 ..= 0xAF_05FF:    bus.gpu0->write(size, 0xAF_0500, addr, val, .MOUSEPTR0  )
-    case 0xAF_0600 ..= 0xAF_06FF:    bus.gpu0->write(size, 0xAF_0600, addr, val, .MOUSEPTR1  )
-    case 0xAF_0000 ..= 0xAF_07FF:    bus.gpu0->write(size, 0xAF_0000, addr, val, .MAIN_A     )
-    case 0xAF_0800 ..= 0xAF_080F:    bus.rtc0->write(size, 0xAF_0800, addr, val)
-    case 0xAF_1F40 ..= 0xAF_1F7F:    bus.gpu0->write(size, 0xAF_1F40, addr, val, .TEXT_FG_LUT)
-    case 0xAF_1F80 ..= 0xAF_1FFF:    bus.gpu0->write(size, 0xAF_1F80, addr, val, .TEXT_BG_LUT)
-    case 0xAF_2000 ..= 0xAF_3FFF:    bus.gpu0->write(size, 0xAF_2000, addr, val, .LUT        )
-    case 0xAF_8000 ..= 0xAF_87FF:    bus.gpu0->write(size, 0xAF_8000, addr, val, .FONT_BANK0 )
-    case 0xAF_A000 ..= 0xAF_BFFF:    bus.gpu0->write(size, 0xAF_A000, addr, val, .TEXT       )
-    case 0xAF_C000 ..= 0xAF_DFFF:    bus.gpu0->write(size, 0xAF_C000, addr, val, .TEXT_COLOR )
+    case 0xAF_0200 ..= 0xAF_022F:    bus.gpu0->write(mode, ra - 0xAF_0200, ra, val, .TILEMAP    )
+    case 0xAF_0280 ..= 0xAF_029F:    bus.gpu0->write(mode, ra - 0xAF_0280, ra, val, .TILESET    )
+    case 0xAF_0400 ..= 0xAF_040F:    c256_dma_write(b, mode, ra - 0xAF_0400, val)
+    case 0xAF_0420 ..= 0xAF_0430:    c256_dma_write(b, mode, ra - 0xAF_0420, val)
+    case 0xAF_0500 ..= 0xAF_05FF:    bus.gpu0->write(mode, ra - 0xAF_0500, ra, val, .MOUSEPTR0  )
+    case 0xAF_0600 ..= 0xAF_06FF:    bus.gpu0->write(mode, ra - 0xAF_0600, ra, val, .MOUSEPTR1  )
+    case 0xAF_0000 ..= 0xAF_07FF:    bus.gpu0->write(mode, ra - 0xAF_0000, ra, val, .MAIN_A     )
+    case 0xAF_0800 ..= 0xAF_080F:    bus.rtc0->write(mode, ra - 0xAF_0800, ra, val)
+    case 0xAF_1F40 ..= 0xAF_1F7F:    bus.gpu0->write(mode, ra - 0xAF_1F40, ra, val, .TEXT_FG_LUT)
+    case 0xAF_1F80 ..= 0xAF_1FFF:    bus.gpu0->write(mode, ra - 0xAF_1F80, ra, val, .TEXT_BG_LUT)
+    case 0xAF_2000 ..= 0xAF_3FFF:    bus.gpu0->write(mode, ra - 0xAF_2000, ra, val, .LUT        )
+    case 0xAF_8000 ..= 0xAF_87FF:    bus.gpu0->write(mode, ra - 0xAF_8000, ra, val, .FONT_BANK0 )
+    case 0xAF_A000 ..= 0xAF_BFFF:    bus.gpu0->write(mode, ra - 0xAF_A000, ra, val, .TEXT       )
+    case 0xAF_C000 ..= 0xAF_DFFF:    bus.gpu0->write(mode, ra - 0xAF_C000, ra, val, .TEXT_COLOR )
     case 0xAF_E400 ..= 0xAF_E41F:    // SID0
-    case 0xAF_E830 ..= 0xAF_E839:    bus.ata0->write(size, 0xAF_E830, addr, val)
-    case 0xAF_E000 ..= 0xAF_FFFF:    emu.write_not_implemented(#procedure, "io", size, addr, val)
-    case 0xB0_0000 ..= VRAM_END :    bus.gpu0->write(size, 0xB0_0000, addr, val, .VRAM0      )
-    case 0xF0_0000 ..= 0xF7_FFFF:    emu.write_not_implemented(#procedure, "flash0", size, addr, val)
-    case 0xF8_0000 ..= 0xFF_FFFF:    emu.write_not_implemented(#procedure, "flash1", size, addr, val)
-    case                        :    c256_bus_error(bus, "write", size, addr)
+    case 0xAF_E830 ..= 0xAF_E839:    bus.ata0->write(mode, ra - 0xAF_E830, ra, val)
+    case 0xAF_E000 ..= 0xAF_FFFF:  emu.error_write(bus.name, .NOT_IMPL, mode, ra - 0xAF_E000, ra, val, .IO)
+    case 0xB0_0000 ..= VRAM_END :    bus.gpu0->write(mode, ra - 0xB0_0000, ra, val, .VRAM0      )
+    case 0xF0_0000 ..= 0xF7_FFFF:  emu.error_write(bus.name, .NOT_IMPL, mode, ra - 0xF0_0000, ra, val, .FLASH0)
+    case 0xF8_0000 ..= 0xFF_FFFF:  emu.error_write(bus.name, .NOT_IMPL, mode, ra - 0xF8_0000, ra, val, .FLASH1)
+    case                        :  emu.error_write(bus.name, .NOT_IMPL, mode, ra            , ra, val, .NONE)
     }
 
     return
 }
-
-c256_bus_error :: proc(d: ^Bus, op: string, size: emu.Bitsize, addr: u32) {
-    log.errorf("%s err %5s%d    at 0x %04X:%04X - c256 not implemented", 
-                d.name, 
-                op, 
-                size, 
-                u16(addr >> 16), 
-                u16(addr & 0x0000_ffff))
-    return
-}
-

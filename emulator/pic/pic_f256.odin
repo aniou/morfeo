@@ -61,10 +61,9 @@ IRQ_F256 :: enum {
 
 }
 
-pic_f256_make :: proc(name: string) -> ^PIC {
+make_pic_f256 :: proc(name: string) -> ^PIC {
     pic          := new(PIC)
     pic.name      = name
-    pic.id        = 0
     pic.data      = new([32]u8)
     pic.current   = .NONE
     pic.group     = .GRP_NONE
@@ -72,13 +71,12 @@ pic_f256_make :: proc(name: string) -> ^PIC {
     pic.irq_clear = false
     pic.irq_active= false
 
-    pic.nread     = pic_f256_read
-    pic.nwrite    = pic_f256_write
-    pic.trigger   = pic_f256_trigger
-    pic.delete    = pic_f256_delete
+    pic.delete    =  delete_pic_f256
+    pic.read      =    read_pic_f256
+    pic.write     =   write_pic_f256
+    pic.trigger   = trigger_pic_f256
     
-    p            := PIC_F256{pic = pic}
-    pic.model     = p
+    pic.model     = PIC_F256{pic = pic}
     return pic
 } 
 
@@ -94,123 +92,122 @@ pic_f256_make :: proc(name: string) -> ^PIC {
 // four, separate groups or creating non-trivial selector. Finally it
 // will lead to much more complex solution when irq trigger come to play.
 //
-pic_f256_read :: proc(pic: ^PIC, ba: ADDR) -> (val: u32) {
+read_pic_f256 :: proc(pic: ^PIC, mode: MODE, addr, ra: u32) -> (out: u32) {
 
-    if ba.size != .bits_8 {
-        emu.unsupported_read_size(#procedure, pic.name, ba)
+    if mode != .mode_8 {
+        emu.error_read(pic.name, .BAD_MODE, mode, addr, ra, .NONE)
         return
     }
 
-    addr      := ba.ea - ba.base
     d         := &pic.model.(PIC_F256)
 
     switch Register_pic_f256(addr) {
     case .INT_PENDING_REG0:
-        val |= 0x01 if d.pending[.GRP0_INT00_SOF         ] else 0
-        val |= 0x02 if d.pending[.GRP0_INT01_SOL         ] else 0
-        val |= 0x04 if d.pending[.GRP0_INT02_PS2_KBD     ] else 0
-        val |= 0x08 if d.pending[.GRP0_INT03_PS2_MOUSE   ] else 0
-        val |= 0x10 if d.pending[.GRP0_INT04_TIMER0      ] else 0
-        val |= 0x20 if d.pending[.GRP0_INT05_TIMER1      ] else 0
+        out |= 0x01 if d.pending[.GRP0_INT00_SOF         ] else 0
+        out |= 0x02 if d.pending[.GRP0_INT01_SOL         ] else 0
+        out |= 0x04 if d.pending[.GRP0_INT02_PS2_KBD     ] else 0
+        out |= 0x08 if d.pending[.GRP0_INT03_PS2_MOUSE   ] else 0
+        out |= 0x10 if d.pending[.GRP0_INT04_TIMER0      ] else 0
+        out |= 0x20 if d.pending[.GRP0_INT05_TIMER1      ] else 0
         // reserved
-        val |= 0x80 if d.pending[.GRP0_INT07_CART        ] else 0
-        //log.debugf("pic0: %6s read   .INT_PENDING_REG0: val %02x", d.name, val)
+        out |= 0x80 if d.pending[.GRP0_INT07_CART        ] else 0
+        //log.debugf("pic0: %6s read   .INT_PENDING_REG0: out %02x", d.name, val)
     case .INT_PENDING_REG1:
-        val |= 0x01 if d.pending[.GRP1_INT00_UART        ] else 0
+        out |= 0x01 if d.pending[.GRP1_INT00_UART        ] else 0
         // reserved
         // reserved
         // reserved
-        val |= 0x10 if d.pending[.GRP1_INT04_RTC         ] else 0
-        val |= 0x20 if d.pending[.GRP1_INT05_VIA0        ] else 0
-        val |= 0x40 if d.pending[.GRP1_INT06_VIA1        ] else 0
-        val |= 0x80 if d.pending[.GRP1_INT07_SDC_INS     ] else 0
-        //log.debugf("pic0: %6s read   .INT_PENDING_REG1: val %02x", d.name, val)
+        out |= 0x10 if d.pending[.GRP1_INT04_RTC         ] else 0
+        out |= 0x20 if d.pending[.GRP1_INT05_VIA0        ] else 0
+        out |= 0x40 if d.pending[.GRP1_INT06_VIA1        ] else 0
+        out |= 0x80 if d.pending[.GRP1_INT07_SDC_INS     ] else 0
+        //log.debugf("pic0: %6s read   .INT_PENDING_REG1: out %02x", d.name, val)
     case .INT_PENDING_REG2:
-        val |= 0x01 if d.pending[.GRP2_INT00_IEC_DATA    ] else 0
-        val |= 0x02 if d.pending[.GRP2_INT01_IEC_CLOCK   ] else 0
-        val |= 0x04 if d.pending[.GRP2_INT02_IEC_ATN     ] else 0
-        val |= 0x08 if d.pending[.GRP2_INT03_IEC_SREQ    ] else 0
+        out |= 0x01 if d.pending[.GRP2_INT00_IEC_DATA    ] else 0
+        out |= 0x02 if d.pending[.GRP2_INT01_IEC_CLOCK   ] else 0
+        out |= 0x04 if d.pending[.GRP2_INT02_IEC_ATN     ] else 0
+        out |= 0x08 if d.pending[.GRP2_INT03_IEC_SREQ    ] else 0
         // reserved
         // reserved
         // reserved
         // reserved
     case .INT_POL_REG0:
-        val |= 0x01 if d.polarity[.GRP0_INT00_SOF         ] else 0
-        val |= 0x02 if d.polarity[.GRP0_INT01_SOL         ] else 0
-        val |= 0x04 if d.polarity[.GRP0_INT02_PS2_KBD     ] else 0
-        val |= 0x08 if d.polarity[.GRP0_INT03_PS2_MOUSE   ] else 0
-        val |= 0x10 if d.polarity[.GRP0_INT04_TIMER0      ] else 0
-        val |= 0x20 if d.polarity[.GRP0_INT05_TIMER1      ] else 0
+        out |= 0x01 if d.polarity[.GRP0_INT00_SOF         ] else 0
+        out |= 0x02 if d.polarity[.GRP0_INT01_SOL         ] else 0
+        out |= 0x04 if d.polarity[.GRP0_INT02_PS2_KBD     ] else 0
+        out |= 0x08 if d.polarity[.GRP0_INT03_PS2_MOUSE   ] else 0
+        out |= 0x10 if d.polarity[.GRP0_INT04_TIMER0      ] else 0
+        out |= 0x20 if d.polarity[.GRP0_INT05_TIMER1      ] else 0
         // reserved
-        val |= 0x80 if d.polarity[.GRP0_INT07_CART        ] else 0
+        out |= 0x80 if d.polarity[.GRP0_INT07_CART        ] else 0
     case .INT_POL_REG1:
-        val |= 0x01 if d.polarity[.GRP1_INT00_UART        ] else 0
+        out |= 0x01 if d.polarity[.GRP1_INT00_UART        ] else 0
         // reserved
         // reserved
         // reserved
-        val |= 0x10 if d.polarity[.GRP1_INT04_RTC         ] else 0
-        val |= 0x20 if d.polarity[.GRP1_INT05_VIA0        ] else 0
-        val |= 0x40 if d.polarity[.GRP1_INT06_VIA1        ] else 0
-        val |= 0x80 if d.polarity[.GRP1_INT07_SDC_INS     ] else 0
+        out |= 0x10 if d.polarity[.GRP1_INT04_RTC         ] else 0
+        out |= 0x20 if d.polarity[.GRP1_INT05_VIA0        ] else 0
+        out |= 0x40 if d.polarity[.GRP1_INT06_VIA1        ] else 0
+        out |= 0x80 if d.polarity[.GRP1_INT07_SDC_INS     ] else 0
     case .INT_POL_REG2:
-        val |= 0x01 if d.polarity[.GRP2_INT00_IEC_DATA    ] else 0
-        val |= 0x02 if d.polarity[.GRP2_INT01_IEC_CLOCK   ] else 0
-        val |= 0x04 if d.polarity[.GRP2_INT02_IEC_ATN     ] else 0
-        val |= 0x08 if d.polarity[.GRP2_INT03_IEC_SREQ    ] else 0
+        out |= 0x01 if d.polarity[.GRP2_INT00_IEC_DATA    ] else 0
+        out |= 0x02 if d.polarity[.GRP2_INT01_IEC_CLOCK   ] else 0
+        out |= 0x04 if d.polarity[.GRP2_INT02_IEC_ATN     ] else 0
+        out |= 0x08 if d.polarity[.GRP2_INT03_IEC_SREQ    ] else 0
         // reserved
         // reserved
         // reserved
         // reserved
     case .INT_EDGE_REG0:
-        val |= 0x01 if d.edge[.GRP0_INT00_SOF         ] else 0
-        val |= 0x02 if d.edge[.GRP0_INT01_SOL         ] else 0
-        val |= 0x04 if d.edge[.GRP0_INT02_PS2_KBD     ] else 0
-        val |= 0x08 if d.edge[.GRP0_INT03_PS2_MOUSE   ] else 0
-        val |= 0x10 if d.edge[.GRP0_INT04_TIMER0      ] else 0
-        val |= 0x20 if d.edge[.GRP0_INT05_TIMER1      ] else 0
+        out |= 0x01 if d.edge[.GRP0_INT00_SOF         ] else 0
+        out |= 0x02 if d.edge[.GRP0_INT01_SOL         ] else 0
+        out |= 0x04 if d.edge[.GRP0_INT02_PS2_KBD     ] else 0
+        out |= 0x08 if d.edge[.GRP0_INT03_PS2_MOUSE   ] else 0
+        out |= 0x10 if d.edge[.GRP0_INT04_TIMER0      ] else 0
+        out |= 0x20 if d.edge[.GRP0_INT05_TIMER1      ] else 0
         // reserved
-        val |= 0x80 if d.edge[.GRP0_INT07_CART        ] else 0
+        out |= 0x80 if d.edge[.GRP0_INT07_CART        ] else 0
     case .INT_EDGE_REG1:
-        val |= 0x01 if d.edge[.GRP1_INT00_UART        ] else 0
+        out |= 0x01 if d.edge[.GRP1_INT00_UART        ] else 0
         // reserved
         // reserved
         // reserved
-        val |= 0x10 if d.edge[.GRP1_INT04_RTC         ] else 0
-        val |= 0x20 if d.edge[.GRP1_INT05_VIA0        ] else 0
-        val |= 0x40 if d.edge[.GRP1_INT06_VIA1        ] else 0
-        val |= 0x80 if d.edge[.GRP1_INT07_SDC_INS     ] else 0
+        out |= 0x10 if d.edge[.GRP1_INT04_RTC         ] else 0
+        out |= 0x20 if d.edge[.GRP1_INT05_VIA0        ] else 0
+        out |= 0x40 if d.edge[.GRP1_INT06_VIA1        ] else 0
+        out |= 0x80 if d.edge[.GRP1_INT07_SDC_INS     ] else 0
     case .INT_EDGE_REG2:
-        val |= 0x01 if d.edge[.GRP2_INT00_IEC_DATA    ] else 0
-        val |= 0x02 if d.edge[.GRP2_INT01_IEC_CLOCK   ] else 0
-        val |= 0x04 if d.edge[.GRP2_INT02_IEC_ATN     ] else 0
-        val |= 0x08 if d.edge[.GRP2_INT03_IEC_SREQ    ] else 0
+        out |= 0x01 if d.edge[.GRP2_INT00_IEC_DATA    ] else 0
+        out |= 0x02 if d.edge[.GRP2_INT01_IEC_CLOCK   ] else 0
+        out |= 0x04 if d.edge[.GRP2_INT02_IEC_ATN     ] else 0
+        out |= 0x08 if d.edge[.GRP2_INT03_IEC_SREQ    ] else 0
         // reserved
         // reserved
         // reserved
         // reserved
     case .INT_MASK_REG0:
-        val |= 0x01 if d.mask[.GRP0_INT00_SOF         ] else 0
-        val |= 0x02 if d.mask[.GRP0_INT01_SOL         ] else 0
-        val |= 0x04 if d.mask[.GRP0_INT02_PS2_KBD     ] else 0
-        val |= 0x08 if d.mask[.GRP0_INT03_PS2_MOUSE   ] else 0
-        val |= 0x10 if d.mask[.GRP0_INT04_TIMER0      ] else 0
-        val |= 0x20 if d.mask[.GRP0_INT05_TIMER1      ] else 0
+        out |= 0x01 if d.mask[.GRP0_INT00_SOF         ] else 0
+        out |= 0x02 if d.mask[.GRP0_INT01_SOL         ] else 0
+        out |= 0x04 if d.mask[.GRP0_INT02_PS2_KBD     ] else 0
+        out |= 0x08 if d.mask[.GRP0_INT03_PS2_MOUSE   ] else 0
+        out |= 0x10 if d.mask[.GRP0_INT04_TIMER0      ] else 0
+        out |= 0x20 if d.mask[.GRP0_INT05_TIMER1      ] else 0
         // reserved
-        val |= 0x80 if d.mask[.GRP0_INT07_CART        ] else 0
+        out |= 0x80 if d.mask[.GRP0_INT07_CART        ] else 0
     case .INT_MASK_REG1:
-        val |= 0x01 if d.mask[.GRP1_INT00_UART        ] else 0
+        out |= 0x01 if d.mask[.GRP1_INT00_UART        ] else 0
         // reserved
         // reserved
         // reserved
-        val |= 0x10 if d.mask[.GRP1_INT04_RTC         ] else 0
-        val |= 0x20 if d.mask[.GRP1_INT05_VIA0        ] else 0
-        val |= 0x40 if d.mask[.GRP1_INT06_VIA1        ] else 0
-        val |= 0x80 if d.mask[.GRP1_INT07_SDC_INS     ] else 0
+        out |= 0x10 if d.mask[.GRP1_INT04_RTC         ] else 0
+        out |= 0x20 if d.mask[.GRP1_INT05_VIA0        ] else 0
+        out |= 0x40 if d.mask[.GRP1_INT06_VIA1        ] else 0
+        out |= 0x80 if d.mask[.GRP1_INT07_SDC_INS     ] else 0
     case .INT_MASK_REG2:
-        val |= 0x01 if d.mask[.GRP2_INT00_IEC_DATA    ] else 0
-        val |= 0x02 if d.mask[.GRP2_INT01_IEC_CLOCK   ] else 0
-        val |= 0x04 if d.mask[.GRP2_INT02_IEC_ATN     ] else 0
-        val |= 0x08 if d.mask[.GRP2_INT03_IEC_SREQ    ] else 0
+        out |= 0x01 if d.mask[.GRP2_INT00_IEC_DATA    ] else 0
+        out |= 0x02 if d.mask[.GRP2_INT01_IEC_CLOCK   ] else 0
+        out |= 0x04 if d.mask[.GRP2_INT02_IEC_ATN     ] else 0
+        out |= 0x08 if d.mask[.GRP2_INT03_IEC_SREQ    ] else 0
         // reserved
         // reserved
         // reserved
@@ -220,14 +217,13 @@ pic_f256_read :: proc(pic: ^PIC, ba: ADDR) -> (val: u32) {
     return
 }
 
-pic_f256_write :: proc(pic: ^PIC, ba: ADDR, val: u32)  {
+write_pic_f256 :: proc(pic: ^PIC, mode: MODE, addr, ra, val: u32) {
 
-    if ba.size != .bits_8 {
-        emu.unsupported_write_size(#procedure, pic.name, ba, val)
+    if mode != .mode_8 {
+        emu.error_write(pic.name, .BAD_MODE, mode, addr, ra, val, .NONE)
         return
     }
 
-    addr      := ba.ea - ba.base
     d         := &pic.model.(PIC_F256)
 
     switch Register_pic_f256(addr) {
@@ -373,6 +369,25 @@ Mask
     while those with a mask bit of 1 will trigger an interrupt to the CPU.
 */
 
+trigger_pic_f256 :: proc(pic: ^PIC, irq: IRQ)  {
+    #partial switch irq {
+    //case   .KBD_A2560K: pic_f256_internal_trigger(pic, .GRP1_INT06_VIA1)
+    case   .KBD_A2560K: pic_f256_internal_trigger(pic, .GRP0_INT02_PS2_KBD)
+    case  .VICKY_A_SOF: pic_f256_internal_trigger(pic, .GRP0_INT00_SOF)
+    case       .TIMER0: pic_f256_internal_trigger(pic, .GRP0_INT04_TIMER0)
+    case       .TIMER1: pic_f256_internal_trigger(pic, .GRP0_INT05_TIMER1)
+    case          .RTC: pic_f256_internal_trigger(pic, .GRP1_INT04_RTC)
+    case          : emu.call_not_implemented(#procedure, fmt.aprintf("%s", irq))
+    }
+}
+
+delete_pic_f256 :: proc(pic: ^PIC) {
+    //d         := &pic.model.(PIC_F256)
+    //free(d.data)
+    free(pic)
+}
+
+@private
 pic_f256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_F256)  {
     d         := &pic.model.(PIC_F256)
 
@@ -389,23 +404,5 @@ pic_f256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_F256)  {
     }
     
     return
-}
-
-pic_f256_trigger :: proc(pic: ^PIC, irq: IRQ)  {
-    #partial switch irq {
-    //case   .KBD_A2560K: pic_f256_internal_trigger(pic, .GRP1_INT06_VIA1)
-    case   .KBD_A2560K: pic_f256_internal_trigger(pic, .GRP0_INT02_PS2_KBD)
-    case  .VICKY_A_SOF: pic_f256_internal_trigger(pic, .GRP0_INT00_SOF)
-    case       .TIMER0: pic_f256_internal_trigger(pic, .GRP0_INT04_TIMER0)
-    case       .TIMER1: pic_f256_internal_trigger(pic, .GRP0_INT05_TIMER1)
-    case          .RTC: pic_f256_internal_trigger(pic, .GRP1_INT04_RTC)
-    case          : emu.call_not_implemented(#procedure, fmt.aprintf("%s", irq))
-    }
-}
-
-pic_f256_delete :: proc(pic: ^PIC) {
-    //d         := &pic.model.(PIC_F256)
-    //free(d.data)
-    free(pic)
 }
 

@@ -164,20 +164,20 @@ read_srec :: proc(p: ^Platform, filepath: string) -> (ok: bool) {
             address  = data[2] << 8  | data[3]
             count   += 1
             for val, index in data[4:last] {
-                p.bus->write(.bits_8, address + u32(index), val)
+                p.bus->write(.mode_8, address + u32(index), val)
             }
         case 0x02:
             address  = data[2] << 16 | data[3] << 8  | data[4]
             count   += 1
             for val, index in data[5:last] {
-                p.bus->write(.bits_8, address + u32(index), val)
+                p.bus->write(.mode_8, address + u32(index), val)
             }
         case 0x03:
             address  = data[2] << 24 | data[3] << 16 | data[4] << 8 | data[5]
             count   += 1
             for val, index in data[6:last] {
                 //log.debugf("addr %08x val %02x",  address + u32(index), val)
-                p.bus->write(.bits_8, address + u32(index), val)
+                p.bus->write(.mode_8, address + u32(index), val)
             }
         case 0x04:
             log.warnf("record type S4 is not supported, line '%s'", line)
@@ -313,9 +313,9 @@ read_intel_hex :: proc(p: ^Platform, filepath: string, move_segment: u32 = 0) ->
                 // just write to mem
                 for val, index in data[4:4+record_len] {
                     if mirrored {
-                        p.bus->write(.bits_8, initial_address + byte_count + u32(index) - move_segment, val)
+                        p.bus->write(.mode_8, initial_address + byte_count + u32(index) - move_segment, val)
                     }
-                    p.bus->write(.bits_8, initial_address + byte_count + u32(index), val)
+                    p.bus->write(.mode_8, initial_address + byte_count + u32(index), val)
                 }
                 byte_count   += record_len
                 in_segment    = true
@@ -364,7 +364,7 @@ read_raw_binary :: proc(p: ^Platform, filepath: string, position: u32 = 0) -> (o
     }
     index : u32 = 0
     for value in data {
-        p.bus->write(.bits_8, position + index, u32(value))
+        p.bus->write(.mode_8, position + index, u32(value))
         index += 1
     }
     log.infof("file %s %d bytes read at position %d", filepath, index, position)
@@ -413,7 +413,7 @@ read_file_f256 :: proc(p: ^Platform, fpath: string) -> (ok: bool = true) {
 
         //log.infof("%s reading %s", #procedure, line)
         for value in data {
-            p.bus.flash0->write(.bits_8, 0, position + index, u32(value))
+            p.bus.flash0->write(.mode_8, 0, position + index, u32(value))
             index += 1
         }
         log.infof("%s file %s %d bytes read at position %08x", #procedure, fname, index, position)

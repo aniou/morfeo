@@ -51,13 +51,13 @@ a2560x_make :: proc() -> ^Platform {
     pic         := pic.pic_m68k_make("pic0")
     p.bus        = bus.a2560x_make  ("bus0", pic)
     p.bus.ata0   = ata.pata_make    ("pata0")               // XXX - update to PIC
-    p.bus.gpu0   = gpu.vicky3_make  ("A", pic, 0, 0)        // XXX - no DIP switch support
-    p.bus.gpu1   = gpu.vicky3_make  ("B", pic, 1, 0)        // XXX - no DIP switch support
+    p.bus.gpu0   = gpu.make_vicky3  ("A", pic, 0)        // XXX - no DIP switch support
+    p.bus.gpu1   = gpu.make_vicky3  ("B", pic, 1)        // XXX - no DIP switch support
     p.bus.ps20   = ps2.ps2_make     ("ps20", pic)
     p.bus.rtc0   = rtc.bq4802_make  ("rtc0", pic)
-    p.bus.ram0   = ram.ram_make     ("ram0",  0x40_0000)
-    p.bus.rom0   = ram.ram_make     ("rom0",  0x02_0000)      // for GAVIN backend
-    p.bus.ram1   = ram.ram_make     ("ram1", 0x400_0000)      // SDRAM
+    p.bus.ram0   = ram.make_ram     ("ram0",  0x40_0000)
+    p.bus.rom0   = ram.make_ram     ("rom0",  0x02_0000)      // for GAVIN backend
+    p.bus.ram1   = ram.make_ram     ("ram1", 0x400_0000)      // SDRAM
     p.bus.timer0 = timer.timer_a2560x_make("timer0", pic, 0)
     p.cpu        = cpu.m68k_make    ("cpu0", p.bus)
 
@@ -86,13 +86,13 @@ a2560x_delete :: proc(p: ^Platform) {
 
 a2560x_init :: proc(p: ^Platform) {
     // A2560X and GenX have different ID system 
-    p.bus.rom0->write(.bits_32, GABE_BASE, GABE_SUBVER_ID,     0x05 | CLOCK_SPEED | CPU_ID | FPGA_SUBVER)
-    p.bus.rom0->write(.bits_32, GABE_BASE, GABE_CHIP_VERSION,  FPGA_MODEL| FPGA_VERSION)
+    p.bus.rom0->write(.mode_32be, GABE_BASE, GABE_SUBVER_ID,     0x05 | CLOCK_SPEED | CPU_ID | FPGA_SUBVER)
+    p.bus.rom0->write(.mode_32be, GABE_BASE, GABE_CHIP_VERSION,  FPGA_MODEL| FPGA_VERSION)
 
     GABE_SUB_MODEL_FF_ID : u32 : 0xFE_C0_0514
     GABE_SUB_MODEL_ID    : u32 : 0xFE_C0_0516
-    p.bus.rom0->write(.bits_16, GABE_BASE, GABE_SUB_MODEL_FF_ID,  MACHINE_SUBID)
-    p.bus.rom0->write(.bits_16, GABE_BASE, GABE_SUB_MODEL_ID,     MACHINE_ID)
+    p.bus.rom0->write(.mode_16be, GABE_BASE, GABE_SUB_MODEL_FF_ID,  MACHINE_SUBID)
+    p.bus.rom0->write(.mode_16be, GABE_BASE, GABE_SUB_MODEL_ID,     MACHINE_ID)
 
 }
 

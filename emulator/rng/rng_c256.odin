@@ -5,48 +5,48 @@ import "core:log"
 import "core:math/rand"
 import "lib:emu"
 
-BITS :: emu.Bitsize
+MODE :: emu.OpMode
 
 // a very rudimentary implementation, has nothing with original RNG
 // does not support seeding etc.
 
 RNG :: struct {
     name:       string,
-    id:         u8,
 
-    read:       proc(^RNG, BITS, u32, u32) -> u32,
-    write:      proc(^RNG, BITS, u32, u32,    u32),
     delete:     proc(^RNG),
+    read:       proc(^RNG, MODE, u32, u32) -> u32,
+    write:      proc(^RNG, MODE, u32, u32,    u32),
 
     seed:       u32,        // in real: u16
 }
 
 rng_c256_make :: proc(name: string) -> ^RNG {
-    r             := new(RNG)
-    r.name         = name
-    r.delete       = rng_c256_delete
-    r.read         = rng_c256_read
-    r.write        = rng_c256_write
-    return r
+    rng             := new(RNG)
+    rng.name         = name
+
+    rng.delete       = delete_rng_c256
+    rng.read         =   read_rng_c256
+    rng.write        =  write_rng_c256
+
+    return rng
 }
 
-rng_c256_read :: proc(r: ^RNG, mode: BITS, base, busaddr: u32) -> (val: u32) {
-    addr := busaddr - base
+delete_rng_c256:: proc(r: ^RNG) {
+    free(r)
+}
+
+
+read_rng_c256 :: proc(r: ^RNG, mode: MODE, addr, ra: u32) -> (out: u32 = 0x55) {
     switch addr {
-    case 0: val = u32(rand.int_max(256))
-    case 1: val = u32(rand.int_max(256))
-    case  : 
-        log.warnf("%s: Read  addr %6x is not implemented, 0 returned", r.name, busaddr)
+    case 0: out = u32(rand.int_max(256))
+    case 1: out = u32(rand.int_max(256))
+    case  : emu.error_read(r.name, .NOT_IMPL, mode, addr, ra, .NONE)
     }
     return
 }
 
-rng_c256_write :: proc(r: ^RNG, mode: BITS, base, busaddr, val: u32) {
-    log.warnf("%s: wrte addr %6x val %02x not implemented", r.name, busaddr, val)
-}
-
-rng_c256_delete :: proc(r: ^RNG) {
-    free(r)
+write_rng_c256 :: proc(r: ^RNG, mode: MODE, addr, ra, val: u32) {
+    emu.error_write(r.name, .NOT_IMPL, mode, addr, ra, val, .NONE)
 }
 
 // eof

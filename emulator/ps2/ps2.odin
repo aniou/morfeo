@@ -40,10 +40,10 @@ PS2_DATA        :: 0x00 // $AF1803 (FMX: $AF1060) for reading and writing
 PS2_COMMAND     :: 0x04 // $AF1807 (FMX: $AF1064) for writing
 PS2_STATUS      :: 0x04 // $AF1807 (FMX: $AF1064) for reading
 
-BITS :: emu.Bitsize
+MODE :: emu.OpMode
 PS2  :: struct {
-    read:     proc(^PS2, BITS, u32, u32) -> u32,
-    write:    proc(^PS2, BITS, u32, u32,    u32),
+    read:     proc(^PS2, MODE, u32, u32) -> u32,
+    write:    proc(^PS2, MODE, u32, u32,    u32),
     //send_key: proc(^PS2, u8)  -> bool,
     send_key: proc(^PS2, emu.KEY, emu.KEY_STATE),
     delete:   proc(^PS2),
@@ -70,24 +70,29 @@ PS2  :: struct {
 }
 
 ps2_make :: proc(name: string, pic: ^pic.PIC) -> ^PS2 {
-    s         := new(PS2)
-    s.pic          = pic
-    s.read         = ps2_read
-    s.write        = ps2_write
-    s.delete       = ps2_delete
-    s.send_key     = ps2_send_key
-    s.kick         = ps2_kick_queue
-    s.status       = 0
-    s.debug        = true
-    s.CCB          = 0
-    s.name         = name
-    s.scancode_set = .one
-    s.cmd_write_mode = false
-    s.ccb_write_mode = false
+    ps2             := new(PS2)
+    ps2.name         = name
+    ps2.pic          = pic
 
+    ps2.delete       = delete_ps2
+    ps2.read         =   read_ps2
+    ps2.write        =  write_ps2
+    ps2.send_key     =   send_ps2_key
+    ps2.kick         =   kick_ps2_queue
 
-    queue.init(&s.outbuf)
-    return s
+    ps2.status        = 0
+    ps2.debug         = true
+    ps2.CCB           = 0
+    ps2.scancode_set  = .one
+    ps2.cmd_write_mode = false
+    ps2.ccb_write_mode = false
+
+    queue.init(&ps2.outbuf)
+    return ps2
+}
+
+delete_ps2 :: proc(d: ^PS2) {
+    free(d)
 }
 
 /*
@@ -104,26 +109,26 @@ FMX:
     KBD_STATUS      :: 0x04 // $AF1064 for reading
 */
 
-ps2_read :: proc(s: ^PS2, mode: BITS, base, busaddr: u32) -> (val: u32) {
+read_ps2 :: proc(ps2: ^PS2, mode: MODE, addr, ra: u32) -> (out: u32) {
 
-    if mode != .bits_8 {
-        emu.unsupported_read_size(#procedure, s.name, s.id, mode, busaddr)
+    if mode != .mode_8 {
+        emu.error_read(ps2.name, .BAD_MODE, mode, addr, ra, .NONE)
         return
     }
 
-    val = cast(u32) ps2_read8(s, busaddr - base)
+    out = cast(u32) ps2_read8(ps2, addr)
 
     return
 }
 
-ps2_write :: proc(s: ^PS2, mode: BITS, base, busaddr, val: u32) {
+write_ps2 :: proc(ps2: ^PS2, mode: MODE, addr, ra, val: u32) {
 
-    if mode != .bits_8 {
-        emu.unsupported_write_size(#procedure, s.name, s.id, mode, busaddr, val)
+    if mode != .mode_8 {
+        emu.error_write(ps2.name, .BAD_MODE, mode, addr, ra, val, .NONE)
         return
     }
 
-    ps2_write8(s, busaddr - base,   u8(val))
+    ps2_write8(ps2, addr,   u8(val))
 
     return
 }
@@ -301,13 +306,9 @@ ps2_write8 :: proc(s: ^PS2, addr: u32, val: u8) {
     return
 }
 
-ps2_delete :: proc(d: ^PS2) {
-    free(d)
-}
-
 
 /*
-ps2_send_key :: proc(s: ^PS2, val: u8) -> (ok: bool = true) {
+send_ps2_key :: proc(s: ^PS2, val: u8) -> (ok: bool = true) {
     if s.status & PS2_STAT_OBF == PS2_STAT_OBF {
         ok       = false
         log.warnf("ps2: %6s send_key %02x but buffer is full, delayed", s.name, val)
@@ -322,7 +323,7 @@ ps2_send_key :: proc(s: ^PS2, val: u8) -> (ok: bool = true) {
 }
 */
 
-ps2_send_key :: proc(s: ^PS2, key: emu.KEY, state: emu.KEY_STATE) {
+send_ps2_key :: proc(s: ^PS2, key: emu.KEY, state: emu.KEY_STATE) {
         log.debugf("------")
         log.debugf("ps2: %6s send_key %v current status %v", s.name, key, state)
         s.status = s.status | PS2_STAT_OBF
@@ -340,7 +341,7 @@ ps2_send_key :: proc(s: ^PS2, key: emu.KEY, state: emu.KEY_STATE) {
         return
 }
 
-ps2_kick_queue :: proc(s: ^PS2) {
+kick_ps2_queue :: proc(s: ^PS2) {
         if queue.len(s.outbuf) == 0 {
             return
         }

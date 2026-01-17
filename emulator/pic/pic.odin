@@ -3,21 +3,16 @@ package pic
 
 import "lib:emu"
 
-BITS :: emu.Bitsize
-ADDR :: emu.BusAddress
+MODE :: emu.OpMode
+
 PIC  :: struct {
     name:       string,
-    id:         int, 
+    delete:     proc(^PIC),
+    read:       proc(^PIC, MODE, u32, u32) -> u32,
+    write:      proc(^PIC, MODE, u32, u32,    u32),
 
-    read:       proc(^PIC, BITS, u32, u32) -> u32,
-    write:      proc(^PIC, BITS, u32, u32,    u32),
-    nread:      proc(^PIC, ADDR) -> u32,
-    nwrite:     proc(^PIC, ADDR,    u32),
-    read8:      proc(^PIC, u32) -> u8,
-    write8:     proc(^PIC, u32, u8),
     trigger:    proc(^PIC, IRQ),
     clean:      proc(^PIC),
-    delete:     proc(^PIC),
 
     data:       ^[32]u8,                  // all registers, visible as memory
     irqs:       [IRQ]Irq_table,

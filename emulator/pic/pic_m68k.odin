@@ -270,7 +270,6 @@ PIC_M68K :: struct {
 pic_m68k_make :: proc(name: string) -> ^PIC {
     pic          := new(PIC)
     pic.name      = name
-    pic.id        = 0
     pic.data      = new([32]u8)
     pic.current   = .NONE
     pic.group     = .GRP_NONE
@@ -278,30 +277,35 @@ pic_m68k_make :: proc(name: string) -> ^PIC {
     pic.irq_clear = false
     pic.irq_active= false
 
-    pic.trigger   = m68040_trigger
-    pic.clean     = m68040_clean
-    pic.read8     = pic_m68k_read8
-    pic.write8    = pic_m68k_write8
-    pic.read      = pic_m68k_read
-    pic.write     = pic_m68k_write
-    pic.delete    = pic_m68k_delete
+    //pic.read8     = pic_m68k_read8
+    //pic.write8    = pic_m68k_write8
+    pic.delete    = delete_pic_m68k
+    pic.read      = read_pic_m68k
+    pic.write     = write_pic_m68k
+
+    pic.trigger   = trigger_m68040
+    pic.clean     = clean_m68040
 
     p            := PIC_M68K{pic = pic}
     pic.model     = p
     return pic
 }
 
+delete_pic_m68k :: proc(pic: ^PIC) {
+    d         := &pic.model.(PIC_M68K)
+    free(d.data)
+    free(pic)
+}
+
 // XXX - workaround
-pic_m68k_write :: proc(d: ^PIC, size: BITS, base, busaddr, val: u32) {
-    //d         := &pic.model.(PIC_M68K)
-    addr  := busaddr - base
-    switch size {
-    case .bits_8: 
+write_pic_m68k :: proc(d: ^PIC, mode: MODE, addr, ra, val: u32) {
+    switch mode {
+    case .mode_8: 
         pic_m68k_write8(d, addr, u8(val))
-    case .bits_16:
+    case .mode_16be:
         pic_m68k_write8(d, addr  , u8(val >> 8))
         pic_m68k_write8(d, addr+1, u8(val))
-    case .bits_32:
+    case .mode_32be:
         pic_m68k_write8(d, addr  , u8(val >> 24))
         pic_m68k_write8(d, addr+1, u8(val >> 16))
         pic_m68k_write8(d, addr+2, u8(val >> 8))
@@ -309,16 +313,14 @@ pic_m68k_write :: proc(d: ^PIC, size: BITS, base, busaddr, val: u32) {
     return
 }
 
-pic_m68k_read :: proc(d: ^PIC, size: BITS, base, busaddr: u32) -> (val: u32) {
-    //d         := &pic.model.(PIC_M68K)
-    addr  := busaddr - base
-    switch size {
-    case .bits_8: 
+read_pic_m68k :: proc(d: ^PIC, mode: MODE, addr, ra: u32) -> (val: u32) {
+    switch mode {
+    case .mode_8: 
         return cast(u32) pic_m68k_read8(d, addr)
-    case .bits_16:
+    case .mode_16be:
         val = u32(pic_m68k_read8(d, addr  )) << 8 |
               u32(pic_m68k_read8(d, addr+1))
-    case .bits_32:
+    case .mode_32be:
         val = u32(pic_m68k_read8(d, addr  )) << 24 |
               u32(pic_m68k_read8(d, addr+1)) << 16 |
               u32(pic_m68k_read8(d, addr+2)) <<  8 |
@@ -356,7 +358,7 @@ pic_m68k_read8 :: proc(pic: ^PIC, addr: u32) -> (val: u8) {
 // if there is a clear bit on IRQ that is processed then clear 
 // marker of 'irq in progress' too
 
-pic_m68k_clear_irq :: proc(pic: ^PIC, group: IRQ_GROUP, val, reg: u8) {
+clear_pic_m68k_irq :: proc(pic: ^PIC, group: IRQ_GROUP, val, reg: u8) {
     d         := &pic.model.(PIC_M68K)
     if d.current == .NONE {
         return
@@ -401,22 +403,22 @@ pic_m68k_write8 :: proc(pic: ^PIC, addr: u32, val: u8) {
     //log.debugf("pic0: write8 addr %d val %d", addr, val)
 	switch addr {
 	case PENDING_GRP0_A:
-        pic_m68k_clear_irq(d, .GRP_0A, val, d.data[addr])
+        clear_pic_m68k_irq(d, .GRP_0A, val, d.data[addr])
         d.data[addr] = d.data[addr] & (~val)
 	case PENDING_GRP0_B:
-        pic_m68k_clear_irq(d, .GRP_0B, val, d.data[addr])
+        clear_pic_m68k_irq(d, .GRP_0B, val, d.data[addr])
         d.data[addr] = d.data[addr] & (~val)
 	case PENDING_GRP1_A:
-        pic_m68k_clear_irq(d, .GRP_1A, val, d.data[addr])
+        clear_pic_m68k_irq(d, .GRP_1A, val, d.data[addr])
         d.data[addr] = d.data[addr] & (~val)
 	case PENDING_GRP1_B:
-        pic_m68k_clear_irq(d, .GRP_1B, val, d.data[addr])
+        clear_pic_m68k_irq(d, .GRP_1B, val, d.data[addr])
         d.data[addr] = d.data[addr] & (~val)
 	case PENDING_GRP2_A:
-        pic_m68k_clear_irq(d, .GRP_2A, val, d.data[addr])
+        clear_pic_m68k_irq(d, .GRP_2A, val, d.data[addr])
         d.data[addr] = d.data[addr] & (~val)
 	case PENDING_GRP2_B:
-        pic_m68k_clear_irq(d, .GRP_2B, val, d.data[addr])
+        clear_pic_m68k_irq(d, .GRP_2B, val, d.data[addr])
         d.data[addr] = d.data[addr] & (~val)
 	case MASK_GRP0_A:
         d.data[addr] = val
@@ -435,7 +437,7 @@ pic_m68k_write8 :: proc(pic: ^PIC, addr: u32, val: u8) {
     }
 }
 
-m68040_trigger :: proc(pic: ^PIC, i: IRQ) {
+trigger_m68040 :: proc(pic: ^PIC, i: IRQ) {
     d         := &pic.model.(PIC_M68K)
     requested := d.irqs[i]
 
@@ -481,15 +483,10 @@ m68040_trigger :: proc(pic: ^PIC, i: IRQ) {
 }
 
 // probably not needed
-m68040_clean :: proc(pic: ^PIC) {
+clean_m68040 :: proc(pic: ^PIC) {
     d         := &pic.model.(PIC_M68K)
     d.current   = .NONE
     d.group     = .GRP_NONE
     d.irq_clear = false
 }
 
-pic_m68k_delete :: proc(pic: ^PIC) {
-    d         := &pic.model.(PIC_M68K)
-    free(d.data)
-    free(pic)
-}

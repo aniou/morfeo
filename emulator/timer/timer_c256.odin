@@ -93,9 +93,8 @@ timer_c256_make :: proc(name: string, pic: ^pic.PIC, id: int) -> ^TIMER {
 }
 
 // according to behaviour from FoenixIDE
-timer_c256_read :: proc(d: ^TIMER, mode: BITS, base, busaddr: u32) -> (val: u32) {
+timer_c256_read :: proc(d: ^TIMER, mode: MODE, addr, ra: u32) -> (val: u32) {
     t    := &d.model.(TIMER_C256)
-    addr := busaddr - base
     switch addr {
     case TIMER_CTRL_REG: val = 1 if t.counter == t.compare else 0
     case TIMER_CHARGE_L: val = emu.get_byte1(t.counter)     // not charge
@@ -109,9 +108,8 @@ timer_c256_read :: proc(d: ^TIMER, mode: BITS, base, busaddr: u32) -> (val: u32)
     return
 }
 
-timer_c256_write :: proc(d: ^TIMER, mode: BITS, base, busaddr, val: u32) {
+timer_c256_write :: proc(d: ^TIMER, mode: MODE, addr, ra, val: u32) {
     t    := &d.model.(TIMER_C256)
-    addr := busaddr - base
     switch addr {
     case TIMER_CTRL_REG: 
         t.ctrl       = cast(Timer_c256_ctrl) val

@@ -4,8 +4,10 @@ package kbd
 
 import "core:container/queue"
 import "core:log"
-import "emulator:pic"
+
 import "lib:emu"
+
+import "emulator:pic"
 
 /* from Gadget's kbd_f256k2.asm
 OPT_KBD_DATA     = $ddc0        ; Data Port - Need to read 16 bytes (to complete Scan Set)
@@ -19,13 +21,13 @@ OPT_KBD_STATUS  :: 0x01
 OPT_KBD_CNT_LO  :: 0x02
 OPT_KBD_CNT_HI  :: 0x03
 
-BITS :: emu.Bitsize
-ADDR :: emu.BusAddress
+MODE :: emu.OpMode
 KBD  :: struct {
-    nread:     proc(^KBD, ADDR) -> u32,
-    nwrite:    proc(^KBD, ADDR,    u32),
-    send_key:  proc(^KBD, emu.KEY, emu.KEY_STATE),
     delete:    proc(^KBD),
+    read:      proc(^KBD, MODE, u32, u32) -> u32,
+    write:     proc(^KBD, MODE, u32, u32,    u32),
+
+    send_key:  proc(^KBD, emu.KEY, emu.KEY_STATE),
     //kick:      proc(^KBD),
 
     pic:           ^pic.PIC,
@@ -38,65 +40,65 @@ KBD  :: struct {
     debug:          bool,   // temporary
 }
 
-kbd_make :: proc(name: string, pic: ^pic.PIC) -> ^KBD {
-    s             := new(KBD)
-    s.pic          = pic
-    s.nread        = kbd_nread
-    s.nwrite       = kbd_nwrite
-    s.delete       = kbd_delete
-    s.send_key     = kbd_send_key
-    s.debug        = true
-    s.name         = name
+make_kbd :: proc(name: string, pic: ^pic.PIC) -> ^KBD {
+    k             := new(KBD)
+    k.pic          = pic
+    k.delete       = delete_kbd
+    k.read         =   read_kbd
+    k.write        =  write_kbd
+    k.send_key     =   send_kbd_key
+
+    k.debug        = true
+    k.name         = name
 
     for a in 0..=7 {
-        s.key_state[a][0] = u32(a << 4)
+        k.key_state[a][0] = u32(a << 4)
     }
 
-    queue.init(&s.outbuf)
-    return s
+    queue.init(&k.outbuf)
+    return k
 }
 
-kbd_nread :: proc(s: ^KBD, ba: ADDR) -> (val: u32) {
+delete_kbd :: proc(d: ^KBD) {
+    free(d)
+}
 
-    if ba.size != .bits_8 {
-        emu.unsupported_read_size(#procedure, s.name, ba)
+read_kbd :: proc(kbd: ^KBD, mode: MODE, addr, ra: u32) -> (out: u32) {
+
+    if mode != .mode_8 {
+        emu.error_read(kbd.name, .BAD_MODE, mode, addr, ra, .NONE)
         return
     }
 
-	addr := ba.ea - ba.base
     switch addr {
     case OPT_KBD_DATA:
-        if queue.len(s.outbuf) == 0 {
-            val = 0
-            log.debugf("kbd: %6s read     KBD_DATA: read from empty queue", s.name)
+        if queue.len(kbd.outbuf) == 0 {
+            out = 0
+            log.debugf("kbd: %6s read     KBD_DATA: read from empty queue", kbd.name)
             return
         }
-        val = queue.pop_front(&s.outbuf)
-        if s.debug {
-            log.debugf("kbd: %6s read     KBD_DATA: val %02x qlen: %d", s.name, val, queue.len(s.outbuf))
-            //for a in 0 ..< queue.len(s.outbuf) {
-            //    log.debugf("kbd: %6s read     KBD_DATA:  queue remain: %02x", s.name, queue.get(&s.outbuf, a))
+        out = queue.pop_front(&kbd.outbuf)
+        if kbd.debug {
+            log.debugf("kbd: %6s read     KBD_DATA: out %02x qlen: %d", kbd.name, out, queue.len(kbd.outbuf))
+            //for a in 0 ..< queue.len(kbd.outbuf) {
+            //    log.debugf("kbd: %6s read     KBD_DATA:  queue remain: %02x", kbd.name, queue.get(&kbd.outbuf, a))
             //}
         }
 
-	case OPT_KBD_STATUS: val = 0 if queue.len(s.outbuf) > 0 else 1
-	case OPT_KBD_CNT_LO: val = u32( queue.len(s.outbuf)       & 0xFF)
-	case OPT_KBD_CNT_HI: val = u32((queue.len(s.outbuf) >> 8) & 0xFF)
+	case OPT_KBD_STATUS: out = 0 if queue.len(kbd.outbuf) > 0 else 1
+	case OPT_KBD_CNT_LO: out = u32( queue.len(kbd.outbuf)       & 0xFF)
+	case OPT_KBD_CNT_HI: out = u32((queue.len(kbd.outbuf) >> 8) & 0xFF)
     }
 
     return
 }
 
-kbd_nwrite :: proc(s: ^KBD, ba: ADDR, val: u32) {
-    emu.write_not_implemented(#procedure, "kbd0", ba, val)
+write_kbd :: proc(kbd: ^KBD, mode: MODE, addr, ra, val: u32)          {
+    emu.error_write(kbd.name, .NOT_IMPL, mode, addr, ra, val, .NONE)
 	return
 }
 
-kbd_delete :: proc(d: ^KBD) {
-    free(d)
-}
-
-kbd_send_key :: proc(s: ^KBD, key: emu.KEY, state: emu.KEY_STATE) {
+send_kbd_key :: proc(s: ^KBD, key: emu.KEY, state: emu.KEY_STATE) {
         log.debugf("------")
         log.debugf("kbd: %6s send_key %v current status %v", s.name, key, state)
 

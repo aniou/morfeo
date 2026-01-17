@@ -236,7 +236,7 @@ read_m :: #force_inline proc (ar: AddressRegister_65xxx, size: bool) -> (result:
     ea     &= 0x0000_ffff if ar.bwrap else 0xffff_ffff
     ea     += u32(ar.bank) << 16
     ea     &= 0x00ff_ffff
-    result  = u16(localbus->read(.bits_8, ea))
+    result  = u16(localbus->read(.mode_8, ea))
 
     if size == word {
         if ar.pwrap {
@@ -251,7 +251,7 @@ read_m :: #force_inline proc (ar: AddressRegister_65xxx, size: bool) -> (result:
         ea     &= 0x0000_ffff if ar.bwrap else 0xffff_ffff
         ea     += u32(ar.bank) << 16
         ea     &= 0x00ff_ffff
-        result |= u16(localbus->read(.bits_8, ea)) << 8
+        result |= u16(localbus->read(.mode_8, ea)) << 8
     }
     return
 }
@@ -280,10 +280,10 @@ read_a :: #force_inline proc (reg: AddressRegister_65xxx, size: bool) -> (result
 push_r_addr :: #force_inline proc (addr: u16, dr: DataRegister_65xxx) -> bool {
     value   := u32( read_r( dr, dr.size ) )
     if dr.size == word {
-        localbus->write(.bits_8, u32(addr    ), (value & 0xFF00) >> 8)
-        localbus->write(.bits_8, u32(addr - 1),  value & 0xFF  )
+        localbus->write(.mode_8, u32(addr    ), (value & 0xFF00) >> 8)
+        localbus->write(.mode_8, u32(addr - 1),  value & 0xFF  )
     } else {
-        localbus->write(.bits_8, u32(addr    ),  value & 0xFF  )
+        localbus->write(.mode_8, u32(addr    ),  value & 0xFF  )
     }
     return false
 }
@@ -293,11 +293,11 @@ push_r_reg :: #force_inline proc (ar: AddressRegister_65xxx, dr: DataRegister_65
     ar      := ar
 
     if dr.size == word {
-        localbus->write(.bits_8, u32(ar.addr), (value & 0xFF00) >> 8)
+        localbus->write(.mode_8, u32(ar.addr), (value & 0xFF00) >> 8)
         ar.addr = subu_r(ar, byte)
-        localbus->write(.bits_8, u32(ar.addr), value & 0xFF)
+        localbus->write(.mode_8, u32(ar.addr), value & 0xFF)
     } else {
-        localbus->write(.bits_8, u32(ar.addr), value & 0xFF)
+        localbus->write(.mode_8, u32(ar.addr), value & 0xFF)
     }
     return false
 }
@@ -308,11 +308,11 @@ pull_v :: #force_inline proc (ar: AddressRegister_65xxx, size: bool) -> (result:
     ar      := ar
 
     ar.addr = addu_r(ar, byte)
-    result = u16(localbus->read(.bits_8, u32(ar.addr)))
+    result = u16(localbus->read(.mode_8, u32(ar.addr)))
 
     if size == word {
         ar.addr  = addu_r(ar, byte)
-        result  |= u16(localbus->read(.bits_8, u32(ar.addr))) << 8
+        result  |= u16(localbus->read(.mode_8, u32(ar.addr))) << 8
     }
     return 
 }
@@ -335,7 +335,7 @@ stor_m :: #force_inline proc (ar: AddressRegister_65xxx, dr: DataRegister_65xxx)
     ea     &= 0x0000_FFFF if ar.bwrap else 0xFFFF_FFFF
     ea     += u32(ar.bank) << 16
     ea     &= 0x00ff_ffff
-    localbus->write(.bits_8, ea, value & 0xFF)
+    localbus->write(.mode_8, ea, value & 0xFF)
 
     if dr.size == word {
         if ar.pwrap {
@@ -349,7 +349,7 @@ stor_m :: #force_inline proc (ar: AddressRegister_65xxx, dr: DataRegister_65xxx)
         ea     &= 0x0000_FFFF if ar.bwrap else 0xFFFF_FFFF
         ea     += u32(ar.bank) << 16
         ea     &= 0x00ff_ffff
-        localbus->write(.bits_8, ea, (value & 0xFF00) >> 8)
+        localbus->write(.mode_8, ea, (value & 0xFF00) >> 8)
     }
 
     return false

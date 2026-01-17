@@ -107,17 +107,17 @@ GPU_C200 :: struct {
 // --------------------------------------------------------------------
 
 // XXX - vram amount isn't used at all - maybe it should be passed in Config?
-C200_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, c: ^emu.Config) -> ^GPU {
-    log.infof("C200: gpu%d initialization start, name %s", id, name)
+make_C200 :: proc(name: string, pic: ^pic.PIC, vram: int, c: ^emu.Config) -> ^GPU {
+    log.infof("C200: %s initialization start", name)
 
     gpu       := new(GPU)
     gpu.name   = name
-    gpu.id     = id
     gpu.pic    = pic            // not used in C200
-    gpu.read   = C200_read
-    gpu.write  = C200_write
-    gpu.delete = C200_delete
-    gpu.render = C200_render
+
+    gpu.read   =   read_C200
+    gpu.write  =  write_C200
+    gpu.delete = delete_C200
+    gpu.render = render_C200
 
     g         := GPU_C200{gpu = gpu}
 
@@ -203,11 +203,11 @@ C200_make :: proc(name: string, pic: ^pic.PIC, id: int, vram: int, c: ^emu.Confi
         }
 
     gpu.model  = g
-    C200_recalculate_screen(g)
+    recalculate_C200_screen(g)
     return gpu
 }
 
-C200_delete :: proc(gpu: ^GPU) {
+delete_C200 :: proc(gpu: ^GPU) {
     g         := &gpu.model.(GPU_C200)
 
     delete(g.text)
@@ -222,50 +222,47 @@ C200_delete :: proc(gpu: ^GPU) {
     return
 }
 
-C200_read :: proc(gpu: ^GPU, size: BITS, base, busaddr: u32, mode: emu.Region = .MAIN) -> (val: u32) {
+read_C200 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN) -> (out: u32) {
     d    := &gpu.model.(GPU_C200)
-    addr := busaddr - base
 
-    if size != .bits_8 {
-        emu.unsupported_read_size(#procedure, d.name, d.id, size, busaddr)
+    if mode != .mode_8 {
+        emu.error_read(d.name, .BAD_MODE, mode, addr, ra, .NONE)
     }
 
-    #partial switch mode {
-    case .MAIN:       val = C200_read_register(d, size, busaddr, addr, mode)
-    case .TEXT:       val = d.text[addr]
-    case .TEXT_COLOR: val = d.tc[addr]
-    case .FONT_BANK0: val = d.fontmem[addr]
-    case .ID_CARD:    val = C200_read_id_card(d, size, busaddr, addr, mode)
+    #partial switch region {
+    case .MAIN:       out = read_C200_register(d, mode, addr, ra, region)
+    case .TEXT:       out = d.text[addr]
+    case .TEXT_COLOR: out = d.tc[addr]
+    case .FONT_BANK0: out = d.fontmem[addr]
+    case .ID_CARD:    out = read_C200_id_card(d,  mode, addr, ra, region)
     case .TEXT_FG_LUT:
         color := addr >> 2 // every color ARGB bytes, assume 4-byte align
         pos   := addr  & 3 // position in 32-bit variable
-        val = u32(d.fg_clut[color][pos])
+        out = u32(d.fg_clut[color][pos])
 
     case .TEXT_BG_LUT:
         color := addr >> 2 // every color ARGB bytes, assume 4-byte align
         pos   := addr  & 3 // position in 32-bit variable
-        val = u32(d.bg_clut[color][pos])
+        out = u32(d.bg_clut[color][pos])
 
     case: 
-        emu.read_not_implemented(#procedure, d.name, size, busaddr)
+        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, .NONE)
     }
     return
 }
 
 
-C200_write :: proc(gpu: ^GPU, size: BITS, base, busaddr, val: u32, mode: emu.Region = .MAIN) {
+write_C200 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION = .MAIN) {
     d    := &gpu.model.(GPU_C200)
-    addr := busaddr - base
-
-    if size != .bits_8 {
-        emu.unsupported_write_size(#procedure, d.name, d.id, size, busaddr, val)
+    if mode != .mode_8 {
+        emu.error_write(d.name, .BAD_MODE, mode, addr, ra,val, .NONE)
     } 
 
-    #partial switch mode {
-    case .MAIN:    C200_write_register(&d.model.(GPU_C200), size, busaddr, addr, val, mode)
+    #partial switch region {
+    case .MAIN:    write_C200_register(d, mode, addr, ra, val, region)
     case .TEXT:    d.text[addr] = val & 0x00_00_00_ff
-    case .TILEMAP: C200_write_register(d, size, busaddr, addr, val, mode)
-    case .TILESET: C200_write_register(d, size, busaddr, addr, val, mode)
+    case .TILEMAP: write_C200_register(d, mode, addr, ra, val, region)
+    case .TILESET: write_C200_register(d, mode, addr, ra, val, region)
 
     case .TEXT_COLOR:
         d.fg[addr] = (val & 0xf0) >> 4
@@ -312,22 +309,22 @@ C200_write :: proc(gpu: ^GPU, size: BITS, base, busaddr, val: u32, mode: emu.Reg
         C200_update_font_cache(d, addr, u8(val))  // every bit in font cache is mapped to byte
 
     case        : 
-        emu.write_not_implemented(#procedure, d.name, size, busaddr, val)
+        emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val, .NONE)
     }
     return
 }
 
 
 @private
-C200_write_register :: proc(d: ^GPU_C200, size: BITS, busaddr, addr, val: u32, mode: emu.Region) {
+write_C200_register :: proc(d: ^GPU_C200, mode: MODE, addr, ra, val: u32, region: REGION = .MAIN) {
 
-    if size != .bits_8 {
-        emu.unsupported_write_size(#procedure, d.name, d.id, size, busaddr, val)
+    if mode != .mode_8 {
+        emu.error_write(d.name, .BAD_MODE, mode, addr, ra,val, .NONE)
         return
     }
 
-    reg := C200_Register(addr)
-    switch reg {
+    register := C200_Register(addr)
+    switch register {
     case .C200_MCR_L:
         d.text_enabled    = (val & C200_MCR_TEXT )         != 0
 
@@ -347,31 +344,31 @@ C200_write_register :: proc(d: ^GPU_C200, size: BITS, busaddr, addr, val: u32, m
                 d.screen_y_size = 600
                 d.delay         = 16  * time.Millisecond   // for 60Hz
             }
-            C200_recalculate_screen(d)
+            recalculate_C200_screen(d)
         }
 
     case .C200_BCR:
         d.border_enabled = (val & C200_BCR_ENABLE )       != 0
 
         if (val & C200_BCR_X_SCROLL) != 0 {
-            emu.write_not_implemented(#procedure, "C200_A_BCR_X_SCROLL", size, busaddr, val)
+            emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, region)
         }
 
-    case .C200_BRD_COL_B: d.border_color_b =  u8(val); if d.border_enabled do C200_recalculate_screen(d)
-    case .C200_BRD_COL_G: d.border_color_g =  u8(val); if d.border_enabled do C200_recalculate_screen(d)
-    case .C200_BRD_COL_R: d.border_color_r =  u8(val); if d.border_enabled do C200_recalculate_screen(d)
-    case .C200_BRD_XSIZE: d.border_x_size  = i32(val); if d.border_enabled do C200_recalculate_screen(d)
-    case .C200_BRD_YSIZE: d.border_y_size  = i32(val); if d.border_enabled do C200_recalculate_screen(d)
+    case .C200_BRD_COL_B: d.border_color_b =  u8(val); if d.border_enabled do recalculate_C200_screen(d)
+    case .C200_BRD_COL_G: d.border_color_g =  u8(val); if d.border_enabled do recalculate_C200_screen(d)
+    case .C200_BRD_COL_R: d.border_color_r =  u8(val); if d.border_enabled do recalculate_C200_screen(d)
+    case .C200_BRD_XSIZE: d.border_x_size  = i32(val); if d.border_enabled do recalculate_C200_screen(d)
+    case .C200_BRD_YSIZE: d.border_y_size  = i32(val); if d.border_enabled do recalculate_C200_screen(d)
 
     case .C200_CCR:
         d.cursor_enabled   =     (val & C200_CCR_ENABLE    ) != 0
         d.cursor_rate      =     (val & C200_CCR_RATE_MASK ) >> 1
 
         if (val & C200_CCR_FONT_PAGE0) != 0 {
-            emu.write_not_implemented(#procedure, "C200_CCR_FONT_PAGE0", size, busaddr, val)
+            emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, region)
         }
         if (val & C200_CCR_FONT_PAGE1) != 0 {
-            emu.write_not_implemented(#procedure, "C200_CCR_FONT_PAGE1", size, busaddr, val)
+            emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, region)
         }
 
     case .C200_TXT_CUR_CHAR: d.cursor_character = val
@@ -387,62 +384,62 @@ C200_write_register :: proc(d: ^GPU_C200, size: BITS, busaddr, addr, val: u32, m
     case .C200_CHIP_NUM_H:
     case .C200_CHIP_VER_L:
     case .C200_CHIP_VER_H:
-    case                 : emu.write_not_implemented(#procedure, "UNKNOWN",         size, busaddr, val)
+    case                 : emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, region)
     }
 }
 
 @private
-C200_read_id_card :: proc(d: ^GPU_C200, size: BITS, busaddr, addr: u32, mode: emu.Region) -> (val: u32) {
+read_C200_id_card :: proc(d: ^GPU_C200, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
 
     switch ID_CARD_Register(addr) {
-    case .ID_NAME_ASCII ..= .ID_NAME_ASCII_END     : val = 00    // 15 Characters + $00
-    case .ID_VENDOR_ID_Lo    : val = 0xe1  // Foenix Project Reserved ID: $F0E1
-    case .ID_VENDOR_ID_Hi    : val = 0xf0
-    case .ID_CARD_ID_Lo      : val = 0xc8  // $9236 - C200-EVID - XXX? bad value?
-    case .ID_CARD_ID_Hi      : val = 0x00
-    case .ID_CARD_HW_Rev     : val =    0
-    case .ID_CARD_FPGA_Rev   : val =    0
+    case .ID_NAME_ASCII ..= .ID_NAME_ASCII_END     : out = 00    // 15 Characters + $00
+    case .ID_VENDOR_ID_Lo    : out = 0xe1  // Foenix Project Reserved ID: $F0E1
+    case .ID_VENDOR_ID_Hi    : out = 0xf0
+    case .ID_CARD_ID_Lo      : out = 0xc8  // $9236 - C200-EVID - XXX? bad value?
+    case .ID_CARD_ID_Hi      : out = 0x00
+    case .ID_CARD_HW_Rev     : out =    0
+    case .ID_CARD_FPGA_Rev   : out =    0
     }
     return
 }
 
 @private
-C200_read_register :: proc(d: ^GPU_C200, size: BITS, busaddr, addr: u32, mode: emu.Region) -> (val: u32) {
+read_C200_register :: proc(d: ^GPU_C200, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
 
     switch C200_Register(addr) {
-    case .C200_MCR_L: val |= C200_MCR_TEXT          if d.text_enabled    else 0           // Bit[0]
-    case .C200_MCR_H: val |= C200_MODE_800_600  if  d.resolution == C200_MODE_800_600  else 0
+    case .C200_MCR_L: out |= C200_MCR_TEXT          if d.text_enabled    else 0           // Bit[0]
+    case .C200_MCR_H: out |= C200_MODE_800_600  if  d.resolution == C200_MODE_800_600  else 0
     case .C200_BCR:
-        val |= C200_BCR_ENABLE if d.border_enabled else 0
-        val |= (u32(d.border_scroll_offset) <<  4)
+        out |= C200_BCR_ENABLE if d.border_enabled else 0
+        out |= (u32(d.border_scroll_offset) <<  4)
         
-    case .C200_BRD_COL_B: val  =  u32(d.border_color_b)
-    case .C200_BRD_COL_G: val  =  u32(d.border_color_g)
-    case .C200_BRD_COL_R: val  =  u32(d.border_color_r)
-    case .C200_BRD_XSIZE: val  =  u32(d.border_x_size)
-    case .C200_BRD_YSIZE: val  =  u32(d.border_y_size)
+    case .C200_BRD_COL_B: out  =  u32(d.border_color_b)
+    case .C200_BRD_COL_G: out  =  u32(d.border_color_g)
+    case .C200_BRD_COL_R: out  =  u32(d.border_color_r)
+    case .C200_BRD_XSIZE: out  =  u32(d.border_x_size)
+    case .C200_BRD_YSIZE: out  =  u32(d.border_y_size)
 
     case .C200_CCR:
-        val |= C200_CCR_ENABLE if d.cursor_enabled else 0
-        val |= u32(d.cursor_rate >> 1)
+        out |= C200_CCR_ENABLE if d.cursor_enabled else 0
+        out |= u32(d.cursor_rate >> 1)
 
     case .C200_TXT_CUR_CHAR: 
-        val = d.cursor_character
+        out = d.cursor_character
 
     case .C200_TXT_CUR_CLR:
-        val  = d.cursor_bg
-        val |= d.cursor_fg << 4
+        out  = d.cursor_bg
+        out |= d.cursor_fg << 4
 
-    case .C200_TXT_CUR_XL: val = d.cursor_x
-    case .C200_TXT_CUR_XH: val = 0
-    case .C200_TXT_CUR_YL: val = d.cursor_y
-    case .C200_TXT_CUR_YH: val = 0
-    case .C200_CHIP_NUM_L: val = 0 // XXX - update it
-    case .C200_CHIP_NUM_H: val = 0 // XXX - update it
-    case .C200_CHIP_VER_L: val = 0 // XXX - update it
-    case .C200_CHIP_VER_H: val = 0 // XXX - update it
+    case .C200_TXT_CUR_XL: out = d.cursor_x
+    case .C200_TXT_CUR_XH: out = 0
+    case .C200_TXT_CUR_YL: out = d.cursor_y
+    case .C200_TXT_CUR_YH: out = 0
+    case .C200_CHIP_NUM_L: out = 0 // XXX - update it
+    case .C200_CHIP_NUM_H: out = 0 // XXX - update it
+    case .C200_CHIP_VER_L: out = 0 // XXX - update it
+    case .C200_CHIP_VER_H: out = 0 // XXX - update it
 
-    case                 : emu.read_not_implemented(#procedure, "UNKNOWN", size, busaddr)
+    case                 : emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, .NONE)
     }
     return
 }
@@ -468,7 +465,7 @@ C200_update_font_cache :: proc(g: ^GPU_C200, position: u32, value: u8) {
 }
 
 
-C200_recalculate_screen :: proc(gpu: ^GPU) {
+recalculate_C200_screen :: proc(gpu: ^GPU) {
     g         := &gpu.model.(GPU_C200)
     if g.border_enabled {
             g.starting_fb_row_pos = u32(g.screen_x_size) * u32(g.border_y_size) + u32(g.border_x_size)
@@ -490,13 +487,13 @@ C200_recalculate_screen :: proc(gpu: ^GPU) {
 
 // ----------------------------------------------------------------------------------------------------------
 
-C200_render :: proc(gpu: ^GPU) {
-    if gpu.text_enabled do C200_render_text(gpu)
+render_C200 :: proc(gpu: ^GPU) {
+    if gpu.text_enabled do render_C200_text(gpu)
     return
 }
 
 
-C200_render_text :: proc(gpu: ^GPU) {
+render_C200_text :: proc(gpu: ^GPU) {
         g         := &gpu.model.(GPU_C200)
 
         cursor_x, cursor_y: u32 // row and column of cursor

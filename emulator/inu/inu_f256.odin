@@ -9,52 +9,48 @@ INU_F256 :: struct {
     mem:    [0x1c]u32,
 }
 
-inu_f256_make :: proc(name: string) -> ^INU {
-    inu          := new(INU)
-    inu.name      = name
-    inu.id        = 0
+make_inu_f256 :: proc(name: string) -> ^INU {
+    inu         := new(INU)
+    inu.name     = name
 
-    inu.nread     = inu_f256_read
-    inu.nwrite    = inu_f256_write
-    inu.delete    = inu_f256_delete
+    inu.delete   = delete_inu_f256
+    inu.read     =   read_inu_f256
+    inu.write    =  write_inu_f256
 
-    m            := INU_F256{inu = inu}
-    inu.model    = m
+    inu.model    = INU_F256{inu = inu}
     return inu
 } 
 
-inu_f256_delete :: proc(inu: ^INU) {
+delete_inu_f256 :: proc(inu: ^INU) {
 	free(inu)
     return
 }
 
-inu_f256_read :: proc(inu: ^INU, ba: ADDR) -> (val: u32) {
-    m         := &inu.model.(INU_F256)
-	val        = m.mem[ba.ea - ba.base]
+read_inu_f256 :: proc(inu: ^INU, mode: MODE, addr, ra: u32) -> (out: u32) {
+    i         := &inu.model.(INU_F256)
+	out        = i.mem[addr]
 	return
 }
 
-inu_f256_write :: proc(inu: ^INU, ba: ADDR, val: u32)  {
-    m         := &inu.model.(INU_F256)
-    addr      := ba.ea - ba.base
-
+write_inu_f256 :: proc(inu: ^INU, mode: MODE, addr, ra, val: u32)  {
+    i         := &inu.model.(INU_F256)
 	switch addr {
         case 0x00, 0x01, 0x02, 0x03:   // UNSIGNED_MULT_A, UNSIGNED_MULT_B
-			m.mem[addr] = val
-			op1    := u16(m.mem[0x00]) + u16(m.mem[0x01]) << 8
-			op2    := u16(m.mem[0x02]) + u16(m.mem[0x03]) << 8
+			i.mem[addr] = val
+			op1    := u16(i.mem[0x00]) + u16(i.mem[0x01]) << 8
+			op2    := u16(i.mem[0x02]) + u16(i.mem[0x03]) << 8
 
 			result := u32(op1 * op2)
 
-			m.mem[0x10] = u32(result       & 0xff)
-			m.mem[0x11] = u32(result >> 8  & 0xff)
-			m.mem[0x12] = u32(result >> 16 & 0xff)
-			m.mem[0x13] = u32(result >> 24 & 0xff)
+			i.mem[0x10] = u32(result       & 0xff)
+			i.mem[0x11] = u32(result >> 8  & 0xff)
+			i.mem[0x12] = u32(result >> 16 & 0xff)
+			i.mem[0x13] = u32(result >> 24 & 0xff)
 
         case 0x04, 0x05, 0x06, 0x07:   // UNSIGNED_DIV_DEM, UNSIGNED_DIV_NUM
-			m.mem[addr] = val
-			op1    := u16(m.mem[0x04]) + u16(m.mem[0x05]) << 8
-			op2    := u16(m.mem[0x06]) + u16(m.mem[0x07]) << 8
+			i.mem[addr] = val
+			op1    := u16(i.mem[0x04]) + u16(i.mem[0x05]) << 8
+			op2    := u16(i.mem[0x06]) + u16(i.mem[0x07]) << 8
 					
 			result    : u16
             remainder : u16
@@ -63,30 +59,30 @@ inu_f256_write :: proc(inu: ^INU, ba: ADDR, val: u32)  {
 					remainder = op2 % op1
 			}
 
-			m.mem[0x14] = u32(result          & 0xff)
-			m.mem[0x15] = u32(result    >> 8  & 0xff)
-			m.mem[0x16] = u32(remainder       & 0xff)
-			m.mem[0x17] = u32(remainder >> 8  & 0xff)
+			i.mem[0x14] = u32(result          & 0xff)
+			i.mem[0x15] = u32(result    >> 8  & 0xff)
+			i.mem[0x16] = u32(remainder       & 0xff)
+			i.mem[0x17] = u32(remainder >> 8  & 0xff)
 
         case 0x08, 0x09, 0x0a, 0x0b,  // ADDER32_A
              0x0c, 0x0d, 0x0e, 0x0f:  // ADDER32_B
 
-			m.mem[addr] = val
-			op1    := i32(m.mem[0x08])       + 
-					  i32(m.mem[0x09]) <<  8 + 
-					  i32(m.mem[0x0a]) << 16 + 
-					  i32(m.mem[0x0b]) << 24
+			i.mem[addr] = val
+			op1    := i32(i.mem[0x08])       + 
+					  i32(i.mem[0x09]) <<  8 + 
+					  i32(i.mem[0x0a]) << 16 + 
+					  i32(i.mem[0x0b]) << 24
 
-			op2    := i32(m.mem[0x0c])       + 
-					  i32(m.mem[0x0d]) << 8  + 
-					  i32(m.mem[0x0e]) << 16 + 
-					  i32(m.mem[0x0f]) << 24
+			op2    := i32(i.mem[0x0c])       + 
+					  i32(i.mem[0x0d]) << 8  + 
+					  i32(i.mem[0x0e]) << 16 + 
+					  i32(i.mem[0x0f]) << 24
 			result := i32(op1 + op2)
 
-			m.mem[0x18] = u32(result       & 0xff)
-			m.mem[0x19] = u32(result >> 8  & 0xff)
-			m.mem[0x1a] = u32(result >> 16 & 0xff) 
-			m.mem[0x1b] = u32(result >> 24 & 0xff) 
+			i.mem[0x18] = u32(result       & 0xff)
+			i.mem[0x19] = u32(result >> 8  & 0xff)
+			i.mem[0x1a] = u32(result >> 16 & 0xff) 
+			i.mem[0x1b] = u32(result >> 24 & 0xff) 
 
         case 0x10, 0x11, 0x12, 0x13:   // UNSIGNED_MULT_result
             break
@@ -98,7 +94,7 @@ inu_f256_write :: proc(inu: ^INU, ba: ADDR, val: u32)  {
         	break
 
         case:
-        	m.mem[addr] = val
+        	i.mem[addr] = val
 	}
 	return
 }

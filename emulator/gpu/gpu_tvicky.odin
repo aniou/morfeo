@@ -109,16 +109,15 @@ GPU_tVicky :: struct {
 
 // --------------------------------------------------------------------
 
-tvicky_make :: proc(name: string, pic: ^pic.PIC) -> ^GPU {
+make_tvicky :: proc(name: string, pic: ^pic.PIC) -> ^GPU {
     log.infof("tvicky: gpu%d initialization start, name %s", 0, name)
 
     gpu       := new(GPU)
     gpu.name   = name
-    gpu.id     = 0
-    gpu.nread  = tvicky_nread
-    gpu.nwrite = tvicky_nwrite
-    gpu.delete = tvicky_delete
-    gpu.render = tvicky_render
+    gpu.read  =    read_tvicky
+    gpu.write =   write_tvicky
+    gpu.delete = delete_tvicky
+    gpu.render = render_tvicky
     gpu.pic    = pic
     g         := GPU_tVicky{gpu = gpu}
 
@@ -170,7 +169,9 @@ tvicky_make :: proc(name: string, pic: ^pic.PIC) -> ^GPU {
     g.delay               = 16 * time.Millisecond  // 16 milliseconds for ~60Hz
 
     // looks like tvicky has embedded font
-    font := #load("f256jr_font_micah_jan25th.bin")
+    //font := #load("aniou-sanserif.bin")
+    //font := #load("f256jr_font_micah_jan25th.bin")
+    font := #load("aniou-f256.bin")
     for val, addr in font {
         tvicky_update_font_cache(&g, u32(addr), u8(val))  // every bit in font cache is mapped to byte
     }
@@ -226,7 +227,7 @@ tvicky_make :: proc(name: string, pic: ^pic.PIC) -> ^GPU {
     return gpu
 }
 
-tvicky_delete :: proc(gpu: ^GPU) {
+delete_tvicky :: proc(gpu: ^GPU) {
     g         := &gpu.model.(GPU_tVicky)
 
     delete(g.text)
@@ -249,59 +250,56 @@ tvicky_delete :: proc(gpu: ^GPU) {
     return
 }
 
-tvicky_nread :: proc(gpu: ^GPU, ba: ADDR) -> (val: u32) {
+read_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
     d    := &gpu.model.(GPU_tVicky)
-    addr := ba.ea - ba.base
 
-    if ba.size != .bits_8 {
-        emu.unsupported_read_size(#procedure, d.name, ba)
+    if mode != .mode_8 {
+        emu.error_read(d.name, .BAD_MODE, mode, addr, ra, .NONE)
     }
 
-    #partial switch ba.region {
-    case .MAIN:         val = tvicky_read_register(d, ba)                                                              
-    case .TEXT:         val = d.text[addr]
-    case .TEXT_COLOR:   val = d.tc[addr]
-    case .TEXT_FG_LUT:  val = u32(d.m_tclut_fg[addr])
-    case .TEXT_BG_LUT:  val = u32(d.m_tclut_bg[addr])
-    //case .LUT:        val = cast(u32) d.lut[addr]
-    //case .VRAM0:      val = d.vram0[addr]
-    //case .FONT_BANK0: val = d.fontmem[addr]
-    //case .MOUSEPTR0:  val = d.mouseptr0[addr]
-    //case .MOUSEPTR1:  val = d.mouseptr1[addr]
-    //case .TILEMAP:    val = vicky2_read_tilemap(d, size, busaddr, addr, mode)
-    //case .TILESET:    val = vicky2_read_tileset(d, size, busaddr, addr, mode)
+    #partial switch region {
+    case .MAIN:         out = read_tvicky_register(d, mode, addr, ra)                                                              
+    case .TEXT:         out = d.text[addr]
+    case .TEXT_COLOR:   out = d.tc[addr]
+    case .TEXT_FG_LUT:  out = u32(d.m_tclut_fg[addr])
+    case .TEXT_BG_LUT:  out = u32(d.m_tclut_bg[addr])
+    //case .LUT:        out = cast(u32) d.lut[addr]
+    //case .VRAM0:      out = d.vram0[addr]
+    //case .FONT_BANK0: out = d.fontmem[addr]
+    //case .MOUSEPTR0:  out = d.mouseptr0[addr]
+    //case .MOUSEPTR1:  out = d.mouseptr1[addr]
+    //case .TILEMAP:    out = vicky2_read_tilemap(d, size, busaddr, addr, mode)
+    //case .TILESET:    out = vicky2_read_tileset(d, size, busaddr, addr, mode)
 
 
     /*
     case .LUT:
         switch size {
-        case .bits_8:
-            val = cast(u32) d.lut[addr]
-        case .bits_16:
+        case .mode_8:
+            out = cast(u32) d.lut[addr]
+        case .mode_16be:
             ptr := transmute(^u16be) &d.lut[addr]
-            val  = cast(u32) ptr^
-        case .bits_32:
+            out  = cast(u32) ptr^
+        case .mode_32be:
             ptr := transmute(^u32be) &d.lut[addr]
-            val  = cast(u32) ptr^
+            out  = cast(u32) ptr^
         }
     */
     case: 
-        emu.read_not_implemented(#procedure, d.name, ba) 
+        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, .NONE)
     }
     return
 }
 
-tvicky_nwrite :: proc(gpu: ^GPU, ba: ADDR, val: u32) {
+write_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION) {
     d    := &gpu.model.(GPU_tVicky)
-    addr := ba.ea - ba.base
-
-    if ba.size != .bits_8 {
-        emu.unsupported_read_size(#procedure, d.name, ba)
+    if mode != .mode_8 {
+        emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val, .NONE)
     }
 
-    #partial switch ba.region {
+    #partial switch region {
     case .MAIN:   
-        tvicky_write_register(&d.model.(GPU_tVicky), ba, val)
+        write_tvicky_register(d, mode, addr, ra, val)
     case .TEXT:                         // IO bank 1
         d.text[addr] = val & 0xff
     case .TEXT_COLOR:                   // IO bank 2
@@ -330,32 +328,31 @@ tvicky_nwrite :: proc(gpu: ^GPU, ba: ADDR, val: u32) {
 
     case .LUT:
         switch size {
-        case .bits_8:
+        case .mode_8:
             d.lut[addr] = cast(u8) val
-        case .bits_16:
+        case .mode_16be:
             (transmute(^u16be) &d.lut[addr])^ = cast(u16be) val
-        case .bits_32:
+        case .mode_32be:
             (transmute(^u32be) &d.lut[addr])^ = cast(u32be) val
         }
     */
         
     case: 
-        emu.write_not_implemented(#procedure, d.name, ba, val) 
+        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, region)
     }
     return
 }
 
 
 @private
-tvicky_write_register :: proc(d: ^GPU_tVicky, ba: ADDR, val: u32) {                                      
-    if ba.size != .bits_8 {
-        emu.unsupported_write_size(#procedure, d.name, ba, val)
+write_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, ra, val: u32) {                                      
+    if mode != .mode_8 {
+        emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val, .NONE)
         return
     }
 
-    addr := ba.ea - ba.base
-    reg  := Register_tVicky(addr)
-    #partial switch reg {
+    register  := Register_tVicky(addr)
+    #partial switch register {
     case .TVKY_MCR_L:
         d.text_enabled    = (val & TVKY_MCR_TEXT )         != 0
         d.overlay_enabled = (val & TVKY_MCR_TEXT_OVERLAY ) != 0
@@ -369,7 +366,7 @@ tvicky_write_register :: proc(d: ^GPU_tVicky, ba: ADDR, val: u32) {
         d.border_enabled = (val & TVKY_BCR_ENABLE )       != 0
 
         if (val & TVKY_BCR_X_SCROLL) != 0 {                                                                                                 
-            emu.write_not_implemented(#procedure, d.name, ba, val, "TVKY_BCR_X_SCROLL")
+            emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, .MAIN)
         }
 
     case .TVKY_BRD_COL_B: d.border_color_b =  u8(val); if d.border_enabled do tvicky_recalculate_screen(d)
@@ -410,23 +407,22 @@ tvicky_write_register :: proc(d: ^GPU_tVicky, ba: ADDR, val: u32) {
     VKY_LINE_CMP_VALUE_LO  = $D019 ;Write Only [7:0]
     VKY_LINE_CMP_VALUE_HI  = $D01A ;Write Only [3:0]
     */
-    case:    emu.write_not_implemented(#procedure, d.name, ba, val, "TVKY.MAIN_A")
+    case:    emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val, .NONE)
 
     }
 }
 
 @private
-tvicky_read_register :: proc(d: ^GPU_tVicky, ba: ADDR) -> (val: u32) {
-    if ba.size != .bits_32 {
-        emu.unsupported_read_size(#procedure, d.name, ba)
+read_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, ra: u32) -> (out: u32) {
+    if mode != .mode_32be {
+        emu.error_read(d.name, .BAD_MODE, mode, addr, ra, .NONE)
         return
     }
 
-    addr := ba.ea - ba.base
     reg  := Register_tVicky(addr)
     #partial switch reg {
     case                 :
-        emu.read_not_implemented(#procedure, d.name, ba, "TVKY.MAIN_A")
+        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, .NONE)
     }
     return
 }
@@ -472,7 +468,7 @@ tvicky_recalculate_screen :: proc(gpu: ^GPU) {
     return
 }
 
-tvicky_render :: proc(gpu: ^GPU) {
+render_tvicky :: proc(gpu: ^GPU) {
     gpu.pic->trigger(.VICKY_A_SOF)
     if gpu.text_enabled do tvicky_render_text(gpu)
     //if gpu.bm0_enabled  do tvicky_render_bm0(gpu)

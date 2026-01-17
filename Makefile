@@ -13,7 +13,7 @@ odin_defs        += -collection:lib=lib
 build_flags_rele += $(odin_defs) -o:speed
 build_flags      += $(odin_defs)
 
-.PHONY: doc a2560x test_w65c02s test_65c816 c256fmx c256u c256u+ f256k2
+.PHONY: doc a2560x test_w65c02s test_65c816 c256fmx c256u c256u+ f256k2 test_bus test_bus_rel
 
 #all: a2560x test_w65c02s test_65c816 c256fmx c256u c256u+
 all: help
@@ -63,6 +63,10 @@ c256u+:
 	odin build cmd/c256 -define:TARGET=c256u+ -out:c256u+ -debug $(build_flags)
 f256k2:
 	odin build cmd/f256 -define:TARGET=f256k2 -out:f256k2 -debug $(build_flags)
+test_bus:
+	odin build cmd/test_bus -define:TARGET=test_bus -out:test_bus -debug $(build_flags)
+test_bus_rel:
+	odin build cmd/test_bus -define:TARGET=test_bus -out:test_bus_rel $(build_flags_rele)
 
 test_65c816:
 	odin build cmd/test_65c816 -debug $(build_flags)

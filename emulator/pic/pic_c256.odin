@@ -83,7 +83,6 @@ IRQ_C256 :: enum {
 pic_c256_make :: proc(name: string) -> ^PIC {
     pic          := new(PIC)
     pic.name      = name
-    pic.id        = 0
     pic.data      = new([32]u8)
     pic.current   = .NONE
     pic.group     = .GRP_NONE
@@ -117,180 +116,176 @@ pic_c256_make :: proc(name: string) -> ^PIC {
 // four, separate groups or creating non-trivial selector. Finally it
 // will lead to much more complex solution when irq trigger come to play.
 //
-pic_c256_read :: proc(pic: ^PIC, size: BITS, base, busaddr: u32) -> (val: u32) {
+pic_c256_read :: proc(pic: ^PIC, mode: MODE, addr, ra: u32) -> (out: u32) {
 
-    if size != .bits_8 {
-        emu.unsupported_read_size(#procedure, pic.name, pic.id, size, busaddr)
+    if mode != .mode_8 {
+        emu.error_read(pic.name, .BAD_MODE, mode, addr, ra, .NONE)
         return
     }
 
-    addr      := busaddr                // current version has fixed adressess
     d         := &pic.model.(PIC_C256)
-
     switch Register_pic_c256(addr) {
     case .INT_PENDING_REG0:
-        val |= 0x01 if d.pending[.FNX0_INT00_SOF         ] else 0
-        val |= 0x02 if d.pending[.FNX0_INT01_SOL         ] else 0
-        val |= 0x04 if d.pending[.FNX0_INT02_TMR0        ] else 0
-        val |= 0x08 if d.pending[.FNX0_INT03_TMR1        ] else 0
-        val |= 0x10 if d.pending[.FNX0_INT04_TMR2        ] else 0
-        val |= 0x20 if d.pending[.FNX0_INT05_RTC         ] else 0
-        val |= 0x40 if d.pending[.FNX0_INT06_FCC         ] else 0
-        val |= 0x80 if d.pending[.FNX0_INT07_MOUSE       ] else 0
+        out |= 0x01 if d.pending[.FNX0_INT00_SOF         ] else 0
+        out |= 0x02 if d.pending[.FNX0_INT01_SOL         ] else 0
+        out |= 0x04 if d.pending[.FNX0_INT02_TMR0        ] else 0
+        out |= 0x08 if d.pending[.FNX0_INT03_TMR1        ] else 0
+        out |= 0x10 if d.pending[.FNX0_INT04_TMR2        ] else 0
+        out |= 0x20 if d.pending[.FNX0_INT05_RTC         ] else 0
+        out |= 0x40 if d.pending[.FNX0_INT06_FCC         ] else 0
+        out |= 0x80 if d.pending[.FNX0_INT07_MOUSE       ] else 0
 
-        //log.debugf("pic0: %6s read   .INT_PENDING_REG0: val %02x", d.name, val)
+        //log.debugf("pic0: %6s read   .INT_PENDING_REG0: out %02x", d.name, val)
     case .INT_PENDING_REG1:
-        val |= 0x01 if d.pending[.FNX1_INT00_KBD         ] else 0
-        val |= 0x02 if d.pending[.FNX1_INT01_SC0         ] else 0
-        val |= 0x04 if d.pending[.FNX1_INT02_SC1         ] else 0
-        val |= 0x08 if d.pending[.FNX1_INT03_COM2        ] else 0
-        val |= 0x10 if d.pending[.FNX1_INT04_COM1        ] else 0
-        val |= 0x20 if d.pending[.FNX1_INT05_MPU401      ] else 0
-        val |= 0x40 if d.pending[.FNX1_INT06_LPT         ] else 0
-        val |= 0x80 if d.pending[.FNX1_INT07_SDCARD      ] else 0
-        //log.debugf("pic0: %6s read   .INT_PENDING_REG1: val %02x", d.name, val)
+        out |= 0x01 if d.pending[.FNX1_INT00_KBD         ] else 0
+        out |= 0x02 if d.pending[.FNX1_INT01_SC0         ] else 0
+        out |= 0x04 if d.pending[.FNX1_INT02_SC1         ] else 0
+        out |= 0x08 if d.pending[.FNX1_INT03_COM2        ] else 0
+        out |= 0x10 if d.pending[.FNX1_INT04_COM1        ] else 0
+        out |= 0x20 if d.pending[.FNX1_INT05_MPU401      ] else 0
+        out |= 0x40 if d.pending[.FNX1_INT06_LPT         ] else 0
+        out |= 0x80 if d.pending[.FNX1_INT07_SDCARD      ] else 0
+        //log.debugf("pic0: %6s read   .INT_PENDING_REG1: out %02x", d.name, val)
     case .INT_PENDING_REG2:
-        val |= 0x01 if d.pending[.FNX2_INT00_OPL3        ] else 0
-        val |= 0x02 if d.pending[.FNX2_INT01_GABE_INT0   ] else 0
-        val |= 0x04 if d.pending[.FNX2_INT02_GABE_INT1   ] else 0
-        val |= 0x08 if d.pending[.FNX2_INT03_SDMA        ] else 0
-        val |= 0x10 if d.pending[.FNX2_INT04_VDMA        ] else 0
-        val |= 0x20 if d.pending[.FNX2_INT05_GABE_INT2   ] else 0
-        val |= 0x40 if d.pending[.FNX2_INT06_EXT         ] else 0
-        val |= 0x80 if d.pending[.FNX2_INT07_SDCARD_INS  ] else 0
+        out |= 0x01 if d.pending[.FNX2_INT00_OPL3        ] else 0
+        out |= 0x02 if d.pending[.FNX2_INT01_GABE_INT0   ] else 0
+        out |= 0x04 if d.pending[.FNX2_INT02_GABE_INT1   ] else 0
+        out |= 0x08 if d.pending[.FNX2_INT03_SDMA        ] else 0
+        out |= 0x10 if d.pending[.FNX2_INT04_VDMA        ] else 0
+        out |= 0x20 if d.pending[.FNX2_INT05_GABE_INT2   ] else 0
+        out |= 0x40 if d.pending[.FNX2_INT06_EXT         ] else 0
+        out |= 0x80 if d.pending[.FNX2_INT07_SDCARD_INS  ] else 0
     case .INT_PENDING_REG3:
-        val |= 0x01 if d.pending[.FNX3_INT00_OPN2        ] else 0
-        val |= 0x02 if d.pending[.FNX3_INT01_OPM         ] else 0
-        val |= 0x04 if d.pending[.FNX3_INT02_IDE         ] else 0
-        val |= 0x08 if d.pending[.FNX3_INT03_TBD         ] else 0
-        val |= 0x10 if d.pending[.FNX3_INT04_TBD         ] else 0
-        val |= 0x20 if d.pending[.FNX3_INT05_TBD         ] else 0
-        val |= 0x40 if d.pending[.FNX3_INT06_TBD         ] else 0
-        val |= 0x80 if d.pending[.FNX3_INT07_TBD         ] else 0
+        out |= 0x01 if d.pending[.FNX3_INT00_OPN2        ] else 0
+        out |= 0x02 if d.pending[.FNX3_INT01_OPM         ] else 0
+        out |= 0x04 if d.pending[.FNX3_INT02_IDE         ] else 0
+        out |= 0x08 if d.pending[.FNX3_INT03_TBD         ] else 0
+        out |= 0x10 if d.pending[.FNX3_INT04_TBD         ] else 0
+        out |= 0x20 if d.pending[.FNX3_INT05_TBD         ] else 0
+        out |= 0x40 if d.pending[.FNX3_INT06_TBD         ] else 0
+        out |= 0x80 if d.pending[.FNX3_INT07_TBD         ] else 0
     case .INT_POL_REG0:
-        val |= 0x01 if d.polarity[.FNX0_INT00_SOF        ] else 0
-        val |= 0x02 if d.polarity[.FNX0_INT01_SOL        ] else 0
-        val |= 0x04 if d.polarity[.FNX0_INT02_TMR0       ] else 0
-        val |= 0x08 if d.polarity[.FNX0_INT03_TMR1       ] else 0
-        val |= 0x10 if d.polarity[.FNX0_INT04_TMR2       ] else 0
-        val |= 0x20 if d.polarity[.FNX0_INT05_RTC        ] else 0
-        val |= 0x40 if d.polarity[.FNX0_INT06_FCC        ] else 0
-        val |= 0x80 if d.polarity[.FNX0_INT07_MOUSE      ] else 0
+        out |= 0x01 if d.polarity[.FNX0_INT00_SOF        ] else 0
+        out |= 0x02 if d.polarity[.FNX0_INT01_SOL        ] else 0
+        out |= 0x04 if d.polarity[.FNX0_INT02_TMR0       ] else 0
+        out |= 0x08 if d.polarity[.FNX0_INT03_TMR1       ] else 0
+        out |= 0x10 if d.polarity[.FNX0_INT04_TMR2       ] else 0
+        out |= 0x20 if d.polarity[.FNX0_INT05_RTC        ] else 0
+        out |= 0x40 if d.polarity[.FNX0_INT06_FCC        ] else 0
+        out |= 0x80 if d.polarity[.FNX0_INT07_MOUSE      ] else 0
     case .INT_POL_REG1:
-        val |= 0x01 if d.polarity[.FNX1_INT00_KBD        ] else 0
-        val |= 0x02 if d.polarity[.FNX1_INT01_SC0        ] else 0
-        val |= 0x04 if d.polarity[.FNX1_INT02_SC1        ] else 0
-        val |= 0x08 if d.polarity[.FNX1_INT03_COM2       ] else 0
-        val |= 0x10 if d.polarity[.FNX1_INT04_COM1       ] else 0
-        val |= 0x20 if d.polarity[.FNX1_INT05_MPU401     ] else 0
-        val |= 0x40 if d.polarity[.FNX1_INT06_LPT        ] else 0
-        val |= 0x80 if d.polarity[.FNX1_INT07_SDCARD     ] else 0
+        out |= 0x01 if d.polarity[.FNX1_INT00_KBD        ] else 0
+        out |= 0x02 if d.polarity[.FNX1_INT01_SC0        ] else 0
+        out |= 0x04 if d.polarity[.FNX1_INT02_SC1        ] else 0
+        out |= 0x08 if d.polarity[.FNX1_INT03_COM2       ] else 0
+        out |= 0x10 if d.polarity[.FNX1_INT04_COM1       ] else 0
+        out |= 0x20 if d.polarity[.FNX1_INT05_MPU401     ] else 0
+        out |= 0x40 if d.polarity[.FNX1_INT06_LPT        ] else 0
+        out |= 0x80 if d.polarity[.FNX1_INT07_SDCARD     ] else 0
     case .INT_POL_REG2:
-        val |= 0x01 if d.polarity[.FNX2_INT00_OPL3       ] else 0
-        val |= 0x02 if d.polarity[.FNX2_INT01_GABE_INT0  ] else 0
-        val |= 0x04 if d.polarity[.FNX2_INT02_GABE_INT1  ] else 0
-        val |= 0x08 if d.polarity[.FNX2_INT03_SDMA       ] else 0
-        val |= 0x10 if d.polarity[.FNX2_INT04_VDMA       ] else 0
-        val |= 0x20 if d.polarity[.FNX2_INT05_GABE_INT2  ] else 0
-        val |= 0x40 if d.polarity[.FNX2_INT06_EXT        ] else 0
-        val |= 0x80 if d.polarity[.FNX2_INT07_SDCARD_INS ] else 0
+        out |= 0x01 if d.polarity[.FNX2_INT00_OPL3       ] else 0
+        out |= 0x02 if d.polarity[.FNX2_INT01_GABE_INT0  ] else 0
+        out |= 0x04 if d.polarity[.FNX2_INT02_GABE_INT1  ] else 0
+        out |= 0x08 if d.polarity[.FNX2_INT03_SDMA       ] else 0
+        out |= 0x10 if d.polarity[.FNX2_INT04_VDMA       ] else 0
+        out |= 0x20 if d.polarity[.FNX2_INT05_GABE_INT2  ] else 0
+        out |= 0x40 if d.polarity[.FNX2_INT06_EXT        ] else 0
+        out |= 0x80 if d.polarity[.FNX2_INT07_SDCARD_INS ] else 0
     case .INT_POL_REG3:
-        val |= 0x01 if d.polarity[.FNX3_INT00_OPN2       ] else 0
-        val |= 0x02 if d.polarity[.FNX3_INT01_OPM        ] else 0
-        val |= 0x04 if d.polarity[.FNX3_INT02_IDE        ] else 0
-        val |= 0x08 if d.polarity[.FNX3_INT03_TBD        ] else 0
-        val |= 0x10 if d.polarity[.FNX3_INT04_TBD        ] else 0
-        val |= 0x20 if d.polarity[.FNX3_INT05_TBD        ] else 0
-        val |= 0x40 if d.polarity[.FNX3_INT06_TBD        ] else 0
-        val |= 0x80 if d.polarity[.FNX3_INT07_TBD        ] else 0
+        out |= 0x01 if d.polarity[.FNX3_INT00_OPN2       ] else 0
+        out |= 0x02 if d.polarity[.FNX3_INT01_OPM        ] else 0
+        out |= 0x04 if d.polarity[.FNX3_INT02_IDE        ] else 0
+        out |= 0x08 if d.polarity[.FNX3_INT03_TBD        ] else 0
+        out |= 0x10 if d.polarity[.FNX3_INT04_TBD        ] else 0
+        out |= 0x20 if d.polarity[.FNX3_INT05_TBD        ] else 0
+        out |= 0x40 if d.polarity[.FNX3_INT06_TBD        ] else 0
+        out |= 0x80 if d.polarity[.FNX3_INT07_TBD        ] else 0
     case .INT_EDGE_REG0:
-        val |= 0x01 if d.edge[.FNX0_INT00_SOF            ] else 0
-        val |= 0x02 if d.edge[.FNX0_INT01_SOL            ] else 0
-        val |= 0x04 if d.edge[.FNX0_INT02_TMR0           ] else 0
-        val |= 0x08 if d.edge[.FNX0_INT03_TMR1           ] else 0
-        val |= 0x10 if d.edge[.FNX0_INT04_TMR2           ] else 0
-        val |= 0x20 if d.edge[.FNX0_INT05_RTC            ] else 0
-        val |= 0x40 if d.edge[.FNX0_INT06_FCC            ] else 0
-        val |= 0x80 if d.edge[.FNX0_INT07_MOUSE          ] else 0
+        out |= 0x01 if d.edge[.FNX0_INT00_SOF            ] else 0
+        out |= 0x02 if d.edge[.FNX0_INT01_SOL            ] else 0
+        out |= 0x04 if d.edge[.FNX0_INT02_TMR0           ] else 0
+        out |= 0x08 if d.edge[.FNX0_INT03_TMR1           ] else 0
+        out |= 0x10 if d.edge[.FNX0_INT04_TMR2           ] else 0
+        out |= 0x20 if d.edge[.FNX0_INT05_RTC            ] else 0
+        out |= 0x40 if d.edge[.FNX0_INT06_FCC            ] else 0
+        out |= 0x80 if d.edge[.FNX0_INT07_MOUSE          ] else 0
     case .INT_EDGE_REG1:
-        val |= 0x01 if d.edge[.FNX1_INT00_KBD            ] else 0
-        val |= 0x02 if d.edge[.FNX1_INT01_SC0            ] else 0
-        val |= 0x04 if d.edge[.FNX1_INT02_SC1            ] else 0
-        val |= 0x08 if d.edge[.FNX1_INT03_COM2           ] else 0
-        val |= 0x10 if d.edge[.FNX1_INT04_COM1           ] else 0
-        val |= 0x20 if d.edge[.FNX1_INT05_MPU401         ] else 0
-        val |= 0x40 if d.edge[.FNX1_INT06_LPT            ] else 0
-        val |= 0x80 if d.edge[.FNX1_INT07_SDCARD         ] else 0
+        out |= 0x01 if d.edge[.FNX1_INT00_KBD            ] else 0
+        out |= 0x02 if d.edge[.FNX1_INT01_SC0            ] else 0
+        out |= 0x04 if d.edge[.FNX1_INT02_SC1            ] else 0
+        out |= 0x08 if d.edge[.FNX1_INT03_COM2           ] else 0
+        out |= 0x10 if d.edge[.FNX1_INT04_COM1           ] else 0
+        out |= 0x20 if d.edge[.FNX1_INT05_MPU401         ] else 0
+        out |= 0x40 if d.edge[.FNX1_INT06_LPT            ] else 0
+        out |= 0x80 if d.edge[.FNX1_INT07_SDCARD         ] else 0
     case .INT_EDGE_REG2:
-        val |= 0x01 if d.edge[.FNX2_INT00_OPL3           ] else 0
-        val |= 0x02 if d.edge[.FNX2_INT01_GABE_INT0      ] else 0
-        val |= 0x04 if d.edge[.FNX2_INT02_GABE_INT1      ] else 0
-        val |= 0x08 if d.edge[.FNX2_INT03_SDMA           ] else 0
-        val |= 0x10 if d.edge[.FNX2_INT04_VDMA           ] else 0
-        val |= 0x20 if d.edge[.FNX2_INT05_GABE_INT2      ] else 0
-        val |= 0x40 if d.edge[.FNX2_INT06_EXT            ] else 0
-        val |= 0x80 if d.edge[.FNX2_INT07_SDCARD_INS     ] else 0
+        out |= 0x01 if d.edge[.FNX2_INT00_OPL3           ] else 0
+        out |= 0x02 if d.edge[.FNX2_INT01_GABE_INT0      ] else 0
+        out |= 0x04 if d.edge[.FNX2_INT02_GABE_INT1      ] else 0
+        out |= 0x08 if d.edge[.FNX2_INT03_SDMA           ] else 0
+        out |= 0x10 if d.edge[.FNX2_INT04_VDMA           ] else 0
+        out |= 0x20 if d.edge[.FNX2_INT05_GABE_INT2      ] else 0
+        out |= 0x40 if d.edge[.FNX2_INT06_EXT            ] else 0
+        out |= 0x80 if d.edge[.FNX2_INT07_SDCARD_INS     ] else 0
     case .INT_EDGE_REG3:
-        val |= 0x01 if d.edge[.FNX3_INT00_OPN2           ] else 0
-        val |= 0x02 if d.edge[.FNX3_INT01_OPM            ] else 0
-        val |= 0x04 if d.edge[.FNX3_INT02_IDE            ] else 0
-        val |= 0x08 if d.edge[.FNX3_INT03_TBD            ] else 0
-        val |= 0x10 if d.edge[.FNX3_INT04_TBD            ] else 0
-        val |= 0x20 if d.edge[.FNX3_INT05_TBD            ] else 0
-        val |= 0x40 if d.edge[.FNX3_INT06_TBD            ] else 0
-        val |= 0x80 if d.edge[.FNX3_INT07_TBD            ] else 0
+        out |= 0x01 if d.edge[.FNX3_INT00_OPN2           ] else 0
+        out |= 0x02 if d.edge[.FNX3_INT01_OPM            ] else 0
+        out |= 0x04 if d.edge[.FNX3_INT02_IDE            ] else 0
+        out |= 0x08 if d.edge[.FNX3_INT03_TBD            ] else 0
+        out |= 0x10 if d.edge[.FNX3_INT04_TBD            ] else 0
+        out |= 0x20 if d.edge[.FNX3_INT05_TBD            ] else 0
+        out |= 0x40 if d.edge[.FNX3_INT06_TBD            ] else 0
+        out |= 0x80 if d.edge[.FNX3_INT07_TBD            ] else 0
     case .INT_MASK_REG0:
-        val |= 0x01 if d.mask[.FNX0_INT00_SOF            ] else 0
-        val |= 0x02 if d.mask[.FNX0_INT01_SOL            ] else 0
-        val |= 0x04 if d.mask[.FNX0_INT02_TMR0           ] else 0
-        val |= 0x08 if d.mask[.FNX0_INT03_TMR1           ] else 0
-        val |= 0x10 if d.mask[.FNX0_INT04_TMR2           ] else 0
-        val |= 0x20 if d.mask[.FNX0_INT05_RTC            ] else 0
-        val |= 0x40 if d.mask[.FNX0_INT06_FCC            ] else 0
-        val |= 0x80 if d.mask[.FNX0_INT07_MOUSE          ] else 0
+        out |= 0x01 if d.mask[.FNX0_INT00_SOF            ] else 0
+        out |= 0x02 if d.mask[.FNX0_INT01_SOL            ] else 0
+        out |= 0x04 if d.mask[.FNX0_INT02_TMR0           ] else 0
+        out |= 0x08 if d.mask[.FNX0_INT03_TMR1           ] else 0
+        out |= 0x10 if d.mask[.FNX0_INT04_TMR2           ] else 0
+        out |= 0x20 if d.mask[.FNX0_INT05_RTC            ] else 0
+        out |= 0x40 if d.mask[.FNX0_INT06_FCC            ] else 0
+        out |= 0x80 if d.mask[.FNX0_INT07_MOUSE          ] else 0
     case .INT_MASK_REG1:
-        val |= 0x01 if d.mask[.FNX1_INT00_KBD            ] else 0
-        val |= 0x02 if d.mask[.FNX1_INT01_SC0            ] else 0
-        val |= 0x04 if d.mask[.FNX1_INT02_SC1            ] else 0
-        val |= 0x08 if d.mask[.FNX1_INT03_COM2           ] else 0
-        val |= 0x10 if d.mask[.FNX1_INT04_COM1           ] else 0
-        val |= 0x20 if d.mask[.FNX1_INT05_MPU401         ] else 0
-        val |= 0x40 if d.mask[.FNX1_INT06_LPT            ] else 0
-        val |= 0x80 if d.mask[.FNX1_INT07_SDCARD         ] else 0
-        //log.debugf("pic0: %6s read   .INT_MASK_REG1: val %02x", d.name, val)
+        out |= 0x01 if d.mask[.FNX1_INT00_KBD            ] else 0
+        out |= 0x02 if d.mask[.FNX1_INT01_SC0            ] else 0
+        out |= 0x04 if d.mask[.FNX1_INT02_SC1            ] else 0
+        out |= 0x08 if d.mask[.FNX1_INT03_COM2           ] else 0
+        out |= 0x10 if d.mask[.FNX1_INT04_COM1           ] else 0
+        out |= 0x20 if d.mask[.FNX1_INT05_MPU401         ] else 0
+        out |= 0x40 if d.mask[.FNX1_INT06_LPT            ] else 0
+        out |= 0x80 if d.mask[.FNX1_INT07_SDCARD         ] else 0
+        //log.debugf("pic0: %6s read   .INT_MASK_REG1: out %02x", d.name, val)
     case .INT_MASK_REG2:
-        val |= 0x01 if d.mask[.FNX2_INT00_OPL3           ] else 0
-        val |= 0x02 if d.mask[.FNX2_INT01_GABE_INT0      ] else 0
-        val |= 0x04 if d.mask[.FNX2_INT02_GABE_INT1      ] else 0
-        val |= 0x08 if d.mask[.FNX2_INT03_SDMA           ] else 0
-        val |= 0x10 if d.mask[.FNX2_INT04_VDMA           ] else 0
-        val |= 0x20 if d.mask[.FNX2_INT05_GABE_INT2      ] else 0
-        val |= 0x40 if d.mask[.FNX2_INT06_EXT            ] else 0
-        val |= 0x80 if d.mask[.FNX2_INT07_SDCARD_INS     ] else 0
+        out |= 0x01 if d.mask[.FNX2_INT00_OPL3           ] else 0
+        out |= 0x02 if d.mask[.FNX2_INT01_GABE_INT0      ] else 0
+        out |= 0x04 if d.mask[.FNX2_INT02_GABE_INT1      ] else 0
+        out |= 0x08 if d.mask[.FNX2_INT03_SDMA           ] else 0
+        out |= 0x10 if d.mask[.FNX2_INT04_VDMA           ] else 0
+        out |= 0x20 if d.mask[.FNX2_INT05_GABE_INT2      ] else 0
+        out |= 0x40 if d.mask[.FNX2_INT06_EXT            ] else 0
+        out |= 0x80 if d.mask[.FNX2_INT07_SDCARD_INS     ] else 0
     case .INT_MASK_REG3:
-        val |= 0x01 if d.mask[.FNX3_INT00_OPN2           ] else 0
-        val |= 0x02 if d.mask[.FNX3_INT01_OPM            ] else 0
-        val |= 0x04 if d.mask[.FNX3_INT02_IDE            ] else 0
-        val |= 0x08 if d.mask[.FNX3_INT03_TBD            ] else 0
-        val |= 0x10 if d.mask[.FNX3_INT04_TBD            ] else 0
-        val |= 0x20 if d.mask[.FNX3_INT05_TBD            ] else 0
-        val |= 0x40 if d.mask[.FNX3_INT06_TBD            ] else 0
-        val |= 0x80 if d.mask[.FNX3_INT07_TBD            ] else 0
+        out |= 0x01 if d.mask[.FNX3_INT00_OPN2           ] else 0
+        out |= 0x02 if d.mask[.FNX3_INT01_OPM            ] else 0
+        out |= 0x04 if d.mask[.FNX3_INT02_IDE            ] else 0
+        out |= 0x08 if d.mask[.FNX3_INT03_TBD            ] else 0
+        out |= 0x10 if d.mask[.FNX3_INT04_TBD            ] else 0
+        out |= 0x20 if d.mask[.FNX3_INT05_TBD            ] else 0
+        out |= 0x40 if d.mask[.FNX3_INT06_TBD            ] else 0
+        out |= 0x80 if d.mask[.FNX3_INT07_TBD            ] else 0
     }
 
     return
 }
 
-pic_c256_write :: proc(pic: ^PIC, size: BITS, base, busaddr, val: u32)  {
+pic_c256_write :: proc(pic: ^PIC, mode: MODE, addr, ra, val: u32)  {
 
-    if size != .bits_8 {
-        emu.unsupported_write_size(#procedure, pic.name, pic.id, size, busaddr, val)
+    if mode != .mode_8 {
+        emu.error_write(pic.name, .BAD_MODE, mode, addr, ra, val, .NONE)
         return
     }
 
-    addr      := busaddr                // current version has fixed adressess
     d         := &pic.model.(PIC_C256)
-
     switch Register_pic_c256(addr) {
     case .INT_PENDING_REG0:
         if (val & 0x01) != 0 do d.pending[.FNX0_INT00_SOF         ] = false 

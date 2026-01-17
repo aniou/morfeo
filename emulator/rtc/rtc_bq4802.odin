@@ -15,7 +15,7 @@ import "lib:emu"
 import "emulator:pic"
 
 
-BITS :: emu.Bitsize
+MODE :: emu.OpMode
 
 /*
   This implementations does not support:
@@ -146,8 +146,8 @@ RTC :: struct {
     id:     int,
     pic:    ^pic.PIC,
 
-    read:     proc(^RTC, BITS, u32, u32) -> u32,
-    write:    proc(^RTC, BITS, u32, u32,    u32),
+    read:     proc(^RTC, MODE, u32, u32) -> u32,
+    write:    proc(^RTC, MODE, u32, u32,    u32),
     delete:   proc(^RTC),
 
 
@@ -224,44 +224,40 @@ bq4802_make :: proc(name: string, pic: ^pic.PIC) -> ^RTC {
     return r
 }
 
-bq4802_read :: proc(r: ^RTC, mode: BITS, base, busaddr: u32) -> (val: u32) {
-    addr := busaddr - base
-
-    if mode != .bits_8 {
-        emu.unsupported_read_size(#procedure, r.name, r.id, mode, busaddr)
+bq4802_read :: proc(r: ^RTC, mode: MODE, addr, ra: u32) -> (out: u32) {
+    if mode != .mode_8 {
+        emu.error_read(r.name, .BAD_MODE, mode, addr, ra, .NONE)
     }
 
     switch Register_bq4802(addr) {
-    case .RTC_SEC        : val = time_to_bcd(r.pub.second)
-    case .RTC_ALRM_SEC   : val = time_to_bcd(r.alarm.second)
-    case .RTC_MIN        : val = time_to_bcd(r.pub.minute)
-    case .RTC_ALRM_MIN   : val = time_to_bcd(r.alarm.minute)
-    case .RTC_HOUR       : val = hour_to_bcd(r.pub.hour,    r.control.mode_24h)
-    case .RTC_ALRM_HOUR  : val = hour_to_bcd(r.alarm.hour,  r.control.mode_24h)
-    case .RTC_DAY        : val = time_to_bcd(r.pub.day)
-    case .RTC_ALRM_DAY   : val = time_to_bcd(r.alarm.day)
-    case .RTC_DAY_OF_WEEK: val = time_to_bcd(r.pub.dow)
-    case .RTC_MONTH      : val = time_to_bcd(r.pub.month)
-    case .RTC_YEAR       : val = time_to_bcd(r.pub.year)
-    case .RTC_RATES      : val =         u32(r.rate)
-    case .RTC_ENABLES    : val =         u32(r.enable)
-    case .RTC_FLAGS      : val =         u32(r.flag)
-    case .RTC_CTRL       : val =         u32(r.control)
-    case .RTC_CENTURY    : val = time_to_bcd(r.pub.century)
+    case .RTC_SEC        : out = time_to_bcd(r.pub.second)
+    case .RTC_ALRM_SEC   : out = time_to_bcd(r.alarm.second)
+    case .RTC_MIN        : out = time_to_bcd(r.pub.minute)
+    case .RTC_ALRM_MIN   : out = time_to_bcd(r.alarm.minute)
+    case .RTC_HOUR       : out = hour_to_bcd(r.pub.hour,    r.control.mode_24h)
+    case .RTC_ALRM_HOUR  : out = hour_to_bcd(r.alarm.hour,  r.control.mode_24h)
+    case .RTC_DAY        : out = time_to_bcd(r.pub.day)
+    case .RTC_ALRM_DAY   : out = time_to_bcd(r.alarm.day)
+    case .RTC_DAY_OF_WEEK: out = time_to_bcd(r.pub.dow)
+    case .RTC_MONTH      : out = time_to_bcd(r.pub.month)
+    case .RTC_YEAR       : out = time_to_bcd(r.pub.year)
+    case .RTC_RATES      : out =         u32(r.rate)
+    case .RTC_ENABLES    : out =         u32(r.enable)
+    case .RTC_FLAGS      : out =         u32(r.flag)
+    case .RTC_CTRL       : out =         u32(r.control)
+    case .RTC_CENTURY    : out = time_to_bcd(r.pub.century)
     }
     //log.warnf("%s bq4802 read%d     from %x  %-15s not implemented", r.name, mode, busaddr, addr_name(addr))
-    log.debugf("%s bq4802 read%d  val %2x from %x  %-15s", r.name, mode, val, busaddr, addr_name(addr))
+    log.debugf("%s bq4802 read%d  out %2x from %x  %-15s", r.name, mode, out, ra, addr_name(addr))
     return
 }
 
-bq4802_write :: proc(r: ^RTC, mode: BITS, base, busaddr, val: u32) {
-    addr := busaddr - base
-
-    if mode != .bits_8 {
-        emu.unsupported_write_size(#procedure, r.name, r.id, mode, busaddr, val)
+bq4802_write :: proc(r: ^RTC, mode: MODE, addr, ra, val: u32) {
+    if mode != .mode_8 {
+        emu.error_write(r.name, .BAD_MODE, mode, addr, ra, val, .NONE)
     } 
 
-    log.debugf("%s bq4802 write%d %02x   to %x  %-15s", r.name, mode, val, busaddr, addr_name(addr))
+    log.debugf("%s bq4802 write%d %02x   to %x  %-15s", r.name, mode, val, ra, addr_name(addr))
     switch Register_bq4802(addr) {
     case .RTC_SEC        : r.pub.second   = time_from_bcd(val)
     case .RTC_ALRM_SEC   : r.alarm.second = time_from_bcd(val)
@@ -271,7 +267,7 @@ bq4802_write :: proc(r: ^RTC, mode: BITS, base, busaddr, val: u32) {
     case .RTC_ALRM_HOUR  : r.alarm.hour   = hour_from_bcd(val,  r.control.mode_24h)
     case .RTC_DAY        : r.pub.day      = time_from_bcd(val)
     case .RTC_ALRM_DAY   : r.alarm.day    = time_from_bcd(val)
-    case .RTC_DAY_OF_WEEK: log.warnf("%s bq4802 write%d %02x   to %x  %-15s does nothing", r.name, mode, val, busaddr, addr_name(addr))
+    case .RTC_DAY_OF_WEEK: log.warnf("%s bq4802 write%d %02x   to %x  %-15s does nothing", r.name, mode, val, ra, addr_name(addr))
     case .RTC_MONTH      : r.pub.month    = time_from_bcd(val)
     case .RTC_YEAR       : r.pub.year     = time_from_bcd(val)
     case .RTC_RATES      : r.rate         = BQ4802_Rates(val)
@@ -294,7 +290,7 @@ bq4802_write :: proc(r: ^RTC, mode: BITS, base, busaddr, val: u32) {
     if r.pub.year.dirty    { r.own.year.val    = r.pub.year.val;     r.pub.year.dirty    = false }
     if r.pub.century.dirty { r.own.century.val = r.pub.century.val;  r.pub.century.dirty = false }
 
-    //log.warnf("%s bq4802 write%d %02x   to %x  %-15s not implemented", r.name, mode, val, busaddr, addr_name(addr))
+    //log.warnf("%s bq4802 write%d %02x   to %x  %-15s not implemented", r.name, mode, val, ra, addr_name(addr))
     return
 }
 

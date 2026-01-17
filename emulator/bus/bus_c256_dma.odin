@@ -151,27 +151,27 @@ assign_byte4  :: #force_inline proc(dst, arg: u32) -> (val: u32) {
 
 // TODO - better name
 @private
-c256_dma_read8 :: #force_inline proc(bus: ^Bus, kind: DMATYPE, addr: u32) -> (val: u32) {
+c256_dma_read8 :: #force_inline proc(bus: ^BUS_C256, kind: DMATYPE, addr: u32) -> (val: u32) {
     switch kind {
-    case .SRAM:    val = bus.ram0->read(.bits_8, 0x00, addr)
-    case .VRAM:    val = bus.gpu0->read(.bits_8, 0x00, addr, .VRAM0)
+    case .SRAM:    val = bus.ram0->read(.mode_8, 0x00, addr)
+    case .VRAM:    val = bus.gpu0->read(.mode_8, 0x00, addr, .VRAM0)
     }
     return
 }
 
 @private
-c256_dma_write8 :: #force_inline proc(bus: ^Bus, kind: DMATYPE, addr, val: u32)        {
+c256_dma_write8 :: #force_inline proc(bus: ^BUS_C256, kind: DMATYPE, addr, val: u32)        {
     switch kind {
     case .SRAM:    //log.debugf("c256_dma_write8: SRAM %04X VAL %02X", addr, val)
-                   bus.ram0->write(.bits_8, 0x00, addr, val)
+                   bus.ram0->write(.mode_8, 0x00, addr, val)
     case .VRAM:    //log.debugf("c256_dma_write8: VRAM %04X VAL %02X (%v)", addr, val, bus.gpu0.write)
-                   bus.gpu0->write(.bits_8, 0x00, addr, val, .VRAM0)
+                   bus.gpu0->write(.mode_8, 0x00, addr, val, .VRAM0)
     }
     return
 }
 
 
-c256_dma_operation :: proc(bus: ^Bus, obj: ^DMAOBJ) {
+c256_dma_operation :: proc(bus: ^BUS_C256, obj: ^DMAOBJ) {
     using obj
 
     if addr + index > 0xFF_FFFF {           // XXX compile-time max RAM/VRAM size?
@@ -254,16 +254,14 @@ c256_dma_set_objects :: proc(dma: ^DMA) -> (src, dst: DMAOBJ) {
 // so - vdma<>sdma transfer is handled only in c256_sdma_transfer because it 
 // is simpler - c256_vdma_transfer does nothing with that
 
-c256_sdma_transfer :: proc(mainbus: ^Bus) {
-    bus        := &mainbus.model.(BUS_C256)
-
+c256_sdma_transfer :: proc(bus: ^BUS_C256) {
     // FILL ---------------------------------------------------------------
     if bus.sdma.ctrl_trf_fill {
         src,dst := c256_dma_set_objects(&bus.sdma)
         dst.val  = bus.sdma.byte_2_write
 
         for dst.stop == false {
-            c256_dma_operation(mainbus, &dst) 
+            c256_dma_operation(bus, &dst) 
         }
         if bus.sdma.debug {
             log.debugf("%s DMA fill finished after %d bytes status %02x", #procedure, dst.count, dst.status)
@@ -276,9 +274,9 @@ c256_sdma_transfer :: proc(mainbus: ^Bus) {
         src, dst  := c256_dma_set_objects(&bus.sdma)
 
         for (src.stop || dst.stop) == false {
-            c256_dma_operation(mainbus, &src) 
+            c256_dma_operation(bus, &src) 
             dst.val = src.val
-            c256_dma_operation(mainbus, &dst) 
+            c256_dma_operation(bus, &dst) 
         }
 
         if src.stop != dst.stop {
@@ -327,9 +325,9 @@ c256_sdma_transfer :: proc(mainbus: ^Bus) {
 
     //src,dst   := c256_dma_set_objects(&bus.sdma)
     for (src.stop || dst.stop) == false {
-        c256_dma_operation(mainbus, &src) 
+        c256_dma_operation(bus, &src) 
         dst.val = src.val
-        c256_dma_operation(mainbus, &dst) 
+        c256_dma_operation(bus, &dst) 
         //log.debugf("DMA %v to %v SRC %08x %08x DST %08x %08x VAL %02x",
         //           src.kind, dst.kind,
         //           src.addr, src.index,
@@ -355,16 +353,14 @@ c256_sdma_transfer :: proc(mainbus: ^Bus) {
 
 
 // no support for "SIZE" error
-c256_vdma_transfer :: proc(mainbus: ^Bus) {
-    bus        := &mainbus.model.(BUS_C256)
-
+c256_vdma_transfer :: proc(bus: ^BUS_C256) {
     // FILL ---------------------------------------------------------------
     if bus.vdma.ctrl_trf_fill {
         src,dst := c256_dma_set_objects(&bus.vdma)
         dst.val  = bus.vdma.byte_2_write
 
         for dst.stop == false {
-            c256_dma_operation(mainbus, &dst) 
+            c256_dma_operation(bus, &dst) 
         }
         if bus.vdma.debug {
             log.debugf("%s DMA fill finished after %d bytes status %02x", #procedure, dst.count, dst.status)
@@ -377,9 +373,9 @@ c256_vdma_transfer :: proc(mainbus: ^Bus) {
         src, dst  := c256_dma_set_objects(&bus.vdma)
 
         for (src.stop || dst.stop) == false {
-            c256_dma_operation(mainbus, &src) 
+            c256_dma_operation(bus, &src) 
             dst.val = src.val
-            c256_dma_operation(mainbus, &dst) 
+            c256_dma_operation(bus, &dst) 
         }
 
         if src.stop != dst.stop {
@@ -399,9 +395,7 @@ c256_vdma_transfer :: proc(mainbus: ^Bus) {
 
 }
 
-c256_dma_read :: proc(mainbus: ^Bus, size: BITS, addr: u32) -> (val: u32) {
-    bus        := &mainbus.model.(BUS_C256)
-
+c256_dma_read :: proc(bus: ^BUS_C256, mode: MODE, addr: u32) -> (val: u32) {
     switch addr {
     case VDMA_CONTROL_REG :
         val |= 0x01 if bus.vdma.ctrl_enable     else 0
@@ -472,8 +466,7 @@ c256_dma_read :: proc(mainbus: ^Bus, size: BITS, addr: u32) -> (val: u32) {
     return
 }
 
-c256_dma_write :: proc(mainbus: ^Bus, size: BITS, addr, val: u32) {
-    bus        := &mainbus.model.(BUS_C256)
+c256_dma_write :: proc(bus: ^BUS_C256, mode: MODE, addr, val: u32) {
 
     log.debugf("%s DMA write value %02x to addr %08x", #procedure, addr, val)
     switch addr {
@@ -495,8 +488,8 @@ c256_dma_write :: proc(mainbus: ^Bus, size: BITS, addr, val: u32) {
         // initiate transfer only if change is 0 -> 1
         if !bus.vdma.ctrl_start & cmd_ctrl_start  {
             bus.vdma.ctrl_start = true
-            c256_vdma_transfer(mainbus)
-            mainbus.pic0->trigger(.RESERVED_6)   // may generate spurious irqs
+            c256_vdma_transfer(bus)
+            bus.pic0->trigger(.RESERVED_6)   // may generate spurious irqs
         } else {
             bus.vdma.ctrl_start = false
         }
@@ -548,8 +541,8 @@ c256_dma_write :: proc(mainbus: ^Bus, size: BITS, addr, val: u32) {
         // initiate transfer only if change is 0 -> 1
         if !bus.sdma.ctrl_start & cmd_ctrl_start  {
             bus.sdma.ctrl_start = true
-            c256_sdma_transfer(mainbus)
-            mainbus.pic0->trigger(.RESERVED_5)   // may generate spurious irqs
+            c256_sdma_transfer(bus)
+            bus.pic0->trigger(.RESERVED_5)   // may generate spurious irqs
         } else {
             bus.sdma.ctrl_start = false
         }

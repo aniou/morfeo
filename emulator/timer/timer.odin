@@ -4,13 +4,13 @@ import "lib:emu"
 
 import "emulator:pic"
 
-BITS  :: emu.Bitsize
+MODE  :: emu.OpMode
 TIMER :: struct {
     name:       string,
     id:         int,
 
-    read:       proc(^TIMER, BITS, u32, u32) -> u32,
-    write:      proc(^TIMER, BITS, u32, u32,    u32),
+    read:       proc(^TIMER, MODE, u32, u32) -> u32,
+    write:      proc(^TIMER, MODE, u32, u32,    u32),
     delete:     proc(^TIMER),
     tick:       proc(^TIMER, int),
 

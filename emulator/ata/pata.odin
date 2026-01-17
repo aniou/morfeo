@@ -12,7 +12,7 @@ import "core:os"
 
 import "lib:emu"
 
-BITS  :: emu.Bitsize
+MODE  :: emu.OpMode
 
 STATE :: enum {
     IDE_IDLE,
@@ -162,8 +162,8 @@ PATA :: struct {
     name:     string,
     id:       int,
 
-    read:     proc(^PATA, BITS, u32, u32) -> u32,
-    write:    proc(^PATA, BITS, u32, u32,    u32),
+    read:     proc(^PATA, MODE, u32, u32) -> u32,
+    write:    proc(^PATA, MODE, u32, u32,    u32),
     read8:    proc(^PATA, u32) -> u8,
     write8:   proc(^PATA, u32,    u8),
     delete:   proc(^PATA            ),
@@ -191,24 +191,21 @@ pata_make :: proc(name:string) -> ^PATA {
     return pata
 }
 
-// XXX: note .bits_16 means .bits_16be (big endian)
-pata_read :: proc(d: ^PATA, mode: BITS, base, busaddr: u32) -> (val: u32) {
-    addr := busaddr - base
+pata_read :: proc(d: ^PATA, mode: MODE, addr, ra: u32) -> (out: u32) {
     switch mode {
-        case .bits_8:   val = u32(pata_read8(d, addr))
-        case .bits_16:  val = u32(pata_read8(d, addr)) << 8 | u32(pata_read8(d, addr+1))
-        case .bits_32:  emu.unsupported_read_size(#procedure, d.name, d.id, mode, busaddr)
+        case .mode_8:     out = u32(pata_read8(d, addr))
+        case .mode_16be:  out = u32(pata_read8(d, addr)) << 8 | u32(pata_read8(d, addr+1))
+        case .mode_32be:  emu.error_read(d.name, .BAD_MODE, mode, addr, ra, .NONE)
     }
     return
 }
 
-pata_write :: proc(d: ^PATA, mode: BITS, base, busaddr, val: u32) {
-    addr := busaddr - base
+pata_write :: proc(d: ^PATA, mode: MODE, addr, ra, val: u32) {
     switch mode {
-        case .bits_8:   pata_write8(d, addr,   u8(val        ))
-        case .bits_16:  pata_write8(d, addr,   u8(val >> 8   ))
-                        pata_write8(d, addr+1, u8(val  & 0xff))
-        case .bits_32:  emu.unsupported_write_size(#procedure, d.name, d.id, mode, busaddr, val)
+        case .mode_8:     pata_write8(d, addr,   u8(val        ))
+        case .mode_16be:  pata_write8(d, addr,   u8(val >> 8   ))
+                          pata_write8(d, addr+1, u8(val  & 0xff))
+        case .mode_32be:  emu.error_read(d.name, .BAD_MODE, mode, addr, ra, .NONE)
     }
     return
 }

@@ -15,19 +15,14 @@ import "emulator:rng"
 import "emulator:timer"
 import "emulator:tty"
 
-import "core:prof/spall"
-
-spall_ctx: spall.Context
-spall_buffer: spall.Buffer
-
-BITS :: emu.Bitsize
+MODE :: emu.OpMode // operation mode (8 bit, 16 bit le, etc)
 
 Bus :: struct {
-    name:    string,
-      id:    int,
-    peek:    proc(^Bus, BITS, u32) -> u32,
-    read:    proc(^Bus, BITS, u32) -> u32,
-   write:    proc(^Bus, BITS, u32,    u32),
+    name:     string,
+    debug:      bool,          // enable/disable debug
+
+    read:    proc(^Bus, MODE, u32) -> u32,
+   write:    proc(^Bus, MODE, u32,    u32),
   delete:    proc(^Bus),
 
     pic0:     ^pic.PIC,
@@ -58,8 +53,7 @@ Bus :: struct {
     dip_user: u32,          // switches 3 to 5
     dip_boot: u32,          // switches 1, 2 and 8
 
-    debug:     bool,          // enable/disable debug
-    pc:       u32,          // debug test
 
-    model: union {BUS_C256, BUS_F256}
+    model: union {BUS_C256, BUS_F256, BUS_A2560X}
 }
+
