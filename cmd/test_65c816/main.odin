@@ -96,7 +96,7 @@ prepare_test :: proc(p: ^platform.Platform, state: CPU_State) {
 
     // step 2: prepare memory
     for entry in state.ram {
-        p.bus.ram0->write(.bits_8, 0x00, entry[0], entry[1])
+        p.bus.ram0->write(.mode_8, entry[0], entry[0], entry[1])
     }
 
     return
@@ -209,12 +209,12 @@ verify_test :: proc(p: ^platform.Platform, cycles: int, state: CPU_State) -> (er
     // step 3: check memory
     val : u32
     for entry in state.ram {
-        val = p.bus.ram0->read(.bits_8, 0x00, entry[0])
+        val = p.bus.ram0->read(.mode_8, entry[0], entry[0])
         if val != entry[1] {
             log.errorf("MEM   %06x  %02x expected   %02x", entry[0], val, entry[1])
             err = true
         } else {
-            p.bus.ram0->write(.bits_8, 0x00, entry[0], 0)
+            p.bus.ram0->write(.mode_8, entry[0], entry[0], 0)
         }
     }
 
@@ -424,7 +424,7 @@ math_test :: proc(p: ^platform.Platform) -> (ok: bool) {
         if c.in_stp do break  // we use modified code, STP is used to finish
     }
 
-    status := p.bus.ram0->read(.bits_8, 0x00, 0x0b)
+    status := p.bus.ram0->read(.mode_8, 0x0b, 0x0b)
     if status == 0 {
         log.infof("65c816_decimal_test passed (%02x)", status)
     } else {
@@ -449,9 +449,9 @@ bus_test :: proc(p: ^platform.Platform, name: string) {
     val : u32
     rounds := 100_000_000
     start_time := time.tick_now()
-    for _ in 0..<rounds {
-        val = p.bus->read(.bits_8, 0x0 + u32(rounds & 0xFF_FFFF))
-        p.bus->write(.bits_8, 0xFF_FFFF - u32(rounds & 0xFF_FFFF), val)
+    for ra in 0..<rounds {
+        val = p.bus->read(.mode_8, 0x0 + u32(ra & 0xFF_FFFF))
+        p.bus->write(.mode_8, 0xFF_FFFF - u32(ra & 0xFF_FFFF), val)
     }
     elapsed := time.tick_since(start_time)
     fmt.printfln("%s rounds %d : elapsed %5.5f : %.3e/sec", name,
@@ -470,7 +470,7 @@ main :: proc() {
     context.logger  = log.create_console_logger(opt = logger_options) 
 
     // init -------------------------------------------------------------
-    p       := platform.test816_make()
+    p       := platform.make_mini816()
     c       := &p.cpu.model.(cpu.CPU_65xxx) 
     c.debug  = false
     
