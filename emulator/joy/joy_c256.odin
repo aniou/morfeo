@@ -40,13 +40,13 @@ read_joy_c256 :: proc(j: ^JOY, mode: MODE, addr, ra: u32) -> (out: u32 = 0x55) {
         //log.debugf("%s: Read  addr %6x returned %08b", j.name, busaddr, ~j.state)
         out = transmute(u32) ~j.state       // there is reverse logic for that? again?
     case  : 
-         emu.error_read(j.name, .NOT_IMPL, mode, addr, ra, .NONE)
+         emu.error_read(j.name, .NOT_IMPL, mode, addr, ra)
     }
     return
 }
 
 write_joy_c256 :: proc(j: ^JOY, mode: MODE, addr, ra, val: u32) {
-    emu.error_write(j.name, .NOT_IMPL, mode, addr, ra, val, .NONE)
+    emu.error_write(j.name, .NOT_IMPL, mode, addr, ra, val)
 }
 
 // eof
