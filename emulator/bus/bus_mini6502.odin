@@ -27,17 +27,25 @@ delete_mini6502 :: proc(bus: ^Bus) {
 }
 
 read_mini6502 :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
+
+    //if bus.debug do emu.debug_read(bus.name, mode, ra, ra)
+
     switch ra {
     case 0x0000 ..= 0xFFFF: out = bus.ram0->read(mode, ra, ra)        // ea == ra here
-    case                  : emu.error_read(bus.name, .NOT_IMPL, mode, ra, ra, .NONE)                                  
+    case                  : emu.error_read(bus.name, .NOT_IMPL, mode, ra, ra)
     }
+
+    if bus.debug do emu.debug_read(bus.name, mode, ra, ra, out)
     return
 }
 
 write_mini6502 :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
+
+    if bus.debug do emu.debug_write(bus.name, mode, ra, ra, val)
+
     switch ra {
     case 0x0000 ..= 0xFFFF: bus.ram0->write(mode, ra, ra, val)
-    case                  : emu.error_write(bus.name, .NOT_IMPL, mode, ra, ra, val, .NONE)
+    case                  : emu.error_write(bus.name, .NOT_IMPL, mode, ra, ra, val)
     }
 }
 

@@ -28,27 +28,24 @@ delete_mini816 :: proc(bus: ^Bus) {
 
 read_mini816 :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
 
-    //log.debugf("%s about to read%d from 0x %04X:%04X",
-    //            bus.name, mode, u16(ra >> 16), u16(ra & 0x0000_ffff))
+    //if bus.debug do emu.debug_read(bus.name, mode, ra, ra)
 
     switch ra {
     case 0x00_0000 ..= 0xFF_FFFF: out = bus.ram0->read(mode, ra, ra)        // ea == ra here
-    case                        : emu.error_read(bus.name, .NOT_IMPL, mode, ra, ra, .NONE)
+    case                        : emu.error_read(bus.name, .NOT_IMPL, mode, ra, ra)
     }
 
-    //log.debugf("%s read val %02x from 0x %04X:%04X", bus.name, out, u16(ra >> 16), u16(ra & 0x0000_ffff))
-
+    if bus.debug do emu.debug_read(bus.name, mode, ra, ra, out)
     return
 }
 
 write_mini816 :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
-    //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
-    //log.debugf("%s write %08x  to 0x %04X:%04X", bus.name, val, u16(ra >> 16), u16(ra & 0x0000_ffff))
+
+    if bus.debug do emu.debug_write(bus.name, mode, ra, ra, val)
 
     switch ra {
     case 0x00_0000 ..= 0xFF_FFFF: bus.ram0->write(mode, ra, ra, val)
-    case                        : emu.error_write(bus.name, .NOT_IMPL, mode, ra, ra, val, .NONE)
+    case                        : emu.error_write(bus.name, .NOT_IMPL, mode, ra, ra, val)
     }
-    return
 }
 

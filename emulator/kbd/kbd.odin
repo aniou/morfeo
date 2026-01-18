@@ -66,7 +66,7 @@ delete_kbd :: proc(d: ^KBD) {
 read_kbd :: proc(kbd: ^KBD, mode: MODE, addr, ra: u32) -> (out: u32) {
 
     if mode != .mode_8 {
-        emu.error_read(kbd.name, .BAD_MODE, mode, addr, ra, .NONE)
+        emu.error_read(kbd.name, .BAD_MODE, mode, addr, ra)
         return
     }
 
@@ -94,7 +94,7 @@ read_kbd :: proc(kbd: ^KBD, mode: MODE, addr, ra: u32) -> (out: u32) {
 }
 
 write_kbd :: proc(kbd: ^KBD, mode: MODE, addr, ra, val: u32)          {
-    emu.error_write(kbd.name, .NOT_IMPL, mode, addr, ra, val, .NONE)
+    emu.error_write(kbd.name, .NOT_IMPL, mode, addr, ra, val)
 	return
 }
 
