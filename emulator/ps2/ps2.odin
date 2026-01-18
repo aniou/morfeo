@@ -112,7 +112,7 @@ FMX:
 read_ps2 :: proc(ps2: ^PS2, mode: MODE, addr, ra: u32) -> (out: u32) {
 
     if mode != .mode_8 {
-        emu.error_read(ps2.name, .BAD_MODE, mode, addr, ra, .NONE)
+        emu.error_read(ps2.name, .BAD_MODE, mode, addr, ra)
         return
     }
 
@@ -124,7 +124,7 @@ read_ps2 :: proc(ps2: ^PS2, mode: MODE, addr, ra: u32) -> (out: u32) {
 write_ps2 :: proc(ps2: ^PS2, mode: MODE, addr, ra, val: u32) {
 
     if mode != .mode_8 {
-        emu.error_write(ps2.name, .BAD_MODE, mode, addr, ra, val, .NONE)
+        emu.error_write(ps2.name, .BAD_MODE, mode, addr, ra, val)
         return
     }
 
