@@ -22,7 +22,6 @@ make_mini816   :: proc() -> ^Platform {
 }
 
 delete_mini816   :: proc(p: ^Platform) {
-
          p.cpu->delete()
     p.bus.ram0->delete()
     p.bus.pic0->delete()
