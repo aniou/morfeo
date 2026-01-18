@@ -25,44 +25,67 @@ format_addr :: proc(addr: u32) -> (out: string) {
     return
 }
 
-
-error_read :: proc(dev: string, e: ERR, m: MODE, addr,ra: u32, r: Region, loc:=#caller_location) {
-    sra    := format_addr(ra)
+debug_read  :: proc(dev: string, m: MODE, addr, ra: u32, val: Maybe(u32) = nil) {
     saddr  := format_addr(addr)
-    err    :  string
+    sra    := format_addr(ra)
+    mode,_ := fmt.enum_value_to_string(m)
+    if val != nil {
+        sval   := format_val(m, val.?)
+        log.debugf("%-6s %-9s read   %9s  from ra %9s  ea %9s", dev,  mode,       sval,  saddr,  sra)
+        delete(sval)
+    } else {
+        log.debugf("%-6s %-9s read  %-9s   from ra %9s  ea %9s", dev,  mode,  "attempt",  saddr,  sra)
+    }
+    delete(saddr)
+    delete(sra)
+}
+
+debug_write :: proc(dev: string, m: MODE, addr, ra: u32, val: u32) {
+    saddr  := format_addr(addr)
+    sra    := format_addr(ra)
+    mode,_ := fmt.enum_value_to_string(m)
+    sval   := format_val(m, val)
+
+    log.debugf("%-6s %-9s write  %9s  to   ra %9s  ea %9s", dev,  mode,  sval,  saddr,  sra)
+
+    delete(sval)
+    delete(saddr)
+    delete(sra)
+
+}
+
+error_read :: proc(dev: string, e: ERR, m: MODE, addr,ra: u32, loc:=#caller_location) {
+    sra      := format_addr(ra)
+    saddr    := format_addr(addr)
+    mode,_   := fmt.enum_value_to_string(m)
+    err      :  string
 
     switch e {
-    case .BAD_MODE: err = "not supported"
+    case .BAD_MODE: err = "not supported  "
     case .NOT_IMPL: err = "not implemented"
     }
 
-    log.errorf("%-6s %8s read %7d       from ra %9s ea %9s %s (%s)", 
-                dev, 
-                fmt.enum_value_to_string(r),
-                fmt.enum_value_to_string(m),
-                sra,  saddr,  err,  loc
+    log.errorf("%-6s %-9s read              from ra %9s  ea %9s  %s  (%s:%d)", 
+                dev,  mode,  sra,  saddr,  err,  loc.procedure, loc.line
     )
     delete(sra)
     delete(saddr)
 }
 
-error_write :: proc(dev: string, e: ERR, m: MODE, addr,ra,val: u32, r: Region, loc:=#caller_location) {
-    sra    := format_addr(ra)
-    saddr  := format_addr(addr)
-    sval   := format_val(m, val)
-    err    :  string
+error_write :: proc(dev: string, e: ERR, m: MODE, addr,ra,val: u32, loc:=#caller_location) {
+    sra      := format_addr(ra)
+    saddr    := format_addr(addr)
+    sval     := format_val(m, val)
+    mode,_   := fmt.enum_value_to_string(m)
+    err      :  string
 
     switch e {
-    case .BAD_MODE: err = "not supported"
+    case .BAD_MODE: err = "not supported  "
     case .NOT_IMPL: err = "not implemented"
     }
 
-    log.errorf("%-6s %8s read %7d val %9s to ra %9s ea %9s %s (%s)", 
-                dev, 
-                fmt.enum_value_to_string(r),
-                fmt.enum_value_to_string(m),
-                sval,
-                sra,  saddr,  err,  loc
+    log.errorf("%-6s %-9s write  %9s  to   ra %9s  ea %9s  %s  (%s%d)", 
+                dev,  mode, sval,  sra,  saddr,  err,  loc.procedure, loc.line
     )
     delete(sra)
     delete(saddr)
