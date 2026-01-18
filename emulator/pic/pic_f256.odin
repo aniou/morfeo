@@ -95,7 +95,7 @@ make_pic_f256 :: proc(name: string) -> ^PIC {
 read_pic_f256 :: proc(pic: ^PIC, mode: MODE, addr, ra: u32) -> (out: u32) {
 
     if mode != .mode_8 {
-        emu.error_read(pic.name, .BAD_MODE, mode, addr, ra, .NONE)
+        emu.error_read(pic.name, .BAD_MODE, mode, addr, ra)
         return
     }
 
@@ -220,7 +220,7 @@ read_pic_f256 :: proc(pic: ^PIC, mode: MODE, addr, ra: u32) -> (out: u32) {
 write_pic_f256 :: proc(pic: ^PIC, mode: MODE, addr, ra, val: u32) {
 
     if mode != .mode_8 {
-        emu.error_write(pic.name, .BAD_MODE, mode, addr, ra, val, .NONE)
+        emu.error_write(pic.name, .BAD_MODE, mode, addr, ra, val)
         return
     }
 
