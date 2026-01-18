@@ -404,7 +404,7 @@ delete_vicky2 :: proc(gpu: ^GPU) {
 read_vicky2 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN) -> (out: u32) {
     d    := &gpu.model.(GPU_Vicky2)
     if mode != .mode_8 {
-        emu.error_read(d.name, .BAD_MODE, mode, addr, ra, .NONE)
+        emu.error_read(d.name, .BAD_MODE, mode, addr, ra)
     }
 
     #partial switch region {
@@ -431,7 +431,7 @@ read_vicky2 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN
         out = u32(d.bg_clut[color][pos])
 
     case: 
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, region)
+        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
     }
     return
 }
@@ -440,7 +440,7 @@ read_vicky2 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN
 write_vicky2 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION = .MAIN) {
     d    := &gpu.model.(GPU_Vicky2)
     if mode != .mode_8 {
-        emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val, region)
+        emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val)
     } 
 
     #partial switch region {
@@ -534,7 +534,7 @@ write_vicky2 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION =
         }
 
     case        : 
-        emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val, region)
+        emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
     }
     return
 }
@@ -613,7 +613,7 @@ read_vicky2_tilemap :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: R
 write_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, region: REGION) {
 
     if mode != .mode_8 {
-        emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val, .NONE)
+        emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val)
         return
     }
 
@@ -631,7 +631,7 @@ write_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, re
             d.gamma_enabled   = (val & VKY2_MCR_GAMMA_ENABLE)  != 0
             d.gpu_enabled     = (val & VKY2_MCR_VIDEO_DISABLE) == 0
         } else {
-            emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val, region)
+            emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
         }
 
     case .VKY2_MCR_H:
@@ -654,17 +654,17 @@ write_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, re
                 vicky2_recalculate_screen(d)
             }
         } else {
-            emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val, region)
+            emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
         }
 
     case .VKY2_GAMMA_CR: 
-        emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val, region)
+        emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
 
     case .VKY2_BCR:
         d.border_enabled = (val & VKY2_BCR_ENABLE )       != 0
 
         if (val & VKY2_BCR_X_SCROLL) != 0 {
-            emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val, region)
+            emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
         }
 
     case .VKY2_BRD_COL_B: d.border_color_b =  u8(val); if d.border_enabled do vicky2_recalculate_screen(d)
@@ -681,13 +681,13 @@ write_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, re
         d.cursor_rate      =     (val & VKY2_CCR_RATE_MASK ) >> 1
 
         if (val & VKY2_CCR_FONT_PAGE0) != 0 {
-            emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val, region)
+            emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
         }
         if (val & VKY2_CCR_FONT_PAGE1) != 0 {
-            emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val, region)
+            emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
         }
 
-    case .VKY2_TXT_SAPTR:    emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val, region)
+    case .VKY2_TXT_SAPTR:    emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
     case .VKY2_TXT_CUR_CHAR: d.cursor_character = val
 
     case .VKY2_TXT_CUR_CLR:     
@@ -723,7 +723,7 @@ write_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, re
     case .BM1_X_OFFSET    : // not implemented
     case .BM1_Y_OFFSET    : // not implemented
 
-    case                 : emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val, region)
+    case                 : emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
     }
 }
 
@@ -731,7 +731,7 @@ write_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, re
 read_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
 
     if mode != .mode_8 {
-        emu.error_read(d.name, .BAD_MODE, mode, addr, ra, region)
+        emu.error_read(d.name, .BAD_MODE, mode, addr, ra)
         return
     }
 
@@ -748,7 +748,7 @@ read_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: 
             out |= VKY2_MCR_GAMMA_ENABLE  if d.gamma_enabled   else 0           // Bit[6]
             out |= VKY2_MCR_VIDEO_DISABLE if ! d.gpu_enabled   else 0           // Bit[7]
         } else {
-            emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, region)
+            emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
         }
     case .VKY2_MCR_H:
             out |= VKY2_MODE_800_600  if  d.resolution == VKY2_MODE_800_600  else 0
@@ -782,7 +782,7 @@ read_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: 
         // XXX: cursor font page 0 and 1 read_not implemented!
 
     case .VKY2_TXT_SAPTR:
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, region)
+        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
 
     case .VKY2_TXT_CUR_CHAR: 
         out = d.cursor_character
@@ -818,19 +818,19 @@ read_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: 
     case .BM1_X_OFFSET    : out = 0 // not implemented
     case .BM1_Y_OFFSET    : out = 0 // not implemented
 
-    case                 : emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, region)
+    case                 : emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
     }
     return
 }
 
 @private
 write_vicky2b_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, region: REGION) {
-    emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val, region)
+    emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
 }
 
 @private
 read_vicky2b_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
-    emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, region)
+    emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
     return 0x55
 }
 
