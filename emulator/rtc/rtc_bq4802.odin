@@ -226,7 +226,7 @@ bq4802_make :: proc(name: string, pic: ^pic.PIC) -> ^RTC {
 
 bq4802_read :: proc(r: ^RTC, mode: MODE, addr, ra: u32) -> (out: u32) {
     if mode != .mode_8 {
-        emu.error_read(r.name, .BAD_MODE, mode, addr, ra, .NONE)
+        emu.error_read(r.name, .BAD_MODE, mode, addr, ra)
     }
 
     switch Register_bq4802(addr) {
@@ -254,7 +254,7 @@ bq4802_read :: proc(r: ^RTC, mode: MODE, addr, ra: u32) -> (out: u32) {
 
 bq4802_write :: proc(r: ^RTC, mode: MODE, addr, ra, val: u32) {
     if mode != .mode_8 {
-        emu.error_write(r.name, .BAD_MODE, mode, addr, ra, val, .NONE)
+        emu.error_write(r.name, .BAD_MODE, mode, addr, ra, val)
     } 
 
     log.debugf("%s bq4802 write%d %02x   to %x  %-15s", r.name, mode, val, ra, addr_name(addr))
