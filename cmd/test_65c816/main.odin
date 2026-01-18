@@ -1,22 +1,22 @@
 package test_65c816
 
+import "base:runtime"
+import "core:encoding/json"
+import "core:fmt"
+import "core:log"
+import "core:mem"
+import "core:os"
+import "core:prof/spall"
+import "core:slice"
+import "core:strconv"
+import "core:time"
+
 import "lib:emu"
 import "lib:getargs"
 
 import "emulator:platform"
 import "emulator:bus"
 import "emulator:cpu"
-import "emulator:gpu"
-
-import "base:runtime"
-import "core:encoding/json"
-import "core:fmt"
-import "core:log"
-import "core:os"
-import "core:prof/spall"
-import "core:slice"
-import "core:strconv"
-import "core:time"
 
 CPU_Pins :: struct {
     addr: u32,
@@ -298,11 +298,14 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, mode: string, 
     c.in_stp     = false
     start       := time.tick_now() 
     test_cycles :  int
+
     for test in tests {
         prepare_test(p, test.initial)
         //if c.f.D do continue // skip decimal
         for {
             c->run(0)
+            c.in_stp = false
+            c.in_wai = false
             if (!c.in_mvn) && (!c.in_mvp) do break
         }
         test_cycles  = len(test.cycles)
@@ -330,16 +333,14 @@ do_test :: proc(p: ^platform.Platform, curr_test, all_tests: int, mode: string, 
 
 step_test :: proc(p: ^platform.Platform) -> (ok: bool) {
 
-    codes :: [?]string { 
+    codes :: [?]string {
         "e1", "e3", "e5", "e7", "e9", "ed", "ef",           // sbc
         "f1", "f2", "f3", "f5", "f7", "f9", "fd", "ff",     // sbc
         "61", "63", "65", "67", "69", "6d", "6f",           // adc
         "71", "72", "73", "75", "77", "79", "7d", "7f",     // adc
-    }
-
-    codes2 :: [?]string {
         //"54",                                               // mvn - broken tests
         //"44",                                               // mvp - broken tests
+        "db", "cb",                                         // stp, wai
         "a1", "a3", "a5", "a7", "a9", "ad", "af",           // lda
         "b1", "b2", "b3", "b5", "b7", "b9", "bd", "bf",     // lda
         "90", "b0", "f0", "30", "d0",                       // bcc, bcs, beq, bmi, bne 
@@ -384,7 +385,6 @@ step_test :: proc(p: ^platform.Platform) -> (ok: bool) {
         "ea", "42",                                         // nop, wdm
         "14", "1c", "04", "0c",                             // trb, tsb
         "c2", "e2",                                         // rep, sep
-        "db", "cb",                                         // stp, wai
         "00", "02",                                         // brk, cop
     }
 
@@ -454,7 +454,7 @@ bus_test :: proc(p: ^platform.Platform, name: string) {
         p.bus->write(.mode_8, 0xFF_FFFF - u32(ra & 0xFF_FFFF), val)
     }
     elapsed := time.tick_since(start_time)
-    fmt.printfln("%s rounds %d : elapsed %5.5f : %.3e/sec", name,
+    log.infof("%s rounds %d : elapsed %5.5f : %.3e/sec", name,
             rounds, time.duration_milliseconds(elapsed), f64(rounds) / time.duration_seconds(elapsed))
 }
 
@@ -466,6 +466,31 @@ all_tests :: proc(p: ^platform.Platform) -> (ok: bool) {
 }
 
 main :: proc() {
+	// https://gist.github.com/karl-zylinski/4ccf438337123e7c8994df3b03604e33
+    /*
+	when ODIN_DEBUG {
+        track: mem.Tracking_Allocator
+        mem.tracking_allocator_init(&track, context.allocator)
+        context.allocator = mem.tracking_allocator(&track)
+
+        defer {
+                if len(track.allocation_map) > 0 {
+                        fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
+                        for _, entry in track.allocation_map {
+                                fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
+                        }
+                }
+                if len(track.bad_free_array) > 0 {
+                        fmt.eprintf("=== %v incorrect frees: ===\n", len(track.bad_free_array))
+                        for entry in track.bad_free_array {
+                                fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
+                        }
+                }
+                mem.tracking_allocator_destroy(&track)
+        }
+	}
+    */
+
     logger_options := log.Options{.Level};
     context.logger  = log.create_console_logger(opt = logger_options) 
 
@@ -480,6 +505,5 @@ main :: proc() {
     // exiting ----------------------------------------------------------
     p->delete()
     log.destroy_console_logger(context.logger)
-    os.exit(0)
 }
 
