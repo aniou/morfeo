@@ -125,10 +125,10 @@ c256_read :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
     case 0xAF_E830 ..= 0xAF_E839:  out =   bus.ata0->read(mode, ra - 0xAF_E830, ra)
     case 0xAF_E884 ..= 0xAF_E885:  out =    bus.rng->read(mode, ra - 0xAF_E884, ra)
     case 0xAF_E887              :  out =   b.sys_stat
-    case 0xAF_E000 ..= 0xAF_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra - 0xAF_E000, ra, .IO)
+    case 0xAF_E000 ..= 0xAF_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra - 0xAF_E000, ra)
     case 0xB0_0000 ..= VRAM_END :  out =   bus.gpu0->read(mode, ra - 0xB0_0000, ra, .VRAM0      ) // 2 or 4MB
-    case 0xF0_0000 ..= 0xF7_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra - 0xF0_0000, ra, .FLASH0)
-    case 0xF8_0000 ..= 0xFF_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra - 0xF8_0000, ra, .FLASH1)
+    case 0xF0_0000 ..= 0xF7_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra - 0xF0_0000, ra)
+    case 0xF8_0000 ..= 0xFF_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra - 0xF8_0000, ra)
     case                        :  emu.error_read(bus.name, .NOT_IMPL, mode, ra            , ra)
     }
 
@@ -177,10 +177,10 @@ c256_write :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
     case 0xAF_C000 ..= 0xAF_DFFF:    bus.gpu0->write(mode, ra - 0xAF_C000, ra, val, .TEXT_COLOR )
     case 0xAF_E400 ..= 0xAF_E41F:    // SID0
     case 0xAF_E830 ..= 0xAF_E839:    bus.ata0->write(mode, ra - 0xAF_E830, ra, val)
-    case 0xAF_E000 ..= 0xAF_FFFF:  emu.error_write(bus.name, .NOT_IMPL, mode, ra - 0xAF_E000, ra, val, .IO)
+    case 0xAF_E000 ..= 0xAF_FFFF:  emu.error_write(bus.name, .NOT_IMPL, mode, ra - 0xAF_E000, ra, val)
     case 0xB0_0000 ..= VRAM_END :    bus.gpu0->write(mode, ra - 0xB0_0000, ra, val, .VRAM0      )
-    case 0xF0_0000 ..= 0xF7_FFFF:  emu.error_write(bus.name, .NOT_IMPL, mode, ra - 0xF0_0000, ra, val, .FLASH0)
-    case 0xF8_0000 ..= 0xFF_FFFF:  emu.error_write(bus.name, .NOT_IMPL, mode, ra - 0xF8_0000, ra, val, .FLASH1)
+    case 0xF0_0000 ..= 0xF7_FFFF:  emu.error_write(bus.name, .NOT_IMPL, mode, ra - 0xF0_0000, ra, val)
+    case 0xF8_0000 ..= 0xFF_FFFF:  emu.error_write(bus.name, .NOT_IMPL, mode, ra - 0xF8_0000, ra, val)
     case                        :  emu.error_write(bus.name, .NOT_IMPL, mode, ra            , ra, val)
     }
 

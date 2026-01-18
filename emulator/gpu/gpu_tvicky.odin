@@ -254,7 +254,7 @@ read_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION) -> (ou
     d    := &gpu.model.(GPU_tVicky)
 
     if mode != .mode_8 {
-        emu.error_read(d.name, .BAD_MODE, mode, addr, ra, .NONE)
+        emu.error_read(d.name, .BAD_MODE, mode, addr, ra)
     }
 
     #partial switch region {
@@ -286,7 +286,7 @@ read_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION) -> (ou
         }
     */
     case: 
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, .NONE)
+        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
     }
     return
 }
@@ -294,7 +294,7 @@ read_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION) -> (ou
 write_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION) {
     d    := &gpu.model.(GPU_tVicky)
     if mode != .mode_8 {
-        emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val, .NONE)
+        emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val)
     }
 
     #partial switch region {
@@ -338,7 +338,7 @@ write_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION) 
     */
         
     case: 
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, region)
+        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
     }
     return
 }
@@ -347,7 +347,7 @@ write_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION) 
 @private
 write_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, ra, val: u32) {                                      
     if mode != .mode_8 {
-        emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val, .NONE)
+        emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val)
         return
     }
 
@@ -366,7 +366,7 @@ write_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, ra, val: u32) {
         d.border_enabled = (val & TVKY_BCR_ENABLE )       != 0
 
         if (val & TVKY_BCR_X_SCROLL) != 0 {                                                                                                 
-            emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, .MAIN)
+            emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
         }
 
     case .TVKY_BRD_COL_B: d.border_color_b =  u8(val); if d.border_enabled do tvicky_recalculate_screen(d)
@@ -407,7 +407,7 @@ write_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, ra, val: u32) {
     VKY_LINE_CMP_VALUE_LO  = $D019 ;Write Only [7:0]
     VKY_LINE_CMP_VALUE_HI  = $D01A ;Write Only [3:0]
     */
-    case:    emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val, .NONE)
+    case:    emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
 
     }
 }
@@ -415,14 +415,14 @@ write_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, ra, val: u32) {
 @private
 read_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, ra: u32) -> (out: u32) {
     if mode != .mode_32be {
-        emu.error_read(d.name, .BAD_MODE, mode, addr, ra, .NONE)
+        emu.error_read(d.name, .BAD_MODE, mode, addr, ra)
         return
     }
 
     reg  := Register_tVicky(addr)
     #partial switch reg {
     case                 :
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra, .NONE)
+        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
     }
     return
 }
