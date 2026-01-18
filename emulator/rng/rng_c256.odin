@@ -40,13 +40,13 @@ read_rng_c256 :: proc(r: ^RNG, mode: MODE, addr, ra: u32) -> (out: u32 = 0x55) {
     switch addr {
     case 0: out = u32(rand.int_max(256))
     case 1: out = u32(rand.int_max(256))
-    case  : emu.error_read(r.name, .NOT_IMPL, mode, addr, ra, .NONE)
+    case  : emu.error_read(r.name, .NOT_IMPL, mode, addr, ra)
     }
     return
 }
 
 write_rng_c256 :: proc(r: ^RNG, mode: MODE, addr, ra, val: u32) {
-    emu.error_write(r.name, .NOT_IMPL, mode, addr, ra, val, .NONE)
+    emu.error_write(r.name, .NOT_IMPL, mode, addr, ra, val)
 }
 
 // eof
