@@ -62,7 +62,7 @@ make_tty :: proc(name: string) -> ^TTY {
 read_tty :: proc(tty: ^TTY, mode: MODE, addr, ra: u32) -> (out: u32) {
 
     if mode != .mode_8 {
-        emu.error_read(tty.name, .BAD_MODE, mode, addr, ra, .NONE)
+        emu.error_read(tty.name, .BAD_MODE, mode, addr, ra)
         return
     }
     v : [1]u8
@@ -76,36 +76,36 @@ read_tty :: proc(tty: ^TTY, mode: MODE, addr, ra: u32) -> (out: u32) {
     return u32(v[0])
 }
 
-delete_tty :: proc(d: ^TTY) {
+delete_tty :: proc(tty: ^TTY) {
     when ODIN_OS == .Linux {
-        fmt.fprintf(d.master, "\n\n\n*** exiting\n")
+        fmt.fprintf(tty.master, "\n\n\n*** exiting\n")
         //time.sleep(time.Second * 10)
-        os.close(d.master)
-        os.close(d.slave)
+        os.close(tty.master)
+        os.close(tty.slave)
     }
-    free(d)
+    free(tty)
 }
 
-write_tty :: proc(d: ^TTY, mode: MODE, addr, ra, val: u32) {
+write_tty :: proc(tty: ^TTY, mode: MODE, addr, ra, val: u32) {
 
     if mode != .mode_8 {
-        emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val, .NONE)
+        emu.error_write(tty.name, .BAD_MODE, mode, addr, ra, val)
         return
     }
 
     // this is sick. first such a thing I found in Odin
     k, i := utf8.encode_rune(rune(val))
-    fmt.fprintf(d.master, string(k[:i]))
+    fmt.fprintf(tty.master, string(k[:i]))
     return
 }
 
-read_tty_fake :: proc(d: ^TTY, mode: MODE, addr, ra: u32) -> (out: u32 = 0x55) {
-	emu.error_read(d.name, .BAD_MODE, mode, addr, ra, .NONE)
+read_tty_fake :: proc(tty: ^TTY, mode: MODE, addr, ra: u32) -> (out: u32 = 0x55) {
+	emu.error_read(tty.name, .BAD_MODE, mode, addr, ra)
 	return
 }
 
-write_tty_fake :: proc(d: ^TTY, mode: MODE, addr, ra, val: u32)         {
-    emu.error_write(d.name, .BAD_MODE, mode, addr, ra, val, .NONE)
+write_tty_fake :: proc(tty: ^TTY, mode: MODE, addr, ra, val: u32)         {
+    emu.error_write(tty.name, .BAD_MODE, mode, addr, ra, val)
 }
 
 
