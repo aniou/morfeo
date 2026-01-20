@@ -26,15 +26,15 @@ import "lib:emu"
 */
 
 // ----------------------------------------------------------------------------------------------------------
-VDMA_CONTROL_REG  :: 0xAF_0400
-VDMA_STATUS_REG   :: 0xAF_0401  // On read, this register shows the status of the VDMA
-VDMA_BYTE_2_WRITE :: 0xAF_0401  // On write, accepts the byte to use in the fill function. 
-VDMA_SRC_ADDY_L   :: 0xAF_0402  // 24-bit address of the source block (relative to start of video RAM) 
-VDMA_SRC_ADDY_M   :: 0xAF_0403  
-VDMA_SRC_ADDY_H   :: 0xAF_0404
-VDMA_DST_ADDY_L   :: 0xAF_0405  // 24-bit address of the destination block (relative to start of video RAM) 
-VDMA_DST_ADDY_M   :: 0xAF_0406
-VDMA_DST_ADDY_H   :: 0xAF_0407
+VDMA_CONTROL_REG  :: 0x00_0000
+VDMA_STATUS_REG   :: 0x00_0001  // On read, this register shows the status of the VDMA
+VDMA_BYTE_2_WRITE :: 0x00_0001  // On write, accepts the byte to use in the fill function. 
+VDMA_SRC_ADDY_L   :: 0x00_0002  // 24-bit address of the source block (relative to start of video RAM) 
+VDMA_SRC_ADDY_M   :: 0x00_0003  
+VDMA_SRC_ADDY_H   :: 0x00_0004
+VDMA_DST_ADDY_L   :: 0x00_0005  // 24-bit address of the destination block (relative to start of video RAM) 
+VDMA_DST_ADDY_M   :: 0x00_0006
+VDMA_DST_ADDY_H   :: 0x00_0007
 
 //a for 1-D transfer - overlap with 2D, see case in c256_dma_write
 //VDMA_SIZE_L       :: 0xAF_0408  // For 1-D DMA, 24-bit size of transfer in bytes. 
@@ -43,43 +43,44 @@ VDMA_DST_ADDY_H   :: 0xAF_0407
 //VDMA_IGNORED      :: 0xAF_040B
 
 // for 2-D transfer
-VDMA_X_SIZE_L     :: 0xAF_0408  // For 2-D, 16-bit width of block
-VDMA_X_SIZE_H     :: 0xAF_0409
-VDMA_Y_SIZE_L     :: 0xAF_040A  // For 2-D, 16-bit height of block
-VDMA_Y_SIZE_H     :: 0xAF_040B
 
-VDMA_SRC_STRIDE_L :: 0xAF_040C  // Number of bytes per row in a 2-D source block (16-bits)
-VDMA_SRC_STRIDE_H :: 0xAF_040D
-VDMA_DST_STRIDE_L :: 0xAF_040E  // Number of bytes per row in a 2-D destination block (16-bits)
-VDMA_DST_STRIDE_H :: 0xAF_040F
+VDMA_X_SIZE_L     :: 0x00_0008  // For 2-D, 16-bit width of block
+VDMA_X_SIZE_H     :: 0x00_0009
+VDMA_Y_SIZE_L     :: 0x00_000A  // For 2-D, 16-bit height of block
+VDMA_Y_SIZE_H     :: 0x00_000B
+
+VDMA_SRC_STRIDE_L :: 0x00_000C  // Number of bytes per row in a 2-D source block (16-bits)
+VDMA_SRC_STRIDE_H :: 0x00_000D
+VDMA_DST_STRIDE_L :: 0x00_000E  // Number of bytes per row in a 2-D destination block (16-bits)
+VDMA_DST_STRIDE_H :: 0x00_000F
 
 // ----------------------------------------------------------------------------------------------------------
-SDMA_CTRL_REG0    :: 0xAF_0420  // 
-SDMA_CTRL_REG1    :: 0xAF_0421  // not used
-SDMA_SRC_ADDY_L   :: 0xAF_0422  // 24-bit address of the source (if system RAM is the destination)
-SDMA_SRC_ADDY_M   :: 0xAF_0423
-SDMA_SRC_ADDY_H   :: 0xAF_0424
-SDMA_DST_ADDY_L   :: 0xAF_0425  // 24-bit address of the destination (if system RAM is the destination)
-SDMA_DST_ADDY_M   :: 0xAF_0426
-SDMA_DST_ADDY_H   :: 0xAF_0427
+SDMA_CTRL_REG0    :: 0x00_0020  // 
+SDMA_CTRL_REG1    :: 0x00_0021  // not used
+SDMA_SRC_ADDY_L   :: 0x00_0022  // 24-bit address of the source (if system RAM is the destination)
+SDMA_SRC_ADDY_M   :: 0x00_0023
+SDMA_SRC_ADDY_H   :: 0x00_0024
+SDMA_DST_ADDY_L   :: 0x00_0025  // 24-bit address of the destination (if system RAM is the destination)
+SDMA_DST_ADDY_M   :: 0x00_0026
+SDMA_DST_ADDY_H   :: 0x00_0027
 
 //a for 1-D transfer - overlap with 2D, see case in c256_dma_write
-//SDMA_SIZE_L       :: 0xAF_0428  // 24-bit the size of the transfer in bytes if 1D transfer
-//SDMA_SIZE_M       :: 0xAF_0429
-//SDMA_SIZE_H       :: 0xAF_042A
+//SDMA_SIZE_L       :: 0x00_0028  // 24-bit the size of the transfer in bytes if 1D transfer
+//SDMA_SIZE_M       :: 0x00_0029
+//SDMA_SIZE_H       :: 0x00_002A
 
 // for 2-D transfer
-SDMA_X_SIZE_L     :: 0xAF_0428  // 16-bit width of the block for 2D transfer
-SDMA_X_SIZE_H     :: 0xAF_0429
-SDMA_Y_SIZE_L     :: 0xAF_042A  // 16-bit height of the block for 2D transfert
-SDMA_Y_SIZE_H     :: 0xAF_042B
-SDMA_SRC_STRIDE_L :: 0xAF_042C  // Number of bytes per row in a 2-D source block (16-bits)
-SDMA_SRC_STRIDE_H :: 0xAF_042D
-SDMA_DST_STRIDE_L :: 0xAF_042E  // Number of bytes per row in a 2-D destination block (16-bits)
-SDMA_DST_STRIDE_H :: 0xAF_042F
+SDMA_X_SIZE_L     :: 0x00_0028  // 16-bit width of the block for 2D transfer
+SDMA_X_SIZE_H     :: 0x00_0029
+SDMA_Y_SIZE_L     :: 0x00_002A  // 16-bit height of the block for 2D transfert
+SDMA_Y_SIZE_H     :: 0x00_002B
+SDMA_SRC_STRIDE_L :: 0x00_002C  // Number of bytes per row in a 2-D source block (16-bits)
+SDMA_SRC_STRIDE_H :: 0x00_002D
+SDMA_DST_STRIDE_L :: 0x00_002E  // Number of bytes per row in a 2-D destination block (16-bits)
+SDMA_DST_STRIDE_H :: 0x00_002F
 
-SDMA_STATUS_REG   :: 0xAF_0430  // on read  - status of SDMA
-SDMA_BYTE_2_WRITE :: 0xAF_0430  // on write - byte to fill memory
+SDMA_STATUS_REG   :: 0x00_0030  // on read  - status of SDMA
+SDMA_BYTE_2_WRITE :: 0x00_0030  // on write - byte to fill memory
 
 DMA :: struct {
     ctrl_enable:     bool, // no comment

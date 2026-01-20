@@ -2,6 +2,10 @@ package bus
 
 import "core:log"
 import "core:fmt"
+import "core:prof/spall"
+
+import "lib:emu"
+
 import "emulator:gpu"
 import "emulator:inu"
 import "emulator:pic"
@@ -9,9 +13,6 @@ import "emulator:ps2"
 import "emulator:ram"
 import "emulator:timer"
 
-import "lib:emu"
-
-import "core:prof/spall"
 
 when        emu.TARGET == "c256fmx" { PLATFORM_ID :: 0x00 
                                       SRAM_END    :: 0x3F_FFFF
@@ -35,30 +36,39 @@ else                                { PLATFORM_ID :: 0xFF             // silly w
                                       PS2_END     :: 0x04 }
 
 BUS_C256 :: struct {
-    using entity: ^Bus,
+    using  base : ^Bus,
     vdma:          DMA,
     sdma:          DMA,
     sys_stat:      u32,   // GABE_SYS_STAT
 }
 
-c256_make :: proc(name: string, pic: ^pic.PIC, config: ^emu.Config) -> ^Bus {
+make_c256 :: proc(name: string, config: ^emu.Config) -> ^Bus {
     bus         := new(Bus)
     bus.name     = name
-    bus.pic0     = pic
     bus.debug    = false
+
+    bus.read     =   read_bus_c256
+    bus.write    =  write_bus_c256
+    bus.delete   = delete_bus_c256
+
     bus.dip_boot = (transmute(u32)config.dipoff & 0b1000_0011)       // only boot and hdd switches here
     bus.dip_user = (transmute(u32)config.dipoff & 0b0001_1100) >> 2  // user: 3-5
+
     bus.model    = BUS_C256{
+        base     = bus,
         sdma     = DMA{},
         vdma     = DMA{},
         sys_stat = PLATFORM_ID | 0x10 // 0x10 for expansion card present - XXX - parametrize that
     }
 
+    //b            := BUS_C256{sdma = DMA{}, vdma = DMA{}}
+    //b.sys_stat    = PLATFORM_ID | 0x10 // 0x10 for expansion card present - XXX - parametrize that
+    //bus.model       = b
     return bus
 }
 
-delete_c256 :: proc(b: ^Bus) {
-    //delete(b)
+delete_bus_c256 :: proc(bus: ^Bus) {
+    free(bus)
     return
 }
 
@@ -82,10 +92,10 @@ delete_c256 :: proc(b: ^Bus) {
 // $f0:0000 - $f7:ffff - 512KB System Flash
 // $f8:0000 - $ff:ffff - 512KB User Flash (if populated)
 
-c256_read :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
+read_bus_c256 :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
     b  := &bus.model.(BUS_C256)  // temporary workaround
-    //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer)
-    //log.debugf("%s read     from 0x %04X:%04X", bus.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
+
+    //if bus.debug do emu.debug_read(bus.name, mode, ra, ra)
 
     switch ra {
     case 0x00_0100 ..= 0x00_012B:  out =   bus.inu0->read(mode, ra - 0x00_0100, ra)
@@ -107,7 +117,7 @@ c256_read :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
     case 0xAF_0200 ..= 0xAF_022F:  out =   bus.gpu0->read(mode, ra - 0xAF_0200, ra, .TILEMAP    )
     case 0xAF_0280 ..= 0xAF_029F:  out =   bus.gpu0->read(mode, ra - 0xAF_0280, ra, .TILESET    )
     case 0xAF_0400 ..= 0xAF_040F:  out =    c256_dma_read(b, mode, ra - 0xAF_0400)
-    case 0xAF_0420 ..= 0xAF_0430:  out =    c256_dma_read(b, mode, ra - 0xAF_0420)
+    case 0xAF_0420 ..= 0xAF_0430:  out =    c256_dma_read(b, mode, ra - 0xAF_0400)
     case 0xAF_0500 ..= 0xAF_05FF:  out =   bus.gpu0->read(mode, ra - 0xAF_0500, ra, .MOUSEPTR0  )
     case 0xAF_0600 ..= 0xAF_06FF:  out =   bus.gpu0->read(mode, ra - 0xAF_0600, ra, .MOUSEPTR1  )
     case 0xAF_0000 ..= 0xAF_07FF:  out =   bus.gpu0->read(mode, ra - 0xAF_0000, ra, .MAIN_A     )
@@ -132,18 +142,14 @@ c256_read :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
     case                        :  emu.error_read(bus.name, .NOT_IMPL, mode, ra            , ra)
     }
 
-    if bus.debug {
-        log.debugf("%s read%d  %08x from 0x %04X:%04X", bus.name, mode, out, u16(ra >> 16), u16(ra & 0x0000_ffff))
-    }
+    if bus.debug do emu.debug_read(bus.name, mode, ra, ra, out)
     return
 }
 
-c256_write :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
+write_bus_c256 :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
     b  := &bus.model.(BUS_C256)  // temporary workaround
-    //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer)
-    if bus.debug {
-        log.debugf("%s write%d %08x   to 0x %04X:%04X", bus.name, mode, val, u16(ra >> 16), u16(ra & 0x0000_ffff))
-    }
+
+    if bus.debug do emu.debug_write(bus.name, mode, ra, ra, val)
 
     switch ra {
     case 0x00_0100 ..= 0x00_012B:    bus.inu0->write(mode, ra - 0x00_0100, ra, val)
@@ -164,7 +170,7 @@ c256_write :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
     case 0xAF_0200 ..= 0xAF_022F:    bus.gpu0->write(mode, ra - 0xAF_0200, ra, val, .TILEMAP    )
     case 0xAF_0280 ..= 0xAF_029F:    bus.gpu0->write(mode, ra - 0xAF_0280, ra, val, .TILESET    )
     case 0xAF_0400 ..= 0xAF_040F:    c256_dma_write(b, mode, ra - 0xAF_0400, val)
-    case 0xAF_0420 ..= 0xAF_0430:    c256_dma_write(b, mode, ra - 0xAF_0420, val)
+    case 0xAF_0420 ..= 0xAF_0430:    c256_dma_write(b, mode, ra - 0xAF_0400, val) // XXX - update dma routines
     case 0xAF_0500 ..= 0xAF_05FF:    bus.gpu0->write(mode, ra - 0xAF_0500, ra, val, .MOUSEPTR0  )
     case 0xAF_0600 ..= 0xAF_06FF:    bus.gpu0->write(mode, ra - 0xAF_0600, ra, val, .MOUSEPTR1  )
     case 0xAF_0000 ..= 0xAF_07FF:    bus.gpu0->write(mode, ra - 0xAF_0000, ra, val, .MAIN_A     )
@@ -183,6 +189,4 @@ c256_write :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
     case 0xF8_0000 ..= 0xFF_FFFF:  emu.error_write(bus.name, .NOT_IMPL, mode, ra - 0xF8_0000, ra, val)
     case                        :  emu.error_write(bus.name, .NOT_IMPL, mode, ra            , ra, val)
     }
-
-    return
 }

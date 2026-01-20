@@ -20,9 +20,10 @@ import "lib:emu"
 
 c256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
     p            = new(Platform)
+    p.bus        =   bus.make_c256      ("bus0",                      config)
     pic         :=   pic.pic_c256_make  ("pic0")
-    p.bus        =   bus.c256_make      ("bus0",   pic,                  config)
-    p.bus.ram0   =   ram.make_ram       ("ram0",           emu.SRAMSIZE)
+    p.bus.pic0   =   pic
+    p.bus.ram0   =   ram.make_ram       ("ram0",        emu.SRAMSIZE)
     p.bus.gpu0   =   gpu.make_vicky2    ("gpu0",   pic, emu.VRAMSIZE, config)
     p.bus.gpu1   =   gpu.make_C200      ("gpu1",   pic, emu.VRAMSIZE, config)
     p.bus.ps20   =   ps2.ps2_make       ("ps2",    pic)

@@ -568,7 +568,7 @@ read_vicky2_tileset :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: R
 // there are two ways to use bit_fields: without and with- transmute
 // I'm not sure which is better, but transmute is needed for x/y pos
 @private
-write_vicky2_tilemap  :: proc(d: ^GPU_Vicky2, mode: MODE, busaddr, addr, val: u32, region: REGION) {
+write_vicky2_tilemap  :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, region: REGION) {
     number   := addr  / 12
     register := addr  % 12
     log.debugf("vicky2: %s number %d register %02x val %d", #procedure, number, register, val)

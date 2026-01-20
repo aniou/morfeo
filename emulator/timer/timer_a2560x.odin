@@ -59,7 +59,7 @@ TIMER_A2560X_THREAD :: struct {
 }
 
 TIMER_A2560X :: struct {
-    using timer: ^TIMER,
+    using base: ^TIMER,
     clock:       ^thread.Thread,
     shutdown:     bool,           // used by thread to graceful shutdown
 
@@ -74,7 +74,7 @@ timer_a2560x_make :: proc(name: string, pic_ctrl: ^pic.PIC, id: int) -> ^TIMER {
     timer.read     = timer_a2560x_read
     timer.write    = timer_a2560x_write
     timer.tick     = timer_a2560x_external_tick
-    t             := TIMER_A2560X{timer = timer}
+    t             := TIMER_A2560X{base = timer}
     t.shutdown     = false
 
     irq_table     := [5]pic.IRQ{.TIMER0, .TIMER1, .TIMER2, .TIMER3, .TIMER4}

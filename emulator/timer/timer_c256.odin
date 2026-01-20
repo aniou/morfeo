@@ -39,7 +39,7 @@ Timer_c256_cmp :: bit_field u32 {
 }
 
 TIMER_C256 :: struct {
-    using timer: ^TIMER,
+    using base: ^TIMER,
 
     irq:          pic.IRQ,             // irq type to send when counter is equal
     pic_ctrl:    ^pic.PIC,
@@ -64,7 +64,8 @@ timer_c256_make :: proc(name: string, pic: ^pic.PIC, id: int) -> ^TIMER {
     timer.read     = timer_c256_read
     timer.write    = timer_c256_write
     timer.tick     = timer_c256_external_tick
-    t             := TIMER_C256{timer = timer}
+    timer.model    = TIMER_C256{base = timer}
+    t             := &timer.model.(TIMER_C256)
 
     t.pic_ctrl     = pic
     t.shutdown     = false          // used to stop threads
@@ -80,15 +81,13 @@ timer_c256_make :: proc(name: string, pic: ^pic.PIC, id: int) -> ^TIMER {
 
     // TIMER2 is ticked by start of frame (in fact - from SDL code)
     if id != 2 {
-        if c := thread.create_and_start_with_data(timer, timer_c256_worker_proc); c != nil {
+        if c := thread.create_and_start_with_data(t, timer_c256_worker_proc); c != nil {
             t.clock      = c
             log.debugf("TIMER thread %v", t.clock)
         } else {
             log.errorf("%s TIMER cannot create clock thread", t.name)
         }
     }
-
-    timer.model  = t
     return timer
 }
 
@@ -188,8 +187,9 @@ timer_c256_worker_proc :: proc(p: rawptr) {
         logger_options := log.Options{.Level};
         context.logger  = log.create_console_logger(opt = logger_options)
 
-        d := transmute(^TIMER)p
-        t := &d.model.(TIMER_C256)
+        //d := transmute(^TIMER)p
+        //t := &d.model.(TIMER_C256)
+        t   := transmute(^TIMER_C256)p
         log.debugf("%s TIMER thread created, shutdown is %v", t.name, t.shutdown)
         for !t.shutdown {
             time.sleep(t.sleep)

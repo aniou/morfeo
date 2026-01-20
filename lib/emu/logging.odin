@@ -84,7 +84,7 @@ error_write :: proc(dev: string, e: ERR, m: MODE, addr,ra,val: u32, loc:=#caller
     case .NOT_IMPL: err = "not implemented"
     }
 
-    log.errorf("%-6s %-9s write  %9s  to   ra %9s  ea %9s  %s  (%s%d)", 
+    log.errorf("%-6s %-9s write  %9s  to   ra %9s  ea %9s  %s  (%s:%d)", 
                 dev,  mode, sval,  sra,  saddr,  err,  loc.procedure, loc.line
     )
     delete(sra)

@@ -8,7 +8,7 @@ import "core:slice"
 import "lib:emu"
 
 PIC_C256 :: struct {
-    using pic: ^PIC,
+    using base: ^PIC,
 
     pending:  [IRQ_C256]bool,
     mask:     [IRQ_C256]bool,
@@ -23,23 +23,23 @@ IRQ_C256_GROUP :: enum {
     FNX3,
 }
 
-Register_pic_c256 :: enum u32 {
-    INT_PENDING_REG0 = 0x00_0140,    // Interrupt pending #0
-    INT_PENDING_REG1 = 0x00_0141,    // Interrupt pending #1
-    INT_PENDING_REG2 = 0x00_0142,    // Interrupt pending #2
-    INT_PENDING_REG3 = 0x00_0143,    // Interrupt pending #3---FMX Model only
-    INT_POL_REG0     = 0x00_0144,    // Interrupt polarity #0
-    INT_POL_REG1     = 0x00_0145,    // Interrupt polarity #1
-    INT_POL_REG2     = 0x00_0146,    // Interrupt polarity #2
-    INT_POL_REG3     = 0x00_0147,    // Interrupt polarity #3---FMX Model only
-    INT_EDGE_REG0    = 0x00_0148,    // Enable Edge Detection #0
-    INT_EDGE_REG1    = 0x00_0149,    // Enable Edge Detection #1
-    INT_EDGE_REG2    = 0x00_014A,    // Enable Edge Detection #2
-    INT_EDGE_REG3    = 0x00_014B,    // Enable Edge Detection #3---FMX Model only
-    INT_MASK_REG0    = 0x00_014C,    // Enable Interrupt #0
-    INT_MASK_REG1    = 0x00_014D,    // Enable Interrupt #1
-    INT_MASK_REG2    = 0x00_014E,    // Enable Interrupt #2
-    INT_MASK_REG3    = 0x00_014F,    // Enable Interrupt #3---FMX Model only 
+Register_pic_c256 :: enum u32 {      // in C256 base starts from 0140
+    INT_PENDING_REG0 = 0x00_0000,    // Interrupt pending #0
+    INT_PENDING_REG1 = 0x00_0001,    // Interrupt pending #1
+    INT_PENDING_REG2 = 0x00_0002,    // Interrupt pending #2
+    INT_PENDING_REG3 = 0x00_0003,    // Interrupt pending #3---FMX Model only
+    INT_POL_REG0     = 0x00_0004,    // Interrupt polarity #0
+    INT_POL_REG1     = 0x00_0005,    // Interrupt polarity #1
+    INT_POL_REG2     = 0x00_0006,    // Interrupt polarity #2
+    INT_POL_REG3     = 0x00_0007,    // Interrupt polarity #3---FMX Model only
+    INT_EDGE_REG0    = 0x00_0008,    // Enable Edge Detection #0
+    INT_EDGE_REG1    = 0x00_0009,    // Enable Edge Detection #1
+    INT_EDGE_REG2    = 0x00_000A,    // Enable Edge Detection #2
+    INT_EDGE_REG3    = 0x00_000B,    // Enable Edge Detection #3---FMX Model only
+    INT_MASK_REG0    = 0x00_000C,    // Enable Interrupt #0
+    INT_MASK_REG1    = 0x00_000D,    // Enable Interrupt #1
+    INT_MASK_REG2    = 0x00_000E,    // Enable Interrupt #2
+    INT_MASK_REG3    = 0x00_000F,    // Enable Interrupt #3---FMX Model only 
 }
 
 IRQ_C256 :: enum {
@@ -99,7 +99,7 @@ pic_c256_make :: proc(name: string) -> ^PIC {
     pic.read8     = pic_m68k_read8
     pic.write8    = pic_m68k_write8
     */
-    p            := PIC_C256{pic = pic}
+    p            := PIC_C256{base = pic}
     pic.model     = p
     return pic
 } 
@@ -134,8 +134,7 @@ pic_c256_read :: proc(pic: ^PIC, mode: MODE, addr, ra: u32) -> (out: u32) {
         out |= 0x20 if d.pending[.FNX0_INT05_RTC         ] else 0
         out |= 0x40 if d.pending[.FNX0_INT06_FCC         ] else 0
         out |= 0x80 if d.pending[.FNX0_INT07_MOUSE       ] else 0
-
-        //log.debugf("pic0: %6s read   .INT_PENDING_REG0: out %02x", d.name, val)
+        //log.debugf("pic0: %6s read   .INT_PENDING_REG0: out %02x", d.name, out)
     case .INT_PENDING_REG1:
         out |= 0x01 if d.pending[.FNX1_INT00_KBD         ] else 0
         out |= 0x02 if d.pending[.FNX1_INT01_SC0         ] else 0
