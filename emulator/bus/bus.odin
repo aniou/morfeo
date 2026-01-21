@@ -31,6 +31,7 @@ Bus :: struct {
     gpu1:     ^gpu.GPU,
     rtc0:     ^rtc.RTC,
     ata0:     ^ata.PATA,
+    aram0:     ^ram.ALTRAM,	    // first slot (ram/sram/flash...)
     ram0:     ^ram.RAM,	    // first slot (ram/sram/flash...)
     ram1:     ^ram.RAM,     // second...
     ram2:     ^ram.RAM,     // third...
@@ -53,6 +54,7 @@ Bus :: struct {
     dip_user: u32,          // switches 3 to 5
     dip_boot: u32,          // switches 1, 2 and 8
 
+    req:    emu.BusRequest,
 
     model: union {BUS_C256, BUS_F256, BUS_A2560X}
 }

@@ -73,48 +73,15 @@ BusError :: enum u8 {
     NOT_IMPL,
 }
 
-/* variations about new structure names
-Bitsize :: enum u8 {
-    bits_8   = 8,
-    bits_16  = 16,
-    bits_32  = 32
+// structure especially for debug
+BusRequest :: struct align(4) {
+    has_pc:   bool, // if it has a PC data (at this moment m68k does not)
+    pc:       u32,  // PC addres (raw or within a bank on 65c816)
+	pc_bank:  u32,  // PC bank (for 65c816)
+    mmu_bank: u32,  // mmu bank if applicable
+	ra:       u32,  // requested addr (i.e. from CPU)
+    ea:       u32,  // effective addr (after mmu calc)
 }
-
-Bitsize :: enum {
-    bits_8   = 8,
-    bits_16be  = 16,
-    bits_32be  = 32
-}
-
-Bitsize :: enum {
-    bit_8     = 8,
-    bit_16be  = 16,
-    bit_32be  = 32
-}
-
-Bitsize :: enum {
-    t8     = 8,
-    t16be  = 16,
-    t32be  = 32
-}
-
-Bitsize :: enum {
-    t8      = 8,
-    t16_be  = 16,
-    t32_be  = 32
-
-Val_Type :: enum {
-    t8      = 8,
-    t16_be  = 16,
-    t32_be  = 32
-}
-
-Op_Type :: enum {
-    op8      = 8,
-    op16_be  = 16,
-    op32_be  = 32
-}
-*/
 
 // used by devices to denote function
 Region :: enum u8 {

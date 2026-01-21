@@ -2,6 +2,10 @@
 package cpu
 
 execute_w65c816 :: proc(cpu: ^CPU_65xxx) {
+    localbus.req.pc      = u32(cpu.pc.addr)            // debug purposes
+    localbus.req.pc_bank = u32(cpu.pc.bank)            // debug purposes
+
+    // execute
     switch (cpu.ir) {
 
     case 0x00:                                    // BRK
