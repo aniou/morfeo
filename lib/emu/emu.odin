@@ -74,7 +74,7 @@ BusError :: enum u8 {
 }
 
 // structure especially for debug
-BusRequest :: struct align(4) {
+BusRequest :: struct #align(4) {
     has_pc:   bool, // if it has a PC data (at this moment m68k does not)
     pc:       u32,  // PC addres (raw or within a bank on 65c816)
 	pc_bank:  u32,  // PC bank (for 65c816)
