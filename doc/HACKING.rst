@@ -25,7 +25,7 @@ that represents a particular machine type: C256, F256 and so on::
 
 The shortcut ``platform->bus`` is a matter of convenience. It is
 a lot easier to type ``p.bus->read()`` than ``p.cpu0.bus->read()``,
-especially when we are coming to multiple CPUs on single bus:
+especially when we want to have multiple CPUs on a single bus:
 "via which one should I write when I need to upload a simple file
 into memory from GUI level?"
 
@@ -45,12 +45,29 @@ Processor itself is pooling a ``pic`` in fixed intervals to check,
 if there is a pending interrupts and - sometimes - to sets a flags
 in ``pic`` itself.
 
+``bus.req`` structure
+===============================================================================
+
+The ``bus.req`` is a latest development - it is a small structure that
+can store various debugging information about current request. Initially
+all addresses were passed to device routines as parameters - with
+flat memory model we needed only a *base address* and *requested address*
+to calculate position in module memory and we are still able to create
+a meaningful debug message, like "register at 0xAF_0000 is not supported
+yet".
+
+Thus, with a F256 things got complicated. There is an requested address,
+from CPU - there is a calculated address from an MMU and there is also a
+local address from device. The number of - rarely used - parameters has
+grown. 
+
+...to be continued
 
 A (not so) common nomenclature
 ===============================================================================
 
 In theory, across the emulator, every variable should be created
-in the same names:
+in the same manner:
 
 ``ra``
     Requested Address, address issued by CPU or user to BUS
