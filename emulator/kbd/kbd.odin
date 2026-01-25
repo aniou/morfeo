@@ -23,6 +23,10 @@ OPT_KBD_CNT_HI  :: 0x03
 
 MODE :: emu.OpMode
 KBD  :: struct {
+    name:           string,
+    req:           ^emu.BusRequest,
+    pic:           ^pic.PIC,
+
     delete:    proc(^KBD),
     read:      proc(^KBD, MODE, u32, u32) -> u32,
     write:     proc(^KBD, MODE, u32, u32,    u32),
@@ -30,9 +34,6 @@ KBD  :: struct {
     send_key:  proc(^KBD, emu.KEY, emu.KEY_STATE),
     //kick:      proc(^KBD),
 
-    pic:           ^pic.PIC,
-    name:           string,
-    id:             int,
 
     outbuf:         queue.Queue(u32),		// 2048 characters max?
     key_state:      [8][2]u32,
@@ -40,16 +41,18 @@ KBD  :: struct {
     debug:          bool,   // temporary
 }
 
-make_kbd :: proc(name: string, pic: ^pic.PIC) -> ^KBD {
+make_kbd :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC) -> ^KBD {
     k             := new(KBD)
+    k.name         = name
+    k.req          = dcb.req
     k.pic          = pic
+
     k.delete       = delete_kbd
     k.read         =   read_kbd
     k.write        =  write_kbd
     k.send_key     =   send_kbd_key
 
     k.debug        = true
-    k.name         = name
 
     for a in 0..=7 {
         k.key_state[a][0] = u32(a << 4)
@@ -66,7 +69,7 @@ delete_kbd :: proc(d: ^KBD) {
 read_kbd :: proc(kbd: ^KBD, mode: MODE, addr, ra: u32) -> (out: u32) {
 
     if mode != .mode_8 {
-        emu.error_read(kbd.name, .BAD_MODE, mode, addr, ra)
+        emu.error_read(kbd.name, kbd.req, .BAD_MODE, mode, addr)
         return
     }
 
@@ -94,7 +97,7 @@ read_kbd :: proc(kbd: ^KBD, mode: MODE, addr, ra: u32) -> (out: u32) {
 }
 
 write_kbd :: proc(kbd: ^KBD, mode: MODE, addr, ra, val: u32)          {
-    emu.error_write(kbd.name, .NOT_IMPL, mode, addr, ra, val)
+    emu.error_write(kbd.name, kbd.req, .NOT_IMPL, mode, addr, val)
 	return
 }
 

@@ -46,20 +46,29 @@ else                                { MACHINE_ID        : u32 : 0xFF           /
                                     }
 
 
-a2560x_make :: proc() -> ^Platform {
+a2560x_make :: proc(config: ^emu.Config) -> ^Platform {
     p           := new(Platform)
-    pic         := pic.pic_m68k_make("pic0")
-    p.bus        = bus.a2560x_make  ("bus0", pic)
-    p.bus.ata0   = ata.pata_make    ("pata0")               // XXX - update to PIC
-    p.bus.gpu0   = gpu.make_vicky3  ("A", pic, 0)        // XXX - no DIP switch support
-    p.bus.gpu1   = gpu.make_vicky3  ("B", pic, 1)        // XXX - no DIP switch support
-    p.bus.ps20   = ps2.ps2_make     ("ps20", pic)
-    p.bus.rtc0   = rtc.bq4802_make  ("rtc0", pic)
-    p.bus.ram0   = ram.make_ram     ("ram0",  0x40_0000)
-    p.bus.rom0   = ram.make_ram     ("rom0",  0x02_0000)      // for GAVIN backend
-    p.bus.ram1   = ram.make_ram     ("ram1", 0x400_0000)      // SDRAM
-    p.bus.timer0 = timer.timer_a2560x_make("timer0", pic, 0)
-    p.cpu        = cpu.m68k_make    ("cpu0", p.bus)
+    p.cfg        = config
+    p.bus        = bus.make_a2560x    ("bus0", config)
+    p.cpu        = cpu.m68k_make      ("cpu0", p.bus)
+
+    // temporary block, used for passing parameters
+    dcb         := new(emu.DeviceConfig)
+    dcb.cfg      = config
+    dcb.req      = &p.bus.req
+    defer free(dcb)
+
+    pic0        :=   pic.make_pic_m68k    ("pic0",   dcb)
+	p.bus.pic0   =  pic0
+    p.bus.ata0   =   ata.make_pata        ("pata0",  dcb)                      // XXX - update to PIC
+    p.bus.gpu0   =   gpu.make_vicky3      ("gpu0",   dcb,  pic0,  0)        // XXX - no DIP switch support
+    p.bus.gpu1   =   gpu.make_vicky3      ("gpu1",   dcb,  pic0,  1)        // XXX - no DIP switch support
+    p.bus.ps20   =   ps2.make_ps2         ("ps20",   dcb,  pic0)
+    p.bus.rtc0   =   rtc.make_bq4802      ("rtc0",   dcb,  pic0)
+    p.bus.ram0   =   ram.make_ram         ("ram0",   dcb,         size =  0x40_0000)
+    p.bus.rom0   =   ram.make_ram         ("rom0",   dcb,         size =  0x02_0000)      // for GAVIN backend
+    p.bus.ram1   =   ram.make_ram         ("ram1",   dcb,         size = 0x400_0000)      // SDRAM
+    p.bus.timer0 = timer.timer_a2560x_make("timer0", dcb,  pic0,  id= 0)
 
     p.delete     = a2560x_delete
     p.init       = a2560x_init

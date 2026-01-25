@@ -9,9 +9,10 @@ INU_F256 :: struct {
     mem:    [0x1c]u32,
 }
 
-make_inu_f256 :: proc(name: string) -> ^INU {
+make_inu_f256 :: proc(name: string, dcb: ^emu.DeviceConfig) -> ^INU {
     inu         := new(INU)
     inu.name     = name
+    inu.req      = dcb.req
 
     inu.delete   = delete_inu_f256
     inu.read     =   read_inu_f256

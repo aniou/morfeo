@@ -66,10 +66,12 @@ TIMER_A2560X :: struct {
     tth:      [5]TIMER_A2560X_THREAD,
 }
 
-timer_a2560x_make :: proc(name: string, pic_ctrl: ^pic.PIC, id: int) -> ^TIMER {
+timer_a2560x_make :: proc(name: string, dcb: ^emu.DeviceConfig, pic_ctrl: ^pic.PIC, id: int) -> ^TIMER {
     timer         := new(TIMER)
     timer.name     = name
+    timer.req      = dcb.req
     timer.id       = id
+
     timer.delete   = timer_a2560x_delete
     timer.read     = timer_a2560x_read
     timer.write    = timer_a2560x_write
@@ -105,7 +107,7 @@ timer_a2560x_make :: proc(name: string, pic_ctrl: ^pic.PIC, id: int) -> ^TIMER {
 timer_a2560x_read :: proc(d: ^TIMER, mode: MODE, addr, ra: u32) -> (val: u32) {
 
     if mode != .mode_32be {
-        emu.error_read(d.name, .BAD_MODE, mode, addr, ra)
+        emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
         return
     }
 

@@ -100,11 +100,12 @@ GPU_Vicky3 :: struct {
 // --------------------------------------------------------------------
 // XXX - warning, DIP switches not used yet!
 
-make_vicky3 :: proc(name: string, pic: ^pic.PIC, dip: u8) -> ^GPU {
+make_vicky3 :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC, dip: u8) -> ^GPU {
     log.infof("vicky3: %s initialization start", name)
 
     gpu       := new(GPU)
     gpu.name   = name
+    gpu.req    = dcb.req
 
     gpu.delete = delete_vicky3
     gpu.read   =   read_vicky3

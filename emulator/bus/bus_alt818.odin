@@ -43,7 +43,7 @@ read_alt816 :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
 
     switch ra {
     case 0x00_0000 ..= 0xFF_FFFF: out = bus.aram0->read(mode, ra)        // ea == ra here
-    case                        : emu.error_read(bus.name, .NOT_IMPL, mode, ra, ra)
+    case                        : emu.error_read(bus.name, &bus.req, .NOT_IMPL, mode, ra)
     }
 
     if bus.debug do emu.debug_read(bus.name, mode, ra, ra, out)
@@ -57,7 +57,7 @@ write_alt816 :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
 
     switch ra {
     case 0x00_0000 ..= 0xFF_FFFF: bus.aram0->write(mode, ra, val)
-    case                        : emu.error_write(bus.name, .NOT_IMPL, mode, ra, ra, val)
+    case                        : emu.error_write(bus.name, &bus.req, .NOT_IMPL, mode, ra, val)
     }
 }
 

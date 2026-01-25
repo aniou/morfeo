@@ -107,11 +107,12 @@ GPU_C200 :: struct {
 // --------------------------------------------------------------------
 
 // XXX - vram amount isn't used at all - maybe it should be passed in Config?
-make_C200 :: proc(name: string, pic: ^pic.PIC, vram: int, c: ^emu.Config) -> ^GPU {
+make_C200 :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC, size: int) -> ^GPU {
     log.infof("C200: %s initialization start", name)
 
     gpu       := new(GPU)
     gpu.name   = name
+    gpu.req    = dcb.req
     gpu.pic    = pic            // not used in C200
 
     gpu.read   =   read_C200
@@ -130,9 +131,9 @@ make_C200 :: proc(name: string, pic: ^pic.PIC, vram: int, c: ^emu.Config) -> ^GP
 
     g.TFB     = new([1024*768]u32)            // text framebuffer     - for max size
 
-    g.screen_x_size      = 800                if .DIP6 not_in c.dipoff else 640
-    g.screen_y_size      = 600                if .DIP6 not_in c.dipoff else 480
-    g.resolution         = C200_MODE_800_600  if .DIP6 not_in c.dipoff else C200_MODE_640_480
+    g.screen_x_size      = 800                if .DIP6 not_in dcb.cfg.dipoff else 640
+    g.screen_y_size      = 600                if .DIP6 not_in dcb.cfg.dipoff else 480
+    g.resolution         = C200_MODE_800_600  if .DIP6 not_in dcb.cfg.dipoff else C200_MODE_640_480
     g.screen_resized     = false
 
     g.cursor_enabled     = true

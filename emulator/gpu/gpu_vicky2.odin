@@ -227,11 +227,12 @@ VICKY2_SPRITE :: struct {
     y            : u32,  // u16 y position, first visible: 32
 }
 
-make_vicky2 :: proc(name: string, pic: ^pic.PIC, vram: int, c: ^emu.Config) -> ^GPU {
+make_vicky2 :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC, size: int) -> ^GPU {
     log.infof("vicky2: %s initialization start", name)
 
     gpu       := new(GPU)
     gpu.name   = name
+    gpu.req    = dcb.req
     gpu.pic    = pic
 
     gpu.delete = delete_vicky2
@@ -239,10 +240,10 @@ make_vicky2 :: proc(name: string, pic: ^pic.PIC, vram: int, c: ^emu.Config) -> ^
     gpu.write  =  write_vicky2
     gpu.render = render_vicky2
 
-    gpu.dipoff = c.dipoff
+    gpu.dipoff = dcb.cfg.dipoff
     g         := GPU_Vicky2{gpu = gpu}
 
-    g.vram0     = make([dynamic]u32,      vram) // video ram (depends from model)
+    g.vram0     = make([dynamic]u32,      size) // video ram (depends from model)
     g.text      = make([dynamic]u32,    0x2000) // text memory                  0x4000 in GenX
     g.tc        = make([dynamic]u32,    0x2000) // text color memory            0x4000 in GenX
     g.fg        = make([dynamic]u32,    0x2000) // text foreground LUT cache    0x4000 in GenX
@@ -259,11 +260,11 @@ make_vicky2 :: proc(name: string, pic: ^pic.PIC, vram: int, c: ^emu.Config) -> ^
     g.MOUSEFB = new([  16* 16]u32)            // mouse   framebuffer  - 16x16
 
     g.gamma_dip_override = false
-    g.gamma_dip_enable   = .DIP7 not_in c.dipoff
+    g.gamma_dip_enable   = .DIP7 not_in dcb.cfg.dipoff
 
-    g.screen_x_size      = 800                if .DIP6 not_in c.dipoff else 640
-    g.screen_y_size      = 600                if .DIP6 not_in c.dipoff else 480
-    g.resolution         = VKY2_MODE_800_600  if .DIP6 not_in c.dipoff else VKY2_MODE_640_480
+    g.screen_x_size      = 800                if .DIP6 not_in dcb.cfg.dipoff else 640
+    g.screen_y_size      = 600                if .DIP6 not_in dcb.cfg.dipoff else 480
+    g.resolution         = VKY2_MODE_800_600  if .DIP6 not_in dcb.cfg.dipoff else VKY2_MODE_640_480
     g.screen_resized     = false
 
     g.pixel_size         = 1

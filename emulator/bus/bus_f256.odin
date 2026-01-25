@@ -55,10 +55,9 @@ BUS_F256 :: struct {
 
 // XXX: parametrize make_bus routine - common enum or smth.
 // XXX: power-on init, add ram/flash version, page 17 of manual
-make_f256 :: proc(name: string, pic: ^pic.PIC, config: ^emu.Config) -> ^Bus {
+make_f256 :: proc(name: string, config: ^emu.Config) -> ^Bus {
     bus        := new(Bus)
     bus.name    = name
-    bus.pic0    = pic
     bus.model   = BUS_F256{bus = bus}
 
 	init_f256_mmu(bus)

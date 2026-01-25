@@ -144,6 +144,7 @@ BQ4802_Clock :: struct {
 RTC :: struct {
     name:   string,
     id:     int,
+    req:    ^emu.BusRequest,
     pic:    ^pic.PIC,
 
     read:     proc(^RTC, MODE, u32, u32) -> u32,
@@ -169,13 +170,16 @@ RTC :: struct {
 
 }
 
-bq4802_make :: proc(name: string, pic: ^pic.PIC) -> ^RTC {
+make_bq4802 :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC) -> ^RTC {
     r         := new(RTC)
     r.name     = name
+    r.req      = dcb.req
     r.pic      = pic
+
     r.delete   = bq4802_delete
     r.read     = bq4802_read
     r.write    = bq4802_write
+
     r.shutdown = false          // used to stop threads
 
     ts     := time.now()

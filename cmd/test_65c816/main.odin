@@ -495,9 +495,10 @@ main :: proc() {
     context.logger  = log.create_console_logger(opt = logger_options) 
 
     // init -------------------------------------------------------------
-    p       := platform.make_mini816()
-    c       := &p.cpu.model.(cpu.CPU_65xxx) 
-    c.debug  = false
+    cfg       := new(emu.Config)
+    p         := platform.make_mini816(cfg)
+    cpu       := &p.cpu.model.(cpu.CPU_65xxx) 
+    cpu.debug  = false
     
     // running ----------------------------------------------------------
     all_tests(p)

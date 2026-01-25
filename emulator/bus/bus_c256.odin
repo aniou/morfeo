@@ -183,10 +183,10 @@ write_bus_c256 :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
     case 0xAF_C000 ..= 0xAF_DFFF:    bus.gpu0->write(mode, ra - 0xAF_C000, ra, val, .TEXT_COLOR )
     case 0xAF_E400 ..= 0xAF_E41F:    // SID0
     case 0xAF_E830 ..= 0xAF_E839:    bus.ata0->write(mode, ra - 0xAF_E830, ra, val)
-    case 0xAF_E000 ..= 0xAF_FFFF:  emu.error_write(bus.name, .NOT_IMPL, mode, ra - 0xAF_E000, ra, val)
+    case 0xAF_E000 ..= 0xAF_FFFF:  emu.error_write(bus.name,  &bus.req, .NOT_IMPL, mode, ra - 0xAF_E000, val)
     case 0xB0_0000 ..= VRAM_END :    bus.gpu0->write(mode, ra - 0xB0_0000, ra, val, .VRAM0      )
-    case 0xF0_0000 ..= 0xF7_FFFF:  emu.error_write(bus.name, .NOT_IMPL, mode, ra - 0xF0_0000, ra, val)
-    case 0xF8_0000 ..= 0xFF_FFFF:  emu.error_write(bus.name, .NOT_IMPL, mode, ra - 0xF8_0000, ra, val)
-    case                        :  emu.error_write(bus.name, .NOT_IMPL, mode, ra            , ra, val)
+    case 0xF0_0000 ..= 0xF7_FFFF:  emu.error_write(bus.name,  &bus.req, .NOT_IMPL, mode, ra - 0xF0_0000, val)
+    case 0xF8_0000 ..= 0xFF_FFFF:  emu.error_write(bus.name,  &bus.req, .NOT_IMPL, mode, ra - 0xF8_0000, val)
+    case                        :  emu.error_write(bus.name,  &bus.req, .NOT_IMPL, mode, ra            , val)
     }
 }

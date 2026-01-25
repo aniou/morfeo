@@ -16,10 +16,9 @@ BUS_A2560X :: struct {
 }
 
 // XXX - incomplete!
-a2560x_make :: proc(name: string, pic: ^pic.PIC) -> ^Bus {
+make_a2560x :: proc(name: string, config: ^emu.Config) -> ^Bus {
     bus        := new(Bus)
     bus.name    = name
-    bus.pic0    = pic
     bus.model   = BUS_A2560X{bus = bus}
     return bus
 }
@@ -61,7 +60,7 @@ read_a2560x :: proc(bus: ^BUS_A2560X, mode: MODE, ra: u32) -> (out: u32) {
     switch ra {
     case 0x00_00_0000 ..= 0x00_3F_FFFF:  out =   bus.ram0->read(mode, ra - 0x00_00_0000, ra)
     case 0x00_80_0000 ..= 0x00_9F_FFFF:  out =   bus.gpu1->read(mode, ra - 0x00_80_0000, ra, .VRAM0) // XXX VRAMA and VRAMB
-    case 0x00_A0_0000 ..= 0x00_BF_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra - ra, ra)
+    case 0x00_A0_0000 ..= 0x00_BF_FFFF:  emu.error_read(bus.name, &bus.req, .NOT_IMPL, mode, ra - ra)
     case 0x02_00_0000 ..= 0x05_FF_FFFF:  out =   bus.ram1->read(mode, ra - 0x02_00_0000, ra)
     case 0xFE_C0_0080 ..= 0xFE_C0_009F:  out =   bus.rtc0->read(mode, ra - 0xFE_C0_0080, ra)
     case 0xFE_C0_0100 ..= 0xFE_C0_011F:  out =   bus.pic0->read(mode, ra - 0xFE_C0_0100, ra)
@@ -86,8 +85,8 @@ read_a2560x :: proc(bus: ^BUS_A2560X, mode: MODE, ra: u32) -> (out: u32) {
     case 0xFE_CA_C400 ..= 0xFE_CA_C43F:  out =   bus.gpu1->read(mode, ra - 0xFE_CA_C400, ra, .TEXT_FG_LUT)
     case 0xFE_CA_C440 ..= 0xFE_CA_C47F:  out =   bus.gpu1->read(mode, ra - 0xFE_CA_C440, ra, .TEXT_BG_LUT)
 
-    case 0xFF_C0_0000 ..= 0xFF_FF_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra, ra) // FLASH0
-    case                              :  emu.error_read(bus.name, .NOT_IMPL, mode, ra, ra)
+    case 0xFF_C0_0000 ..= 0xFF_FF_FFFF:  emu.error_read(bus.name, &bus.req, .NOT_IMPL, mode, ra) // FLASH0
+    case                              :  emu.error_read(bus.name, &bus.req, .NOT_IMPL, mode, ra)
     }
 
     //log.debugf("%s read%d  %08x from 0x %04X:%04X", bus.name, size, val, u16(addr >> 16), u16(addr & 0x0000_ffff))

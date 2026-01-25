@@ -10,18 +10,15 @@ MODE   :: emu.OpMode
 REGION :: emu.Region
 
 GPU    :: struct {
-    read:    proc(^GPU,  MODE, u32, u32, REGION) -> u32,
-    write:   proc(^GPU,  MODE, u32, u32, u32,   REGION),
-    delete:  proc(^GPU            ),
-    render:  proc(^GPU            ),
-
-
-    //dma_read8:   proc(^GPU, u32) -> u32,
-    //dma_write8:  proc(^GPU, u32,    u32),
-
     name:               string,     // textual name of instance
     id:                 int,        // id of instance
+    req:                ^emu.BusRequest,
     pic:                ^pic.PIC,
+
+    delete:  proc(^GPU            ),
+    read:    proc(^GPU,  MODE, u32, u32, REGION) -> u32,
+    write:   proc(^GPU,  MODE, u32, u32, u32,   REGION),
+    render:  proc(^GPU            ),
 
     TFB:     ^[1024*768]u32,        // text    framebuffer (max resolution)
     BM0FB:   ^[1024*768]u32,        // bitmap0 framebuffer (max resolution)

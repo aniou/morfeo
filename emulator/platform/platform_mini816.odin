@@ -3,20 +3,28 @@ package platform
 import "core:fmt"
 import "core:log"
 
+import "lib:emu"
+
 import "emulator:bus"
 import "emulator:cpu"
 import "emulator:pic"
 import "emulator:ram"
 
-make_mini816   :: proc() -> ^Platform {
-    p          := new(Platform)
-    p.bus       = bus.make_mini816  ("bus0")
-    p.bus.pic0  = pic.make_pic_fake ("pic0")
-    p.bus.ram0  = ram.make_ram      ("ram0", 256 * 65536)   // 16 megabytes
-    p.cpu       = cpu.make_w65c816  ("cpu0", p.bus)
+make_mini816   :: proc(config: ^emu.Config) -> ^Platform {
+    p           := new(Platform)
+    p.bus        = bus.make_mini816  ("bus0")
+    p.cpu        = cpu.make_w65c816  ("cpu0",  p.bus)
 
-    p.init      =   init_mini816
-    p.delete    = delete_mini816
+    dcb         := new(emu.DeviceConfig)
+    dcb.cfg      = config
+    dcb.req      = &p.bus.req
+	defer free(dcb)
+
+    p.bus.pic0   = pic.make_pic_fake ("pic0",  dcb)
+    p.bus.ram0   = ram.make_ram      ("ram0",  dcb,  size = 256 * 65536)   // 16 megabytes
+
+    p.init       =   init_mini816
+    p.delete     = delete_mini816
 
     return p
 }

@@ -73,15 +73,23 @@ BusError :: enum u8 {
     NOT_IMPL,
 }
 
-// structure especially for debug
+// request data, used for debug purposes
 BusRequest :: struct #align(4) {
     has_pc:   bool, // if it has a PC data (at this moment m68k does not)
     pc:       u32,  // PC addres (raw or within a bank on 65c816)
-	pc_bank:  u32,  // PC bank (for 65c816)
+    pc_bank:  u32,  // PC bank (for 65c816)
     mmu_bank: u32,  // mmu bank if applicable
-	ra:       u32,  // requested addr (i.e. from CPU)
+    ra:       u32,  // requested addr (i.e. from CPU)
     ea:       u32,  // effective addr (after mmu calc)
 }
+
+// a device control block - convenient  way to pass parameters 
+// to initialized devices
+DeviceConfig :: struct {
+    cfg:      ^Config,
+    req:      ^BusRequest,
+}
+
 
 // used by devices to denote function
 Region :: enum u8 {

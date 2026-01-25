@@ -6,6 +6,7 @@ import "core:log"
 
 MODE :: OpMode
 ERR  :: BusError
+BREQ :: BusRequest
 
 format_val  :: proc(mode: OpMode, val: u32) -> (out: string) {
     switch mode {
@@ -54,41 +55,59 @@ debug_write :: proc(dev: string, m: MODE, addr, ra: u32, val: u32) {
 
 }
 
-error_read :: proc(dev: string, e: ERR, m: MODE, addr,ra: u32, loc:=#caller_location) {
-    sra      := format_addr(ra)
+error_read  :: proc(dev: string, req: ^BREQ, e: ERR, m: MODE, addr:     u32, loc:=#caller_location) {
+    sra      := format_addr(req.ra)
     saddr    := format_addr(addr)
     mode,_   := fmt.enum_value_to_string(m)
-    err      :  string
 
+    err      :  string
     switch e {
     case .BAD_MODE: err = "not supported  "
     case .NOT_IMPL: err = "not implemented"
     }
 
-    log.errorf("%-6s %-9s read              from ra %9s  ea %9s  %s  (%s:%d)", 
-                dev,  mode,  sra,  saddr,  err,  loc.procedure, loc.line
+    spc      : string
+    if req.has_pc {
+        pc   := req.pc | (req.pc_bank << 16)
+        spc   = format_addr(pc)
+    } else {
+        spc  = "-"
+    }
+
+    log.errorf("%-6s pc %9s %-9s read              from ra %9s  ea %9s  %s  (%s:%d)", 
+                dev,  spc,  mode,  sra,  saddr,  err,  loc.procedure, loc.line
     )
     delete(sra)
     delete(saddr)
+    delete(spc)
 }
 
-error_write :: proc(dev: string, e: ERR, m: MODE, addr,ra,val: u32, loc:=#caller_location) {
-    sra      := format_addr(ra)
+error_write :: proc(dev: string, req: ^BREQ, e: ERR, m: MODE, addr,val: u32, loc:=#caller_location) {
+    sra      := format_addr(req.ra)
     saddr    := format_addr(addr)
-    sval     := format_val(m, val)
     mode,_   := fmt.enum_value_to_string(m)
-    err      :  string
+    sval     := format_val(m, val)
 
+    err      :  string
     switch e {
     case .BAD_MODE: err = "not supported  "
     case .NOT_IMPL: err = "not implemented"
     }
 
-    log.errorf("%-6s %-9s write  %9s  to   ra %9s  ea %9s  %s  (%s:%d)", 
-                dev,  mode, sval,  sra,  saddr,  err,  loc.procedure, loc.line
+    spc      : string
+    if req.has_pc {
+        pc   := req.pc | (req.pc_bank << 16)
+        spc   = format_addr(pc)
+    } else {
+        spc  = "-"
+    }
+
+    log.errorf("%-6s pc %9s %-9s write  %9s  to   ra %9s  ea %9s  %s  (%s:%d)", 
+                dev,  spc,  mode,  sval,  sra,  saddr,  err,  loc.procedure, loc.line
     )
     delete(sra)
     delete(saddr)
+    delete(spc)
     delete(sval)
 }
 

@@ -12,6 +12,7 @@ JOYSIGS :: enum {UP, DOWN, LEFT, RIGHT, BUTTON0, BUTTON3, BUTTON1, BUTTON2}
 JOY :: struct {
     name:       string,
     id:         u8,
+    req:        ^emu.BusRequest,
 
     read:       proc(^JOY, MODE, u32, u32) -> u32,
     write:      proc(^JOY, MODE, u32, u32,    u32),
@@ -20,12 +21,15 @@ JOY :: struct {
     state:      bit_set[JOYSIGS; u32]
 }
 
-joy_c256_make :: proc(name: string) -> ^JOY {
+make_joy_c256 :: proc(name: string, dcb: ^emu.DeviceConfig) -> ^JOY {
     joy             := new(JOY)
     joy.name         = name
+    joy.req          = dcb.req
+
     joy.delete       = delete_joy_c256
     joy.read         =   read_joy_c256
     joy.write        =  write_joy_c256
+
     return joy
 }
 
@@ -40,13 +44,13 @@ read_joy_c256 :: proc(j: ^JOY, mode: MODE, addr, ra: u32) -> (out: u32 = 0x55) {
         //log.debugf("%s: Read  addr %6x returned %08b", j.name, busaddr, ~j.state)
         out = transmute(u32) ~j.state       // there is reverse logic for that? again?
     case  : 
-         emu.error_read(j.name, .NOT_IMPL, mode, addr, ra)
+         emu.error_read(j.name, j.req, .NOT_IMPL, mode, addr)
     }
     return
 }
 
 write_joy_c256 :: proc(j: ^JOY, mode: MODE, addr, ra, val: u32) {
-    emu.error_write(j.name, .NOT_IMPL, mode, addr, ra, val)
+    emu.error_write(j.name, j.req, .NOT_IMPL, mode, addr, val)
 }
 
 // eof

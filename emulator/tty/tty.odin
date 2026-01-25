@@ -21,20 +21,24 @@ when ODIN_OS == .Linux {
 MODE :: emu.OpMode
 TTY  :: struct {
     name:     string,
+    req:      ^emu.BusRequest,
+    debug:    bool,
+
+    delete:   proc(^TTY),
     read:     proc(^TTY, MODE, u32, u32) -> u32,
     write:    proc(^TTY, MODE, u32, u32,    u32),
-    delete:   proc(^TTY),
 
     master:     os.Handle,
     slave:      os.Handle,
     pty_name:   [128]u8,
-    debug:      bool,
 }
 
-make_tty :: proc(name: string) -> ^TTY {
+make_tty :: proc(name: string, dcb: ^emu.DeviceConfig) -> ^TTY {
     d         := new(TTY)
-    d.delete   = delete_tty
     d.name     = name
+    d.req      = dcb.req
+
+    d.delete   = delete_tty
 
     pty_ok    := false
     when ODIN_OS == .Linux {
@@ -62,7 +66,7 @@ make_tty :: proc(name: string) -> ^TTY {
 read_tty :: proc(tty: ^TTY, mode: MODE, addr, ra: u32) -> (out: u32) {
 
     if mode != .mode_8 {
-        emu.error_read(tty.name, .BAD_MODE, mode, addr, ra)
+        emu.error_read(tty.name, tty.req, .BAD_MODE, mode, addr)
         return
     }
     v : [1]u8
@@ -89,7 +93,7 @@ delete_tty :: proc(tty: ^TTY) {
 write_tty :: proc(tty: ^TTY, mode: MODE, addr, ra, val: u32) {
 
     if mode != .mode_8 {
-        emu.error_write(tty.name, .BAD_MODE, mode, addr, ra, val)
+        emu.error_write(tty.name, tty.req, .BAD_MODE, mode, addr, val)
         return
     }
 
@@ -100,12 +104,12 @@ write_tty :: proc(tty: ^TTY, mode: MODE, addr, ra, val: u32) {
 }
 
 read_tty_fake :: proc(tty: ^TTY, mode: MODE, addr, ra: u32) -> (out: u32 = 0x55) {
-	emu.error_read(tty.name, .BAD_MODE, mode, addr, ra)
+	emu.error_read(tty.name, tty.req, .BAD_MODE, mode, addr)
 	return
 }
 
 write_tty_fake :: proc(tty: ^TTY, mode: MODE, addr, ra, val: u32)         {
-    emu.error_write(tty.name, .BAD_MODE, mode, addr, ra, val)
+    emu.error_write(tty.name, tty.req, .BAD_MODE, mode, addr, val)
 }
 
 

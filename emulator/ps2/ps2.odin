@@ -42,17 +42,17 @@ PS2_STATUS      :: 0x04 // $AF1807 (FMX: $AF1064) for reading
 
 MODE :: emu.OpMode
 PS2  :: struct {
+    name:           string,
+    req:        ^emu.BusRequest,
+
+    delete:   proc(^PS2),
     read:     proc(^PS2, MODE, u32, u32) -> u32,
     write:    proc(^PS2, MODE, u32, u32,    u32),
     //send_key: proc(^PS2, u8)  -> bool,
     send_key: proc(^PS2, emu.KEY, emu.KEY_STATE),
-    delete:   proc(^PS2),
     kick:     proc(^PS2),
 
     pic:            ^pic.PIC,
-
-    name:           string,
-    id:             int,
 
     //data:           u8,     // data (usually keycode)
     status:         u8,     // controller status
@@ -69,9 +69,10 @@ PS2  :: struct {
     debug:          bool,   // temporary
 }
 
-ps2_make :: proc(name: string, pic: ^pic.PIC) -> ^PS2 {
+make_ps2 :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC) -> ^PS2 {
     ps2             := new(PS2)
     ps2.name         = name
+    ps2.req          = dcb.req
     ps2.pic          = pic
 
     ps2.delete       = delete_ps2
@@ -112,7 +113,7 @@ FMX:
 read_ps2 :: proc(ps2: ^PS2, mode: MODE, addr, ra: u32) -> (out: u32) {
 
     if mode != .mode_8 {
-        emu.error_read(ps2.name, .BAD_MODE, mode, addr, ra)
+        emu.error_read(ps2.name, ps2.req, .BAD_MODE, mode, addr)
         return
     }
 
@@ -124,7 +125,7 @@ read_ps2 :: proc(ps2: ^PS2, mode: MODE, addr, ra: u32) -> (out: u32) {
 write_ps2 :: proc(ps2: ^PS2, mode: MODE, addr, ra, val: u32) {
 
     if mode != .mode_8 {
-        emu.error_write(ps2.name, .BAD_MODE, mode, addr, ra, val)
+        emu.error_write(ps2.name, ps2.req, .BAD_MODE, mode, addr, val)
         return
     }
 

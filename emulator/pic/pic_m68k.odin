@@ -13,24 +13,24 @@ import "lib:emu"
 // MODEL_FOENIX_A2560U          - base 0x00_B0_0100
 // MODEL_FOENIX_A2560U_PLUS
 
-PENDING_GRP0_B	:: 0x00		// VICKY
-PENDING_GRP0_A	:: 0x01		// VICKY
-PENDING_GRP1_B	:: 0x02		// GAVIN
-PENDING_GRP1_A	:: 0x03		// GAVIN
-PENDING_GRP2_B	:: 0x04		// BEATRIX
-PENDING_GRP2_A	:: 0x05		// BEATRIX
-POL_GRP0    	:: 0x08		// not used
-POL_GRP1    	:: 0x0A		// not used
-POL_GRP2    	:: 0x0C		// not used
-EDGE_GRP0   	:: 0x10		// not used
-EDGE_GRP1   	:: 0x12		// not used
-EDGE_GRP2   	:: 0x14     // not used
-MASK_GRP0_B 	:: 0x18		// VICKY
-MASK_GRP0_A 	:: 0x19		// VICKY
-MASK_GRP1_B 	:: 0x1A		// GAVIN
-MASK_GRP1_A 	:: 0x1B		// GAVIN
-MASK_GRP2_B 	:: 0x1C		// BEATRIX
-MASK_GRP2_A 	:: 0x1D		// BEATRIX
+PENDING_GRP0_B  :: 0x00     // VICKY
+PENDING_GRP0_A  :: 0x01     // VICKY
+PENDING_GRP1_B  :: 0x02     // GAVIN
+PENDING_GRP1_A  :: 0x03     // GAVIN
+PENDING_GRP2_B  :: 0x04     // BEATRIX
+PENDING_GRP2_A  :: 0x05     // BEATRIX
+POL_GRP0        :: 0x08     // not used
+POL_GRP1        :: 0x0A     // not used
+POL_GRP2        :: 0x0C     // not used
+EDGE_GRP0       :: 0x10     // not used
+EDGE_GRP1       :: 0x12     // not used
+EDGE_GRP2       :: 0x14     // not used
+MASK_GRP0_B     :: 0x18     // VICKY
+MASK_GRP0_A     :: 0x19     // VICKY
+MASK_GRP1_B     :: 0x1A     // GAVIN
+MASK_GRP1_A     :: 0x1B     // GAVIN
+MASK_GRP2_B     :: 0x1C     // BEATRIX
+MASK_GRP2_A     :: 0x1D     // BEATRIX
 
 // word of warning: IPL in Motorola are inverted, so if manual
 // says '000 means NMI' that, in fact, means 'autovector 7'.
@@ -267,9 +267,11 @@ PIC_M68K :: struct {
     using pic: ^PIC
 }
 
-pic_m68k_make :: proc(name: string) -> ^PIC {
+make_pic_m68k :: proc(name: string, dcb: ^emu.DeviceConfig) -> ^PIC {
     pic          := new(PIC)
     pic.name      = name
+    pic.req       = dcb.req
+
     pic.data      = new([32]u8)
     pic.current   = .NONE
     pic.group     = .GRP_NONE
@@ -277,17 +279,14 @@ pic_m68k_make :: proc(name: string) -> ^PIC {
     pic.irq_clear = false
     pic.irq_active= false
 
-    //pic.read8     = pic_m68k_read8
-    //pic.write8    = pic_m68k_write8
     pic.delete    = delete_pic_m68k
-    pic.read      = read_pic_m68k
-    pic.write     = write_pic_m68k
+    pic.read      =   read_pic_m68k
+    pic.write     =  write_pic_m68k
 
     pic.trigger   = trigger_m68040
     pic.clean     = clean_m68040
 
-    p            := PIC_M68K{pic = pic}
-    pic.model     = p
+    pic.model    = PIC_M68K{pic = pic}
     return pic
 }
 
@@ -298,7 +297,7 @@ delete_pic_m68k :: proc(pic: ^PIC) {
 }
 
 // XXX - workaround
-write_pic_m68k :: proc(d: ^PIC, mode: MODE, addr, ra, val: u32) {
+write_pic_m68k :: proc(d: ^PIC, mode: MODE, addr, val: u32) {
     switch mode {
     case .mode_8: 
         pic_m68k_write8(d, addr, u8(val))
@@ -313,7 +312,7 @@ write_pic_m68k :: proc(d: ^PIC, mode: MODE, addr, ra, val: u32) {
     return
 }
 
-read_pic_m68k :: proc(d: ^PIC, mode: MODE, addr, ra: u32) -> (val: u32) {
+read_pic_m68k :: proc(d: ^PIC, mode: MODE, addr: u32) -> (val: u32) {
     switch mode {
     case .mode_8: 
         return cast(u32) pic_m68k_read8(d, addr)
@@ -333,21 +332,21 @@ read_pic_m68k :: proc(d: ^PIC, mode: MODE, addr, ra: u32) -> (val: u32) {
 pic_m68k_read8 :: proc(pic: ^PIC, addr: u32) -> (val: u8) {
     d         := &pic.model.(PIC_M68K)
     val = 0
-	switch addr {
-	case PENDING_GRP0_A:
-	case PENDING_GRP0_B:
-	case PENDING_GRP1_A:
-	case PENDING_GRP1_B:
-	case PENDING_GRP2_A:
-	case PENDING_GRP2_B:
-	case MASK_GRP0_A:
-	case MASK_GRP0_B:
-	case MASK_GRP1_A:
-	case MASK_GRP1_B:
-	case MASK_GRP2_A:
-	case MASK_GRP2_B:
-	case:
-		log.warnf("%s: read8      at 0x %04X:%04X not implemented", d.name, u16(addr >> 16), u16(addr & 0x0000_ffff))
+    switch addr {
+    case PENDING_GRP0_A:
+    case PENDING_GRP0_B:
+    case PENDING_GRP1_A:
+    case PENDING_GRP1_B:
+    case PENDING_GRP2_A:
+    case PENDING_GRP2_B:
+    case MASK_GRP0_A:
+    case MASK_GRP0_B:
+    case MASK_GRP1_A:
+    case MASK_GRP1_B:
+    case MASK_GRP2_A:
+    case MASK_GRP2_B:
+    case:
+        emu.error_read(pic.name, pic.req, .NOT_IMPL, .mode_8, addr)
         return
     }
     val = d.data[addr]
@@ -401,39 +400,39 @@ clear_pic_m68k_irq :: proc(pic: ^PIC, group: IRQ_GROUP, val, reg: u8) {
 pic_m68k_write8 :: proc(pic: ^PIC, addr: u32, val: u8) {
     d         := &pic.model.(PIC_M68K)
     //log.debugf("pic0: write8 addr %d val %d", addr, val)
-	switch addr {
-	case PENDING_GRP0_A:
+    switch addr {
+    case PENDING_GRP0_A:
         clear_pic_m68k_irq(d, .GRP_0A, val, d.data[addr])
         d.data[addr] = d.data[addr] & (~val)
-	case PENDING_GRP0_B:
+    case PENDING_GRP0_B:
         clear_pic_m68k_irq(d, .GRP_0B, val, d.data[addr])
         d.data[addr] = d.data[addr] & (~val)
-	case PENDING_GRP1_A:
+    case PENDING_GRP1_A:
         clear_pic_m68k_irq(d, .GRP_1A, val, d.data[addr])
         d.data[addr] = d.data[addr] & (~val)
-	case PENDING_GRP1_B:
+    case PENDING_GRP1_B:
         clear_pic_m68k_irq(d, .GRP_1B, val, d.data[addr])
         d.data[addr] = d.data[addr] & (~val)
-	case PENDING_GRP2_A:
+    case PENDING_GRP2_A:
         clear_pic_m68k_irq(d, .GRP_2A, val, d.data[addr])
         d.data[addr] = d.data[addr] & (~val)
-	case PENDING_GRP2_B:
+    case PENDING_GRP2_B:
         clear_pic_m68k_irq(d, .GRP_2B, val, d.data[addr])
         d.data[addr] = d.data[addr] & (~val)
-	case MASK_GRP0_A:
+    case MASK_GRP0_A:
         d.data[addr] = val
-	case MASK_GRP0_B:
+    case MASK_GRP0_B:
         d.data[addr] = val
-	case MASK_GRP1_A:
+    case MASK_GRP1_A:
         d.data[addr] = val
-	case MASK_GRP1_B:
+    case MASK_GRP1_B:
         d.data[addr] = val
-	case MASK_GRP2_A:
+    case MASK_GRP2_A:
         d.data[addr] = val
-	case MASK_GRP2_B:
+    case MASK_GRP2_B:
         d.data[addr] = val
-	case:
-		log.warnf("%s: write8 0x%02x at 0x %04X:%04X not implemented", d.name, val, u16(addr >> 16), u16(addr & 0x0000_ffff))
+    case:
+        emu.error_write(pic.name, pic.req, .NOT_IMPL, .mode_8, addr, u32(val))
     }
 }
 
@@ -490,3 +489,4 @@ clean_m68040 :: proc(pic: ^PIC) {
     d.irq_clear = false
 }
 
+// eof

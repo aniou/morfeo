@@ -80,29 +80,29 @@ IRQ_C256 :: enum {
     FNX3_INT07_TBD,
 }
 
-pic_c256_make :: proc(name: string) -> ^PIC {
+make_pic_c256 :: proc(name: string, dcb: ^emu.DeviceConfig) -> ^PIC {
     pic          := new(PIC)
     pic.name      = name
+    pic.req       = dcb.req
+
     pic.data      = new([32]u8)
     pic.current   = .NONE
     pic.group     = .GRP_NONE
-    //pic.irqs      = M68K_IRQ
     pic.irq_clear = false
     pic.irq_active= false
 
-    pic.read      = pic_c256_read
-    pic.write     = pic_c256_write
-    pic.trigger   = pic_c256_trigger
-    pic.delete    = pic_c256_delete
-    /*
-    pic.clean     = m68040_clean
-    pic.read8     = pic_m68k_read8
-    pic.write8    = pic_m68k_write8
-    */
-    p            := PIC_C256{base = pic}
-    pic.model     = p
+    pic.delete    =  delete_pic_c256
+    pic.read      =    read_pic_c256
+    pic.write     =   write_pic_c256
+    pic.trigger   = trigger_pic_c256
+    
+    pic.model     = PIC_C256{base = pic}
     return pic
 } 
+
+delete_pic_c256 :: proc(pic: ^PIC) {
+    free(pic)
+}
 
 // Note to myself, because I did it again.
 //
@@ -116,10 +116,10 @@ pic_c256_make :: proc(name: string) -> ^PIC {
 // four, separate groups or creating non-trivial selector. Finally it
 // will lead to much more complex solution when irq trigger come to play.
 //
-pic_c256_read :: proc(pic: ^PIC, mode: MODE, addr, ra: u32) -> (out: u32) {
+read_pic_c256 :: proc(pic: ^PIC, mode: MODE, addr: u32) -> (out: u32) {
 
     if mode != .mode_8 {
-        emu.error_read(pic.name, .BAD_MODE, mode, addr, ra)
+        emu.error_read(pic.name, pic.req, .BAD_MODE, mode, addr)
         return
     }
 
@@ -277,10 +277,10 @@ pic_c256_read :: proc(pic: ^PIC, mode: MODE, addr, ra: u32) -> (out: u32) {
     return
 }
 
-pic_c256_write :: proc(pic: ^PIC, mode: MODE, addr, ra, val: u32)  {
+write_pic_c256 :: proc(pic: ^PIC, mode: MODE, addr, val: u32)  {
 
     if mode != .mode_8 {
-        emu.error_write(pic.name, .BAD_MODE, mode, addr, ra, val)
+        emu.error_write(pic.name, pic.req, .BAD_MODE, mode, addr, val)
         return
     }
 
@@ -464,6 +464,21 @@ Mask
     while those with a mask bit of 1 will trigger an interrupt to the CPU.
 */
 
+trigger_pic_c256 :: proc(pic: ^PIC, irq: IRQ)  {
+    #partial switch irq {
+    case      .KBD_PS2: pic_c256_internal_trigger(pic, .FNX1_INT00_KBD)
+    case  .VICKY_A_SOF: pic_c256_internal_trigger(pic, .FNX0_INT00_SOF)
+    case   .RESERVED_5: pic_c256_internal_trigger(pic, .FNX2_INT03_SDMA)    // too bad, too bad we
+    case   .RESERVED_6: pic_c256_internal_trigger(pic, .FNX2_INT04_VDMA)    // need abstract irq names
+    case       .TIMER0: pic_c256_internal_trigger(pic, .FNX0_INT02_TMR0)
+    case       .TIMER1: pic_c256_internal_trigger(pic, .FNX0_INT03_TMR1)
+    case       .TIMER2: pic_c256_internal_trigger(pic, .FNX0_INT04_TMR2)
+    case          .RTC: pic_c256_internal_trigger(pic, .FNX0_INT05_RTC)
+    case          : emu.call_not_implemented(#procedure, fmt.aprintf("%s", irq))
+    }
+}
+
+@private
 pic_c256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_C256)  {
     d         := &pic.model.(PIC_C256)
 
@@ -479,23 +494,4 @@ pic_c256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_C256)  {
     return
 }
 
-pic_c256_trigger :: proc(pic: ^PIC, irq: IRQ)  {
-    #partial switch irq {
-    case      .KBD_PS2: pic_c256_internal_trigger(pic, .FNX1_INT00_KBD)
-    case  .VICKY_A_SOF: pic_c256_internal_trigger(pic, .FNX0_INT00_SOF)
-    case   .RESERVED_5: pic_c256_internal_trigger(pic, .FNX2_INT03_SDMA)    // too bad, too bad we
-    case   .RESERVED_6: pic_c256_internal_trigger(pic, .FNX2_INT04_VDMA)    // need abstract irq names
-    case       .TIMER0: pic_c256_internal_trigger(pic, .FNX0_INT02_TMR0)
-    case       .TIMER1: pic_c256_internal_trigger(pic, .FNX0_INT03_TMR1)
-    case       .TIMER2: pic_c256_internal_trigger(pic, .FNX0_INT04_TMR2)
-    case          .RTC: pic_c256_internal_trigger(pic, .FNX0_INT05_RTC)
-    case          : emu.call_not_implemented(#procedure, fmt.aprintf("%s", irq))
-    }
-}
-
-pic_c256_delete :: proc(pic: ^PIC) {
-    //d         := &pic.model.(PIC_C256)
-    //free(d.data)
-    free(pic)
-}
-
+// eof

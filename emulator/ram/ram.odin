@@ -7,6 +7,8 @@ MODE :: emu.OpMode
 
 RAM  :: struct {
     name:    string,
+    req:     ^emu.BusRequest,
+
     delete:  proc(^RAM),
     read:    proc(^RAM, MODE, u32, u32) -> u32,
     write:   proc(^RAM, MODE, u32, u32,    u32),
@@ -26,9 +28,11 @@ ALTRAM  :: struct {
     data:    [dynamic]u8,
 }
 
-make_ram :: proc(name: string, size: int) -> ^RAM {
+make_ram :: proc(name: string, dcb: ^emu.DeviceConfig, size: int) -> ^RAM {
     ram           := new(RAM)
     ram.name       = name
+    ram.req        = dcb.req
+
     ram.delete     = delete_ram
     ram.read       =   read_ram
     ram.write      =  write_ram
@@ -39,10 +43,11 @@ make_ram :: proc(name: string, size: int) -> ^RAM {
     return ram
 }
 
-make_alt_ram :: proc(name: string, req: ^emu.BusRequest, size: int) -> ^ALTRAM {
+make_alt_ram :: proc(name: string, dcb: ^emu.DeviceConfig, size: int) -> ^ALTRAM {
     ram           := new(ALTRAM)
     ram.name       = name
-    ram.req        = req
+    ram.req        = dcb.req
+
     ram.delete     = delete_alt_ram
     ram.read       =  read_alt_ram
     ram.write      = write_alt_ram

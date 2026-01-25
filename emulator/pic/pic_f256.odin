@@ -61,13 +61,14 @@ IRQ_F256 :: enum {
 
 }
 
-make_pic_f256 :: proc(name: string) -> ^PIC {
+make_pic_f256 :: proc(name: string, dcb: ^emu.DeviceConfig) -> ^PIC {
     pic          := new(PIC)
     pic.name      = name
+    pic.req       = dcb.req
+
     pic.data      = new([32]u8)
     pic.current   = .NONE
     pic.group     = .GRP_NONE
-    //pic.irqs      = M68K_IRQ
     pic.irq_clear = false
     pic.irq_active= false
 
@@ -79,6 +80,10 @@ make_pic_f256 :: proc(name: string) -> ^PIC {
     pic.model     = PIC_F256{pic = pic}
     return pic
 } 
+
+delete_pic_f256 :: proc(pic: ^PIC) {
+    free(pic)
+}
 
 // Note to myself, because I did it again.
 //
@@ -92,15 +97,14 @@ make_pic_f256 :: proc(name: string) -> ^PIC {
 // four, separate groups or creating non-trivial selector. Finally it
 // will lead to much more complex solution when irq trigger come to play.
 //
-read_pic_f256 :: proc(pic: ^PIC, mode: MODE, addr, ra: u32) -> (out: u32) {
+read_pic_f256 :: proc(pic: ^PIC, mode: MODE, addr: u32) -> (out: u32) {
 
     if mode != .mode_8 {
-        emu.error_read(pic.name, .BAD_MODE, mode, addr, ra)
+        emu.error_read(pic.name, pic.req, .BAD_MODE, mode, addr)
         return
     }
 
     d         := &pic.model.(PIC_F256)
-
     switch Register_pic_f256(addr) {
     case .INT_PENDING_REG0:
         out |= 0x01 if d.pending[.GRP0_INT00_SOF         ] else 0
@@ -217,15 +221,14 @@ read_pic_f256 :: proc(pic: ^PIC, mode: MODE, addr, ra: u32) -> (out: u32) {
     return
 }
 
-write_pic_f256 :: proc(pic: ^PIC, mode: MODE, addr, ra, val: u32) {
+write_pic_f256 :: proc(pic: ^PIC, mode: MODE, addr, val: u32) {
 
     if mode != .mode_8 {
-        emu.error_write(pic.name, .BAD_MODE, mode, addr, ra, val)
+        emu.error_write(pic.name, pic.req, .BAD_MODE, mode, addr, val)
         return
     }
 
     d         := &pic.model.(PIC_F256)
-
     switch Register_pic_f256(addr) {
     case .INT_PENDING_REG0:
         if (val & 0x01) != 0 do d.pending[.GRP0_INT00_SOF         ] = false 
@@ -381,12 +384,6 @@ trigger_pic_f256 :: proc(pic: ^PIC, irq: IRQ)  {
     }
 }
 
-delete_pic_f256 :: proc(pic: ^PIC) {
-    //d         := &pic.model.(PIC_F256)
-    //free(d.data)
-    free(pic)
-}
-
 @private
 pic_f256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_F256)  {
     d         := &pic.model.(PIC_F256)
@@ -406,3 +403,4 @@ pic_f256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_F256)  {
     return
 }
 
+// eof

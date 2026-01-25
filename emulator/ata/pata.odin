@@ -160,6 +160,7 @@ DRIVE :: struct {
 
 PATA :: struct {
     name:     string,
+    req:      ^emu.BusRequest,
     id:       int,
 
     read:     proc(^PATA, MODE, u32, u32) -> u32,
@@ -175,14 +176,16 @@ PATA :: struct {
     debug:    bool, 
 }
 
-pata_make :: proc(name:string) -> ^PATA {
+make_pata :: proc(name:string, dcb: ^emu.DeviceConfig) -> ^PATA {
     pata         := new(PATA)
     pata.name     = name
+    pata.req      = dcb.req
+
+    pata.delete   = pata_delete
     pata.read     = pata_read
     pata.write    = pata_write
     pata.read8    = pata_read8
     pata.write8   = pata_write8
-    pata.delete   = pata_delete
     pata.attach   = pata_attach_disk
     pata.drive[0] = DRIVE{ status = ST_DRDY, attached = false }
     pata.drive[1] = DRIVE{ status = ST_DRDY, attached = false }

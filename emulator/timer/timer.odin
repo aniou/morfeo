@@ -8,6 +8,7 @@ MODE  :: emu.OpMode
 TIMER :: struct {
     name:       string,
     id:         int,
+    req:        ^emu.BusRequest,
 
     read:       proc(^TIMER, MODE, u32, u32) -> u32,
     write:      proc(^TIMER, MODE, u32, u32,    u32),

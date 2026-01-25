@@ -46,7 +46,7 @@ TIMER_F256 :: struct {
     using timer: ^TIMER,
 
     irq:          pic.IRQ,             // irq type to send when counter is equal
-    pic_ctrl:    ^pic.PIC,
+    pic_ctrl:    ^pic.PIC,              // XXX: move to TIMER?
 
     clock:       ^thread.Thread,
     ctrl:         Timer_f256_ctrl,
@@ -60,10 +60,11 @@ TIMER_F256 :: struct {
     shutdown:     bool,           // used by thread to graceful shutdown
 }
 
-make_timer_f256 :: proc(name: string, pic: ^pic.PIC, id: int) -> ^TIMER {
+make_timer_f256 :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC, id: int) -> ^TIMER {
     timer         := new(TIMER)
     timer.name     = name
     timer.id       = id
+    timer.req      = dcb.req
 
     timer.delete   = delete_timer_f256
     timer.read     =   read_timer_f256

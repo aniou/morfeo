@@ -56,18 +56,22 @@ TIMER_C256 :: struct {
     shutdown:     bool,           // used by thread to graceful shutdown
 }
 
-timer_c256_make :: proc(name: string, pic: ^pic.PIC, id: int) -> ^TIMER {
+timer_c256_make :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC, id: int) -> ^TIMER {
     timer         := new(TIMER)
     timer.name     = name
     timer.id       = id
+    timer.req      = dcb.req
+
     timer.delete   = timer_c256_delete
     timer.read     = timer_c256_read
     timer.write    = timer_c256_write
+
     timer.tick     = timer_c256_external_tick
+
     timer.model    = TIMER_C256{base = timer}
     t             := &timer.model.(TIMER_C256)
-
     t.pic_ctrl     = pic
+
     t.shutdown     = false          // used to stop threads
     t.ctrl.enabled = false
     t.sleep        = 69 * time.Nanosecond

@@ -70,20 +70,17 @@ In theory, across the emulator, every variable should be created
 in the same manner:
 
 ``ra``
-    Requested Address, address issued by CPU or user to BUS
-    ``ra`` is usually passed to device as additional param,
-    to improve debug messages (because all addresses used at
-    device level are relative and starts from 0, regardless
-    of device position in computer memory)
+    Requested Address, address issued by CPU or user to BUS ``ra``. Previously
+    it was passed to device as additional param, to improve debug messages. Now
+    it is embedded into ``bus.req`` structure.
 
 ``ea``
     Effective Address, address after all calculations at BUS level. 
 
 ``addr``
-    An internal address of device, usually subtraction between
-    ``ea`` and "base" memory address. It allows to count every
-    cell in device drivers from 0, regardless of it place in
-    memory. Calculated at BUS level
+    An internal address of device, usually subtraction between ``ea`` and "base" 
+    memory address. It allows to count every cell in device drivers from 0, 
+    regardless of it place in memory. Calculated at BUS level
 
 ``out`` 
     Returned value, usually from write() routines

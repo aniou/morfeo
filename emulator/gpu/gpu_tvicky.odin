@@ -109,16 +109,18 @@ GPU_tVicky :: struct {
 
 // --------------------------------------------------------------------
 
-make_tvicky :: proc(name: string, pic: ^pic.PIC) -> ^GPU {
+make_tvicky :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC) -> ^GPU {
     log.infof("tvicky: gpu%d initialization start, name %s", 0, name)
 
     gpu       := new(GPU)
     gpu.name   = name
+    gpu.req    = dcb.req
+    gpu.pic    = pic
+
     gpu.read  =    read_tvicky
     gpu.write =   write_tvicky
     gpu.delete = delete_tvicky
     gpu.render = render_tvicky
-    gpu.pic    = pic
     g         := GPU_tVicky{gpu = gpu}
 
     g.text    = make([dynamic]u32,    0x2000)

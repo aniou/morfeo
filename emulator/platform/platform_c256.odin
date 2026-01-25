@@ -17,27 +17,37 @@ import "core:fmt"
 import "core:log"
 
 import "lib:emu"
-
+ 
+// XXX: I'm not sure how, but version after version a init routine
+// have been evolving into disharmony. It was inevitable, I presume.
+//
 c256_make :: proc(config: ^emu.Config) -> (p: ^Platform, ok: bool = true)  {
     p            = new(Platform)
-    p.bus        =   bus.make_c256      ("bus0",                      config)
-    pic         :=   pic.pic_c256_make  ("pic0")
-    p.bus.pic0   =   pic
-    p.bus.ram0   =   ram.make_ram       ("ram0",        emu.SRAMSIZE)
-    p.bus.gpu0   =   gpu.make_vicky2    ("gpu0",   pic, emu.VRAMSIZE, config)
-    p.bus.gpu1   =   gpu.make_C200      ("gpu1",   pic, emu.VRAMSIZE, config)
-    p.bus.ps20   =   ps2.ps2_make       ("ps2",    pic)
-    p.bus.rtc0   =   rtc.bq4802_make    ("rtc0",   pic)
-    p.bus.inu0   =   inu.inu_c256_make  ("inu0")
-    p.bus.ata0   =   ata.pata_make      ("ata0")          // XXX - update to PIC
-    p.bus.timer0 = timer.timer_c256_make("timer0", pic, 0)
-    p.bus.timer1 = timer.timer_c256_make("timer1", pic, 1)
-    p.bus.timer2 = timer.timer_c256_make("timer2", pic, 2)
-    p.bus.joy0   =   joy.joy_c256_make  ("joy0")
-    p.bus.rng    =   rng.rng_c256_make  ("rng0")
-    p.cpu        =   cpu.make_w65c816   ("cpu0", p.bus)
-    
     p.cfg        = config
+    p.bus        = bus.make_c256      ("bus0", config)
+    p.cpu        = cpu.make_w65c816   ("cpu0", p.bus )
+
+    // temporary block, used for passing parameters
+    dcb         := new(emu.DeviceConfig)
+    dcb.cfg      = config
+    dcb.req      = &p.bus.req
+    defer free(dcb)
+
+    pic         :=   pic.make_pic_c256  ("pic0",   dcb)
+    p.bus.pic0   =   pic
+    p.bus.ram0   =   ram.make_ram       ("ram0",   dcb,        size = emu.SRAMSIZE)
+    p.bus.gpu0   =   gpu.make_vicky2    ("gpu0",   dcb,  pic,  size = emu.VRAMSIZE)
+    p.bus.gpu1   =   gpu.make_C200      ("gpu1",   dcb,  pic,  size = emu.VRAMSIZE)
+    p.bus.ps20   =   ps2.make_ps2       ("ps2",    dcb,  pic)
+    p.bus.rtc0   =   rtc.make_bq4802    ("rtc0",   dcb,  pic)
+    p.bus.inu0   =   inu.make_inu_c256  ("inu0",   dcb)
+    p.bus.ata0   =   ata.make_pata      ("ata0",   dcb)                     // XXX - update to PIC
+    p.bus.timer0 = timer.timer_c256_make("timer0", dcb,  pic,  id = 0)
+    p.bus.timer1 = timer.timer_c256_make("timer1", dcb,  pic,  id = 1)
+    p.bus.timer2 = timer.timer_c256_make("timer2", dcb,  pic,  id = 2)
+    p.bus.joy0   =   joy.make_joy_c256  ("joy0",   dcb)
+    p.bus.rng    =   rng.make_rng_c256  ("rng0",   dcb)
+    
 
     p.delete     = c256_delete
     p.init       = c256_init

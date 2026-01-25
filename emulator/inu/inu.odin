@@ -11,7 +11,7 @@ import "lib:emu"
 MODE :: emu.OpMode
 INU  :: struct {
     name:   string,
-    id:     int,
+    req:    ^emu.BusRequest,
 
     delete:  proc(^INU           ),
     read:    proc(^INU, MODE, u32, u32)-> u32 ,
