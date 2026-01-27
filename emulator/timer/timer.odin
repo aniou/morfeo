@@ -10,8 +10,8 @@ TIMER :: struct {
     id:         int,
     req:        ^emu.BusRequest,
 
-    read:       proc(^TIMER, MODE, u32, u32) -> u32,
-    write:      proc(^TIMER, MODE, u32, u32,    u32),
+    read:       proc(^TIMER, MODE, u32) -> u32,
+    write:      proc(^TIMER, MODE, u32,    u32),
     delete:     proc(^TIMER),
     tick:       proc(^TIMER, int),
 

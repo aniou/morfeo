@@ -146,7 +146,7 @@ timer_a2560x_read :: proc(d: ^TIMER, mode: MODE, addr, ra: u32) -> (val: u32) {
 timer_a2560x_write :: proc(d: ^TIMER, mode: MODE, addr, ra, val: u32) {
 
     if mode != .mode_32be {
-        emu.error_read(d.name, .BAD_MODE, mode, addr, ra)
+        emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
         return
     }
 

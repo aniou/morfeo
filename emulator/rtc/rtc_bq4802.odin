@@ -147,8 +147,8 @@ RTC :: struct {
     req:    ^emu.BusRequest,
     pic:    ^pic.PIC,
 
-    read:     proc(^RTC, MODE, u32, u32) -> u32,
-    write:    proc(^RTC, MODE, u32, u32,    u32),
+    read:     proc(^RTC, MODE, u32) -> u32,
+    write:    proc(^RTC, MODE, u32,    u32),
     delete:   proc(^RTC),
 
 
@@ -230,7 +230,7 @@ make_bq4802 :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC) -> ^RTC
 
 bq4802_read :: proc(r: ^RTC, mode: MODE, addr, ra: u32) -> (out: u32) {
     if mode != .mode_8 {
-        emu.error_read(r.name, .BAD_MODE, mode, addr, ra)
+        emu.error_read(r.name, r.req, .BAD_MODE, mode, addr)
     }
 
     switch Register_bq4802(addr) {
@@ -258,7 +258,7 @@ bq4802_read :: proc(r: ^RTC, mode: MODE, addr, ra: u32) -> (out: u32) {
 
 bq4802_write :: proc(r: ^RTC, mode: MODE, addr, ra, val: u32) {
     if mode != .mode_8 {
-        emu.error_write(r.name, .BAD_MODE, mode, addr, ra, val)
+        emu.error_write(r.name, r.req, .BAD_MODE, mode, addr, val)
     } 
 
     log.debugf("%s bq4802 write%d %02x   to %x  %-15s", r.name, mode, val, ra, addr_name(addr))

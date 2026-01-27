@@ -212,19 +212,19 @@ read_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN
         out = read_vicky3_register(d, mode, addr, ra, region)
     case .TEXT:
         if mode != .mode_8 {
-            emu.error_read(d.name, .BAD_MODE, mode, addr, ra)
+            emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
         } else {
             out = d.text[addr]
         }
     case .TEXT_COLOR:
         if mode != .mode_8 {
-            emu.error_read(d.name, .BAD_MODE, mode, addr, ra)
+            emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
         } else {
             out = d.tc[addr]
         }
     case .TEXT_FG_LUT:
         if mode != .mode_32be {
-            emu.error_read(d.name, .BAD_MODE, mode, addr, ra)
+            emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
         } else {
 		    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
 		    out = d.fg_clut[color]
@@ -232,7 +232,7 @@ read_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN
 
     case .TEXT_BG_LUT:
         if mode != .mode_32be {
-            emu.error_read(d.name, .BAD_MODE, mode, addr, ra)
+            emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
         } else {
 		    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
 		    out = d.bg_clut[color]
@@ -263,7 +263,7 @@ read_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN
     	}
 
     case: 
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+        emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
     }
     return
 }
@@ -280,14 +280,14 @@ write_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION =
 
     case .TEXT:
         if mode != .mode_8 {
-            emu.error_write(d.name, .BAD_MODE, mode, addr, ra,val)
+            emu.error_write(d.name, d.req, .BAD_MODE, mode, addr,val)
         } else {
             d.text[addr] = val & 0x00_00_00_ff
         }
 
     case .TEXT_COLOR:
         if mode != .mode_8 {
-            emu.error_write(d.name, .BAD_MODE, mode, addr, ra,val)
+            emu.error_write(d.name, d.req, .BAD_MODE, mode, addr,val)
         } else {
             d.fg[addr] = (val & 0xf0) >> 4
             d.bg[addr] =  val & 0x0f
@@ -296,7 +296,7 @@ write_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION =
         
     case .TEXT_FG_LUT:
         if mode != .mode_32be {
-            emu.error_write(d.name, .BAD_MODE, mode, addr, ra,val)
+            emu.error_write(d.name, d.req, .BAD_MODE, mode, addr,val)
         } else {
 		    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
 		    d.fg_clut[color] = val
@@ -304,7 +304,7 @@ write_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION =
 
     case .TEXT_BG_LUT:
         if mode != .mode_32be {
-            emu.error_write(d.name, .BAD_MODE, mode, addr, ra,val)
+            emu.error_write(d.name, d.req, .BAD_MODE, mode, addr,val)
         } else {
 		    color := addr >> 2 // every color ARGB bytes, assume 4-byte align
 		    d.bg_clut[color] = val
@@ -312,7 +312,7 @@ write_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION =
 
     case .FONT_BANK0:
         if mode != .mode_8 {
-            emu.error_write(d.name, .BAD_MODE, mode, addr, ra,val)
+            emu.error_write(d.name, d.req, .BAD_MODE, mode, addr,val)
         } else {
             vicky3_update_font_cache(d, addr, u8(val))  // every bit in font cache is mapped to byte
         }
@@ -338,7 +338,7 @@ write_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION =
         }
 
     case        : 
-        emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
+        emu.error_write(d.name, d.req, .NOT_IMPL, mode, addr, val)
     }
     return
 }
@@ -347,7 +347,7 @@ write_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION =
 @private
 write_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra, val: u32, region: REGION) {
     if mode != .mode_32be {
-        emu.error_write(d.name, .BAD_MODE, mode, addr, ra,val)
+        emu.error_write(d.name, d.req, .BAD_MODE, mode, addr,val)
         return
     }
 
@@ -425,7 +425,7 @@ write_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra, val: u32, re
         d.border_enabled = (val & VKY3_BCR_ENABLE )       != 0
 
         if (val & VKY3_BCR_X_SCROLL) != 0 {
-            emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+            emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
         }
 
         d.border_x_size = i32((val & VKY3_BCR_X_SIZE) >>  8)
@@ -451,7 +451,7 @@ write_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra, val: u32, re
         d.cursor_fg        = u32((val & VKY3_CCR_BG        ) >> 28)
 
         if (val & VKY3_CCR_OFFSET) != 0 {
-            emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+            emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
         }
 
     case .VKY3_CPR:
@@ -459,13 +459,13 @@ write_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra, val: u32, re
         d.cursor_y = (val & 0x_ff_ff_00_00) >> 16
 
     case .VKY3_IRQ0:
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+        emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
     case .VKY3_IRQ1:
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+        emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
     case .VKY3_FONT_MGR0:
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+        emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
     case .VKY3_FONT_MGR1:
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+        emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
 
     case .VKY3_BM_L0CR:
         d.bm0_enabled           = (val & VKY3_BITMAP           ) != 0 
@@ -477,14 +477,14 @@ write_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra, val: u32, re
         d.bm0_pointer = val
         // XXX - recalculate bitmap0
     case                 :
-        emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
+        emu.error_write(d.name, d.req, .NOT_IMPL, mode, addr, val)
     }
 }
 
 @private
 read_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
     if mode != .mode_32be {
-        emu.error_read(d.name, .BAD_MODE, mode, addr, ra)
+        emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
         return
     }
 
@@ -538,20 +538,20 @@ read_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra: u32, region: 
         out |= (u32(d.bg_color_r) << 16)
 
     case .VKY3_CCR:
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+        emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
 
     case .VKY3_CPR:
         out |= d.cursor_x
         out |= d.cursor_y << 16
 
     case .VKY3_IRQ0:
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+        emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
     case .VKY3_IRQ1:
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+        emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
     case .VKY3_FONT_MGR0:
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+        emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
     case .VKY3_FONT_MGR1:
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+        emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
 
     case .VKY3_BM_L0CR:
         out |= VKY3_BITMAP           if d.border_enabled        else 0
@@ -562,19 +562,19 @@ read_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra: u32, region: 
         out = d.bm0_pointer
 
     case                 :
-        emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+        emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
     }
     return
 }
 
 @private
 write_vicky3b_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra, val: u32, region: REGION) {
-    emu.error_write(d.name, .NOT_IMPL, mode, addr, ra, val)
+    emu.error_write(d.name, d.req, .NOT_IMPL, mode, addr, val)
 }
 
 @private
 vicky3_b_read_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
-    emu.error_read(d.name, .NOT_IMPL, mode, addr, ra)
+    emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
     return 0x55
 }
 

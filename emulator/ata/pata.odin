@@ -198,7 +198,7 @@ pata_read :: proc(d: ^PATA, mode: MODE, addr, ra: u32) -> (out: u32) {
     switch mode {
         case .mode_8:     out = u32(pata_read8(d, addr))
         case .mode_16be:  out = u32(pata_read8(d, addr)) << 8 | u32(pata_read8(d, addr+1))
-        case .mode_32be:  emu.error_read(d.name, .BAD_MODE, mode, addr, ra)
+        case .mode_32be:  emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
     }
     return
 }
@@ -208,7 +208,7 @@ pata_write :: proc(d: ^PATA, mode: MODE, addr, ra, val: u32) {
         case .mode_8:     pata_write8(d, addr,   u8(val        ))
         case .mode_16be:  pata_write8(d, addr,   u8(val >> 8   ))
                           pata_write8(d, addr+1, u8(val  & 0xff))
-        case .mode_32be:  emu.error_read(d.name, .BAD_MODE, mode, addr, ra)
+        case .mode_32be:  emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
     }
     return
 }

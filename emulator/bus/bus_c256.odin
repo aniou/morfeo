@@ -135,11 +135,11 @@ read_bus_c256 :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
     case 0xAF_E830 ..= 0xAF_E839:  out =   bus.ata0->read(mode, ra - 0xAF_E830, ra)
     case 0xAF_E884 ..= 0xAF_E885:  out =    bus.rng->read(mode, ra - 0xAF_E884, ra)
     case 0xAF_E887              :  out =   b.sys_stat
-    case 0xAF_E000 ..= 0xAF_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra - 0xAF_E000, ra)
+    case 0xAF_E000 ..= 0xAF_FFFF:  emu.error_read(bus.name, s.req, .NOT_IMPL, mode, ra - 0xAF_E000, ra)
     case 0xB0_0000 ..= VRAM_END :  out =   bus.gpu0->read(mode, ra - 0xB0_0000, ra, .VRAM0      ) // 2 or 4MB
-    case 0xF0_0000 ..= 0xF7_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra - 0xF0_0000, ra)
-    case 0xF8_0000 ..= 0xFF_FFFF:  emu.error_read(bus.name, .NOT_IMPL, mode, ra - 0xF8_0000, ra)
-    case                        :  emu.error_read(bus.name, .NOT_IMPL, mode, ra            , ra)
+    case 0xF0_0000 ..= 0xF7_FFFF:  emu.error_read(bus.name, s.req, .NOT_IMPL, mode, ra - 0xF0_0000, ra)
+    case 0xF8_0000 ..= 0xFF_FFFF:  emu.error_read(bus.name, s.req, .NOT_IMPL, mode, ra - 0xF8_0000, ra)
+    case                        :  emu.error_read(bus.name, s.req, .NOT_IMPL, mode, ra            , ra)
     }
 
     if bus.debug do emu.debug_read(bus.name, mode, ra, ra, out)

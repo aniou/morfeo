@@ -10,8 +10,8 @@ RAM  :: struct {
     req:     ^emu.BusRequest,
 
     delete:  proc(^RAM),
-    read:    proc(^RAM, MODE, u32, u32) -> u32,
-    write:   proc(^RAM, MODE, u32, u32,    u32),
+    read:    proc(^RAM, MODE, u32) -> u32,
+    write:   proc(^RAM, MODE, u32,    u32),
 
     size:    int,
     data:    [dynamic]u8,
@@ -64,7 +64,7 @@ delete_ram :: proc(ram: ^RAM) {
     return
 }
 
-read_ram :: #force_inline proc(ram: ^RAM, mode: MODE, addr, ra: u32) -> (out: u32) {
+read_ram :: #force_inline proc(ram: ^RAM, mode: MODE, addr: u32) -> (out: u32) {
     switch mode {
     case .mode_8: 
         out = cast(u32) ram.data[addr]
@@ -78,7 +78,7 @@ read_ram :: #force_inline proc(ram: ^RAM, mode: MODE, addr, ra: u32) -> (out: u3
     return
 }
 
-write_ram :: #force_inline proc(ram: ^RAM, mode: MODE, addr, ra, val: u32) {
+write_ram :: #force_inline proc(ram: ^RAM, mode: MODE, addr, val: u32) {
     switch mode {
     case .mode_8: 
         ram.data[addr] = cast(u8) val
