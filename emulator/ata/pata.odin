@@ -163,8 +163,8 @@ PATA :: struct {
     req:      ^emu.BusRequest,
     id:       int,
 
-    read:     proc(^PATA, MODE, u32, u32) -> u32,
-    write:    proc(^PATA, MODE, u32, u32,    u32),
+    read:     proc(^PATA, MODE, u32) -> u32,
+    write:    proc(^PATA, MODE, u32,    u32),
     read8:    proc(^PATA, u32) -> u8,
     write8:   proc(^PATA, u32,    u8),
     delete:   proc(^PATA            ),
@@ -194,7 +194,7 @@ make_pata :: proc(name:string, dcb: ^emu.DeviceConfig) -> ^PATA {
     return pata
 }
 
-pata_read :: proc(d: ^PATA, mode: MODE, addr, ra: u32) -> (out: u32) {
+pata_read :: proc(d: ^PATA, mode: MODE, addr: u32) -> (out: u32) {
     switch mode {
         case .mode_8:     out = u32(pata_read8(d, addr))
         case .mode_16be:  out = u32(pata_read8(d, addr)) << 8 | u32(pata_read8(d, addr+1))
@@ -203,7 +203,7 @@ pata_read :: proc(d: ^PATA, mode: MODE, addr, ra: u32) -> (out: u32) {
     return
 }
 
-pata_write :: proc(d: ^PATA, mode: MODE, addr, ra, val: u32) {
+pata_write :: proc(d: ^PATA, mode: MODE, addr, val: u32) {
     switch mode {
         case .mode_8:     pata_write8(d, addr,   u8(val        ))
         case .mode_16be:  pata_write8(d, addr,   u8(val >> 8   ))

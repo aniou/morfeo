@@ -223,7 +223,7 @@ delete_C200 :: proc(gpu: ^GPU) {
     return
 }
 
-read_C200 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN) -> (out: u32) {
+read_C200 :: proc(gpu: ^GPU, mode: MODE, addr: u32, region: REGION = .MAIN) -> (out: u32) {
     d    := &gpu.model.(GPU_C200)
 
     if mode != .mode_8 {
@@ -231,11 +231,11 @@ read_C200 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN) 
     }
 
     #partial switch region {
-    case .MAIN:       out = read_C200_register(d, mode, addr, ra, region)
+    case .MAIN:       out = read_C200_register(d, mode, addr, region)
     case .TEXT:       out = d.text[addr]
     case .TEXT_COLOR: out = d.tc[addr]
     case .FONT_BANK0: out = d.fontmem[addr]
-    case .ID_CARD:    out = read_C200_id_card(d,  mode, addr, ra, region)
+    case .ID_CARD:    out = read_C200_id_card(d,  mode, addr, region)
     case .TEXT_FG_LUT:
         color := addr >> 2 // every color ARGB bytes, assume 4-byte align
         pos   := addr  & 3 // position in 32-bit variable
@@ -253,17 +253,17 @@ read_C200 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN) 
 }
 
 
-write_C200 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION = .MAIN) {
+write_C200 :: proc(gpu: ^GPU, mode: MODE, addr, val: u32, region: REGION = .MAIN) {
     d    := &gpu.model.(GPU_C200)
     if mode != .mode_8 {
         emu.error_write(d.name, d.req, .BAD_MODE, mode, addr,val)
     } 
 
     #partial switch region {
-    case .MAIN:    write_C200_register(d, mode, addr, ra, val, region)
+    case .MAIN:    write_C200_register(d, mode, addr, val, region)
     case .TEXT:    d.text[addr] = val & 0x00_00_00_ff
-    case .TILEMAP: write_C200_register(d, mode, addr, ra, val, region)
-    case .TILESET: write_C200_register(d, mode, addr, ra, val, region)
+    case .TILEMAP: write_C200_register(d, mode, addr, val, region)
+    case .TILESET: write_C200_register(d, mode, addr, val, region)
 
     case .TEXT_COLOR:
         d.fg[addr] = (val & 0xf0) >> 4
@@ -317,7 +317,7 @@ write_C200 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION = .
 
 
 @private
-write_C200_register :: proc(d: ^GPU_C200, mode: MODE, addr, ra, val: u32, region: REGION = .MAIN) {
+write_C200_register :: proc(d: ^GPU_C200, mode: MODE, addr, val: u32, region: REGION = .MAIN) {
 
     if mode != .mode_8 {
         emu.error_write(d.name, d.req, .BAD_MODE, mode, addr,val)
@@ -390,7 +390,7 @@ write_C200_register :: proc(d: ^GPU_C200, mode: MODE, addr, ra, val: u32, region
 }
 
 @private
-read_C200_id_card :: proc(d: ^GPU_C200, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
+read_C200_id_card :: proc(d: ^GPU_C200, mode: MODE, addr: u32, region: REGION) -> (out: u32) {
 
     switch ID_CARD_Register(addr) {
     case .ID_NAME_ASCII ..= .ID_NAME_ASCII_END     : out = 00    // 15 Characters + $00
@@ -405,7 +405,7 @@ read_C200_id_card :: proc(d: ^GPU_C200, mode: MODE, addr, ra: u32, region: REGIO
 }
 
 @private
-read_C200_register :: proc(d: ^GPU_C200, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
+read_C200_register :: proc(d: ^GPU_C200, mode: MODE, addr: u32, region: REGION) -> (out: u32) {
 
     switch C200_Register(addr) {
     case .C200_MCR_L: out |= C200_MCR_TEXT          if d.text_enabled    else 0           // Bit[0]

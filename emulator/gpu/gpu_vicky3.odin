@@ -203,13 +203,13 @@ delete_vicky3 :: proc(gpu: ^GPU) {
 }
 
 
-read_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN) -> (out: u32) {
+read_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr: u32, region: REGION = .MAIN) -> (out: u32) {
     d    := &gpu.model.(GPU_Vicky3)
     #partial switch region {
     case .MAIN_A: 
-        out = read_vicky3_register(d, mode, addr, ra, region)
+        out = read_vicky3_register(d, mode, addr, region)
     case .MAIN_B: 
-        out = read_vicky3_register(d, mode, addr, ra, region)
+        out = read_vicky3_register(d, mode, addr, region)
     case .TEXT:
         if mode != .mode_8 {
             emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
@@ -269,14 +269,14 @@ read_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN
 }
 
 
-write_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION = .MAIN) {
+write_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, val: u32, region: REGION = .MAIN) {
     d    := &gpu.model.(GPU_Vicky3)
     #partial switch region {
     case .MAIN_A: 
-        write_vicky3_register(&d.model.(GPU_Vicky3), mode, addr, ra, val, region)
+        write_vicky3_register(&d.model.(GPU_Vicky3), mode, addr, val, region)
 
     case .MAIN_B: 
-        write_vicky3_register(&d.model.(GPU_Vicky3), mode, addr, ra, val, region)
+        write_vicky3_register(&d.model.(GPU_Vicky3), mode, addr, val, region)
 
     case .TEXT:
         if mode != .mode_8 {
@@ -345,7 +345,7 @@ write_vicky3 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION =
 
 
 @private
-write_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra, val: u32, region: REGION) {
+write_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, val: u32, region: REGION) {
     if mode != .mode_32be {
         emu.error_write(d.name, d.req, .BAD_MODE, mode, addr,val)
         return
@@ -482,7 +482,7 @@ write_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra, val: u32, re
 }
 
 @private
-read_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
+read_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr: u32, region: REGION) -> (out: u32) {
     if mode != .mode_32be {
         emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
         return
@@ -568,7 +568,7 @@ read_vicky3_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra: u32, region: 
 }
 
 @private
-write_vicky3b_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, ra, val: u32, region: REGION) {
+write_vicky3b_register :: proc(d: ^GPU_Vicky3, mode: MODE, addr, val: u32, region: REGION) {
     emu.error_write(d.name, d.req, .NOT_IMPL, mode, addr, val)
 }
 

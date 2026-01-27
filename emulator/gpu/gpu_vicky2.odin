@@ -402,15 +402,15 @@ delete_vicky2 :: proc(gpu: ^GPU) {
     return
 }
 
-read_vicky2 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN) -> (out: u32) {
+read_vicky2 :: proc(gpu: ^GPU, mode: MODE, addr: u32, region: REGION = .MAIN) -> (out: u32) {
     d    := &gpu.model.(GPU_Vicky2)
     if mode != .mode_8 {
         emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
     }
 
     #partial switch region {
-    case .MAIN_A:     out = read_vicky2_register(d, mode, addr, ra, region)
-    case .MAIN_B:     out = read_vicky2_register(d, mode, addr, ra, region)
+    case .MAIN_A:     out = read_vicky2_register(d, mode, addr, region)
+    case .MAIN_B:     out = read_vicky2_register(d, mode, addr, region)
     case .TEXT:       out = d.text[addr]
     case .TEXT_COLOR: out = d.tc[addr]
     case .LUT:        out = cast(u32) d.lut[addr]
@@ -418,8 +418,8 @@ read_vicky2 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN
     case .FONT_BANK0: out = d.fontmem[addr]
     case .MOUSEPTR0:  out = d.mouseptr0[addr]
     case .MOUSEPTR1:  out = d.mouseptr1[addr]
-    case .TILEMAP:    out = read_vicky2_tilemap(d, mode, addr, ra, region)
-    case .TILESET:    out = read_vicky2_tileset(d, mode, addr, ra, region)
+    case .TILEMAP:    out = read_vicky2_tilemap(d, mode, addr, region)
+    case .TILESET:    out = read_vicky2_tileset(d, mode, addr, region)
 
     case .TEXT_FG_LUT:
         color := addr >> 2 // every color ARGB bytes, assume 4-byte align
@@ -438,18 +438,18 @@ read_vicky2 :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION = .MAIN
 }
 
 
-write_vicky2 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION = .MAIN) {
+write_vicky2 :: proc(gpu: ^GPU, mode: MODE, addr, val: u32, region: REGION = .MAIN) {
     d    := &gpu.model.(GPU_Vicky2)
     if mode != .mode_8 {
         emu.error_write(d.name, d.req, .BAD_MODE, mode, addr, val)
     } 
 
     #partial switch region {
-    case .MAIN_A:  write_vicky2_register(d, mode, addr, ra, val, region)
-    case .MAIN_B:  write_vicky2_register(d, mode, addr, ra, val, region)
+    case .MAIN_A:  write_vicky2_register(d, mode, addr, val, region)
+    case .MAIN_B:  write_vicky2_register(d, mode, addr, val, region)
     case .TEXT:    d.text[addr] = val & 0x00_00_00_ff
-    case .TILEMAP: write_vicky2_tilemap(d, mode, addr, ra, val, region)
-    case .TILESET: write_vicky2_tileset(d, mode, addr, ra, val, region)
+    case .TILEMAP:  write_vicky2_tilemap(d, mode, addr, val, region)
+    case .TILESET:  write_vicky2_tileset(d, mode, addr, val, region)
 
     case .TEXT_COLOR:
         d.fg[addr] = (val & 0xf0) >> 4
@@ -542,7 +542,7 @@ write_vicky2 :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION =
 
 
 @private
-write_vicky2_tileset  :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, region: REGION) {
+write_vicky2_tileset  :: proc(d: ^GPU_Vicky2, mode: MODE, addr, val: u32, region: REGION) {
     number   := addr >> 2
     register := addr  & 0x03
     switch Vicky2_Tileset_Reg(register) {
@@ -554,7 +554,7 @@ write_vicky2_tileset  :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, re
 }
 
 @private
-read_vicky2_tileset :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
+read_vicky2_tileset :: proc(d: ^GPU_Vicky2, mode: MODE, addr: u32, region: REGION) -> (out: u32) {
     number   := addr >> 2
     register := addr  & 0x03
     switch Vicky2_Tileset_Reg(register) {
@@ -569,7 +569,7 @@ read_vicky2_tileset :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: R
 // there are two ways to use bit_fields: without and with- transmute
 // I'm not sure which is better, but transmute is needed for x/y pos
 @private
-write_vicky2_tilemap  :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, region: REGION) {
+write_vicky2_tilemap  :: proc(d: ^GPU_Vicky2, mode: MODE, addr, val: u32, region: REGION) {
     number   := addr  / 12
     register := addr  % 12
     log.debugf("vicky2: %s number %d register %02x val %d", #procedure, number, register, val)
@@ -590,7 +590,7 @@ write_vicky2_tilemap  :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, re
 }
 
 @private
-read_vicky2_tilemap :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
+read_vicky2_tilemap :: proc(d: ^GPU_Vicky2, mode: MODE, addr: u32, region: REGION) -> (out: u32) {
     number   := addr  / 12
     register := addr  % 12
 	switch Vicky2_Tilemap_Reg(addr) {
@@ -611,7 +611,7 @@ read_vicky2_tilemap :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: R
 }
 
 @private
-write_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, region: REGION) {
+write_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, val: u32, region: REGION) {
 
     if mode != .mode_8 {
         emu.error_write(d.name, d.req, .BAD_MODE, mode, addr, val)
@@ -729,7 +729,7 @@ write_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, re
 }
 
 @private
-read_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
+read_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr: u32, region: REGION) -> (out: u32) {
 
     if mode != .mode_8 {
         emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
@@ -825,12 +825,12 @@ read_vicky2_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: 
 }
 
 @private
-write_vicky2b_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra, val: u32, region: REGION) {
+write_vicky2b_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, val: u32, region: REGION) {
     emu.error_write(d.name, d.req, .NOT_IMPL, mode, addr, val)
 }
 
 @private
-read_vicky2b_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
+read_vicky2b_register :: proc(d: ^GPU_Vicky2, mode: MODE, addr: u32, region: REGION) -> (out: u32) {
     emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
     return 0x55
 }

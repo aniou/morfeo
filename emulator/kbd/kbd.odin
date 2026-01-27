@@ -28,8 +28,8 @@ KBD  :: struct {
     pic:           ^pic.PIC,
 
     delete:    proc(^KBD),
-    read:      proc(^KBD, MODE, u32, u32) -> u32,
-    write:     proc(^KBD, MODE, u32, u32,    u32),
+    read:      proc(^KBD, MODE, u32) -> u32,
+    write:     proc(^KBD, MODE, u32,    u32),
 
     send_key:  proc(^KBD, emu.KEY, emu.KEY_STATE),
     //kick:      proc(^KBD),
@@ -66,7 +66,7 @@ delete_kbd :: proc(d: ^KBD) {
     free(d)
 }
 
-read_kbd :: proc(kbd: ^KBD, mode: MODE, addr, ra: u32) -> (out: u32) {
+read_kbd :: proc(kbd: ^KBD, mode: MODE, addr: u32) -> (out: u32) {
 
     if mode != .mode_8 {
         emu.error_read(kbd.name, kbd.req, .BAD_MODE, mode, addr)
@@ -96,7 +96,7 @@ read_kbd :: proc(kbd: ^KBD, mode: MODE, addr, ra: u32) -> (out: u32) {
     return
 }
 
-write_kbd :: proc(kbd: ^KBD, mode: MODE, addr, ra, val: u32)          {
+write_kbd :: proc(kbd: ^KBD, mode: MODE, addr, val: u32)          {
     emu.error_write(kbd.name, kbd.req, .NOT_IMPL, mode, addr, val)
 	return
 }

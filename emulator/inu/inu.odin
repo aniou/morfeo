@@ -14,8 +14,8 @@ INU  :: struct {
     req:    ^emu.BusRequest,
 
     delete:  proc(^INU           ),
-    read:    proc(^INU, MODE, u32, u32)-> u32 ,
-    write:   proc(^INU, MODE, u32, u32,   u32),
+    read:    proc(^INU, MODE, u32)-> u32 ,
+    write:   proc(^INU, MODE, u32,   u32),
 
     model: union {INU_C256, INU_F256}
 }

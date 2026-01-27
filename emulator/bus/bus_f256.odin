@@ -90,7 +90,7 @@ delete_f256 :: proc(bus: ^Bus) {
     return
 }
 
-read_f256 :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
+read_f256 :: proc(bus: ^Bus, mode: MODE, addr: u32) -> (out: u32) {
    // return f256_io_via_mmu(d, .READ8, ra, 0)
    return
 }

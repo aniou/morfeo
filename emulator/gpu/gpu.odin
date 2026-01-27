@@ -15,10 +15,10 @@ GPU    :: struct {
     req:                ^emu.BusRequest,
     pic:                ^pic.PIC,
 
-    delete:  proc(^GPU            ),
-    read:    proc(^GPU,  MODE, u32, u32, REGION) -> u32,
-    write:   proc(^GPU,  MODE, u32, u32, u32,   REGION),
-    render:  proc(^GPU            ),
+    delete:  proc(^GPU),
+    read:    proc(^GPU,  MODE, u32, REGION) -> u32,
+    write:   proc(^GPU,  MODE, u32, u32,   REGION),
+    render:  proc(^GPU),
 
     TFB:     ^[1024*768]u32,        // text    framebuffer (max resolution)
     BM0FB:   ^[1024*768]u32,        // bitmap0 framebuffer (max resolution)

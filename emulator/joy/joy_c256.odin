@@ -14,8 +14,8 @@ JOY :: struct {
     id:         u8,
     req:        ^emu.BusRequest,
 
-    read:       proc(^JOY, MODE, u32, u32) -> u32,
-    write:      proc(^JOY, MODE, u32, u32,    u32),
+    read:       proc(^JOY, MODE, u32) -> u32,
+    write:      proc(^JOY, MODE, u32,    u32),
     delete:     proc(^JOY),
 
     state:      bit_set[JOYSIGS; u32]
@@ -38,7 +38,7 @@ delete_joy_c256 :: proc(joy: ^JOY) {
 }
 
 
-read_joy_c256 :: proc(j: ^JOY, mode: MODE, addr, ra: u32) -> (out: u32 = 0x55) {
+read_joy_c256 :: proc(j: ^JOY, mode: MODE, addr: u32) -> (out: u32 = 0x55) {
     switch addr {
     case 0: 
         //log.debugf("%s: Read  addr %6x returned %08b", j.name, busaddr, ~j.state)
@@ -49,7 +49,7 @@ read_joy_c256 :: proc(j: ^JOY, mode: MODE, addr, ra: u32) -> (out: u32 = 0x55) {
     return
 }
 
-write_joy_c256 :: proc(j: ^JOY, mode: MODE, addr, ra, val: u32) {
+write_joy_c256 :: proc(j: ^JOY, mode: MODE, addr, val: u32) {
     emu.error_write(j.name, j.req, .NOT_IMPL, mode, addr, val)
 }
 

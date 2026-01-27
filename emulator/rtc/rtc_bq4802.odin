@@ -228,7 +228,7 @@ make_bq4802 :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC) -> ^RTC
     return r
 }
 
-bq4802_read :: proc(r: ^RTC, mode: MODE, addr, ra: u32) -> (out: u32) {
+bq4802_read :: proc(r: ^RTC, mode: MODE, addr: u32) -> (out: u32) {
     if mode != .mode_8 {
         emu.error_read(r.name, r.req, .BAD_MODE, mode, addr)
     }
@@ -252,16 +252,16 @@ bq4802_read :: proc(r: ^RTC, mode: MODE, addr, ra: u32) -> (out: u32) {
     case .RTC_CENTURY    : out = time_to_bcd(r.pub.century)
     }
     //log.warnf("%s bq4802 read%d     from %x  %-15s not implemented", r.name, mode, busaddr, addr_name(addr))
-    log.debugf("%s bq4802 read%d  out %2x from %x  %-15s", r.name, mode, out, ra, addr_name(addr))
+    log.debugf("%s bq4802 read%d  out %2x from %x  %-15s", r.name, mode, out, r.req.ra, addr_name(addr))
     return
 }
 
-bq4802_write :: proc(r: ^RTC, mode: MODE, addr, ra, val: u32) {
+bq4802_write :: proc(r: ^RTC, mode: MODE, addr, val: u32) {
     if mode != .mode_8 {
         emu.error_write(r.name, r.req, .BAD_MODE, mode, addr, val)
     } 
 
-    log.debugf("%s bq4802 write%d %02x   to %x  %-15s", r.name, mode, val, ra, addr_name(addr))
+    log.debugf("%s bq4802 write%d %02x   to %x  %-15s", r.name, mode, val, r.req.ra, addr_name(addr))
     switch Register_bq4802(addr) {
     case .RTC_SEC        : r.pub.second   = time_from_bcd(val)
     case .RTC_ALRM_SEC   : r.alarm.second = time_from_bcd(val)
@@ -271,7 +271,7 @@ bq4802_write :: proc(r: ^RTC, mode: MODE, addr, ra, val: u32) {
     case .RTC_ALRM_HOUR  : r.alarm.hour   = hour_from_bcd(val,  r.control.mode_24h)
     case .RTC_DAY        : r.pub.day      = time_from_bcd(val)
     case .RTC_ALRM_DAY   : r.alarm.day    = time_from_bcd(val)
-    case .RTC_DAY_OF_WEEK: log.warnf("%s bq4802 write%d %02x   to %x  %-15s does nothing", r.name, mode, val, ra, addr_name(addr))
+    case .RTC_DAY_OF_WEEK: log.warnf("%s bq4802 write%d %02x   to %x  %-15s does nothing", r.name, mode, val, r.req.ra, addr_name(addr))
     case .RTC_MONTH      : r.pub.month    = time_from_bcd(val)
     case .RTC_YEAR       : r.pub.year     = time_from_bcd(val)
     case .RTC_RATES      : r.rate         = BQ4802_Rates(val)

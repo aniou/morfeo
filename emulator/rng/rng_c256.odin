@@ -15,8 +15,8 @@ RNG :: struct {
     req:        ^emu.BusRequest,
 
     delete:     proc(^RNG),
-    read:       proc(^RNG, MODE, u32, u32) -> u32,
-    write:      proc(^RNG, MODE, u32, u32,    u32),
+    read:       proc(^RNG, MODE, u32) -> u32,
+    write:      proc(^RNG, MODE, u32,    u32),
 
     seed:       u32,        // in real: u16
 }
@@ -38,7 +38,7 @@ delete_rng_c256:: proc(r: ^RNG) {
 }
 
 
-read_rng_c256 :: proc(r: ^RNG, mode: MODE, addr, ra: u32) -> (out: u32 = 0x55) {
+read_rng_c256 :: proc(r: ^RNG, mode: MODE, addr: u32) -> (out: u32 = 0x55) {
     switch addr {
     case 0: out = u32(rand.int_max(256))
     case 1: out = u32(rand.int_max(256))
@@ -47,7 +47,7 @@ read_rng_c256 :: proc(r: ^RNG, mode: MODE, addr, ra: u32) -> (out: u32 = 0x55) {
     return
 }
 
-write_rng_c256 :: proc(r: ^RNG, mode: MODE, addr, ra, val: u32) {
+write_rng_c256 :: proc(r: ^RNG, mode: MODE, addr, val: u32) {
     emu.error_write(r.name, r.req, .NOT_IMPL, mode, addr, val)
 }
 

@@ -27,13 +27,13 @@ delete_inu_c256 :: proc(inu: ^INU) {
     return
 }
 
-read_inu_c256   :: proc(inu: ^INU, mode: MODE, addr, ra: u32) -> (out: u32) {
+read_inu_c256   :: proc(inu: ^INU, mode: MODE, addr: u32) -> (out: u32) {
     i         := &inu.model.(INU_C256)
 	out        = i.mem[addr]
 	return
 }
 
-write_inu_c256 :: proc(inu: ^INU, mode: MODE, addr, ra, val: u32)  {
+write_inu_c256 :: proc(inu: ^INU, mode: MODE, addr, val: u32)  {
     i         := &inu.model.(INU_C256)
 	switch addr {
         case 0x00, 0x01, 0x02, 0x03:   // UNSIGNED_MULT_A, UNSIGNED_MULT_B

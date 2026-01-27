@@ -96,7 +96,7 @@ timer_c256_make :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC, id:
 }
 
 // according to behaviour from FoenixIDE
-timer_c256_read :: proc(d: ^TIMER, mode: MODE, addr, ra: u32) -> (val: u32) {
+timer_c256_read :: proc(d: ^TIMER, mode: MODE, addr: u32) -> (val: u32) {
     t    := &d.model.(TIMER_C256)
     switch addr {
     case TIMER_CTRL_REG: val = 1 if t.counter == t.compare else 0
@@ -111,7 +111,7 @@ timer_c256_read :: proc(d: ^TIMER, mode: MODE, addr, ra: u32) -> (val: u32) {
     return
 }
 
-timer_c256_write :: proc(d: ^TIMER, mode: MODE, addr, ra, val: u32) {
+timer_c256_write :: proc(d: ^TIMER, mode: MODE, addr, val: u32) {
     t    := &d.model.(TIMER_C256)
     switch addr {
     case TIMER_CTRL_REG: 

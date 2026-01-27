@@ -46,9 +46,8 @@ PS2  :: struct {
     req:        ^emu.BusRequest,
 
     delete:   proc(^PS2),
-    read:     proc(^PS2, MODE, u32, u32) -> u32,
-    write:    proc(^PS2, MODE, u32, u32,    u32),
-    //send_key: proc(^PS2, u8)  -> bool,
+    read:     proc(^PS2, MODE, u32) -> u32,
+    write:    proc(^PS2, MODE, u32,    u32),
     send_key: proc(^PS2, emu.KEY, emu.KEY_STATE),
     kick:     proc(^PS2),
 
@@ -110,7 +109,7 @@ FMX:
     KBD_STATUS      :: 0x04 // $AF1064 for reading
 */
 
-read_ps2 :: proc(ps2: ^PS2, mode: MODE, addr, ra: u32) -> (out: u32) {
+read_ps2 :: proc(ps2: ^PS2, mode: MODE, addr: u32) -> (out: u32) {
 
     if mode != .mode_8 {
         emu.error_read(ps2.name, ps2.req, .BAD_MODE, mode, addr)
@@ -122,7 +121,7 @@ read_ps2 :: proc(ps2: ^PS2, mode: MODE, addr, ra: u32) -> (out: u32) {
     return
 }
 
-write_ps2 :: proc(ps2: ^PS2, mode: MODE, addr, ra, val: u32) {
+write_ps2 :: proc(ps2: ^PS2, mode: MODE, addr, val: u32) {
 
     if mode != .mode_8 {
         emu.error_write(ps2.name, ps2.req, .BAD_MODE, mode, addr, val)

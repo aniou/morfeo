@@ -95,13 +95,13 @@ a2560x_delete :: proc(p: ^Platform) {
 
 a2560x_init :: proc(p: ^Platform) {
     // A2560X and GenX have different ID system 
-    p.bus.rom0->write(.mode_32be, GABE_SUBVER_ID,    GABE_SUBVER_ID,    0x05 | CLOCK_SPEED | CPU_ID | FPGA_SUBVER)
-    p.bus.rom0->write(.mode_32be, GABE_CHIP_VERSION, GABE_CHIP_VERSION, FPGA_MODEL| FPGA_VERSION)
+    p.bus.rom0->write(.mode_32be, GABE_SUBVER_ID,    0x05 | CLOCK_SPEED | CPU_ID | FPGA_SUBVER)
+    p.bus.rom0->write(.mode_32be, GABE_CHIP_VERSION, FPGA_MODEL| FPGA_VERSION)
 
     GABE_SUB_MODEL_FF_ID : u32 : 0xFE_C0_0514
     GABE_SUB_MODEL_ID    : u32 : 0xFE_C0_0516
-    p.bus.rom0->write(.mode_16be, GABE_SUB_MODEL_FF_ID, GABE_SUB_MODEL_FF_ID, MACHINE_SUBID)
-    p.bus.rom0->write(.mode_16be, GABE_SUB_MODEL_ID,    GABE_SUB_MODEL_ID,    MACHINE_ID)
+    p.bus.rom0->write(.mode_16be, GABE_SUB_MODEL_FF_ID, MACHINE_SUBID)
+    p.bus.rom0->write(.mode_16be, GABE_SUB_MODEL_ID,    MACHINE_ID)
 
 }
 

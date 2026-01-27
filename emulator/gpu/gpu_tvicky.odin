@@ -252,7 +252,7 @@ delete_tvicky :: proc(gpu: ^GPU) {
     return
 }
 
-read_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION) -> (out: u32) {
+read_tvicky :: proc(gpu: ^GPU, mode: MODE, addr: u32, region: REGION) -> (out: u32) {
     d    := &gpu.model.(GPU_tVicky)
 
     if mode != .mode_8 {
@@ -260,7 +260,7 @@ read_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION) -> (ou
     }
 
     #partial switch region {
-    case .MAIN:         out = read_tvicky_register(d, mode, addr, ra)                                                              
+    case .MAIN:         out = read_tvicky_register(d, mode, addr)
     case .TEXT:         out = d.text[addr]
     case .TEXT_COLOR:   out = d.tc[addr]
     case .TEXT_FG_LUT:  out = u32(d.m_tclut_fg[addr])
@@ -293,7 +293,7 @@ read_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra: u32, region: REGION) -> (ou
     return
 }
 
-write_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION) {
+write_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, val: u32, region: REGION) {
     d    := &gpu.model.(GPU_tVicky)
     if mode != .mode_8 {
         emu.error_write(d.name, d.req, .BAD_MODE, mode, addr, val)
@@ -301,7 +301,7 @@ write_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION) 
 
     #partial switch region {
     case .MAIN:   
-        write_tvicky_register(d, mode, addr, ra, val)
+        write_tvicky_register(d, mode, addr, val)
     case .TEXT:                         // IO bank 1
         d.text[addr] = val & 0xff
     case .TEXT_COLOR:                   // IO bank 2
@@ -347,7 +347,7 @@ write_tvicky :: proc(gpu: ^GPU, mode: MODE, addr, ra, val: u32, region: REGION) 
 
 
 @private
-write_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, ra, val: u32) {                                      
+write_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, val: u32) {                                      
     if mode != .mode_8 {
         emu.error_write(d.name, d.req, .BAD_MODE, mode, addr, val)
         return
@@ -415,7 +415,7 @@ write_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, ra, val: u32) {
 }
 
 @private
-read_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, ra: u32) -> (out: u32) {
+read_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr: u32) -> (out: u32) {
     if mode != .mode_32be {
         emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
         return

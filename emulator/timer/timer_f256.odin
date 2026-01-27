@@ -111,7 +111,7 @@ delete_timer_f256 :: proc(d: ^TIMER) {
 }
 
 // according to behaviour from FoenixIDE
-read_timer_f256 :: proc(d: ^TIMER, mode: MODE, addr, ra: u32) -> (out: u32) {
+read_timer_f256 :: proc(d: ^TIMER, mode: MODE, addr: u32) -> (out: u32) {
     t    := &d.model.(TIMER_F256)
     switch addr {
     case TIMER_CTRL_REG: out = 1 if t.counter == t.compare else 0
@@ -126,7 +126,7 @@ read_timer_f256 :: proc(d: ^TIMER, mode: MODE, addr, ra: u32) -> (out: u32) {
     return
 }
 
-write_timer_f256 :: proc(d: ^TIMER, mode: MODE, addr, ra, val: u32) {
+write_timer_f256 :: proc(d: ^TIMER, mode: MODE, addr, val: u32) {
     t    := &d.model.(TIMER_F256)
     switch addr {
     case TIMER_CTRL_REG: 
