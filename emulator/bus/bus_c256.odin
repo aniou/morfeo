@@ -43,22 +43,23 @@ BUS_C256 :: struct {
 }
 
 make_c256 :: proc(name: string, config: ^emu.Config) -> ^Bus {
-    bus         := new(Bus)
-    bus.name     = name
-    bus.debug    = false
+    bus           := new(Bus)
+    bus.name       = name
+    bus.debug      = false
+    bus.req.has_pc = true
 
-    bus.read     =   read_bus_c256
-    bus.write    =  write_bus_c256
-    bus.delete   = delete_bus_c256
+    bus.read       =   read_bus_c256
+    bus.write      =  write_bus_c256
+    bus.delete     = delete_bus_c256
 
-    bus.dip_boot = (transmute(u32)config.dipoff & 0b1000_0011)       // only boot and hdd switches here
-    bus.dip_user = (transmute(u32)config.dipoff & 0b0001_1100) >> 2  // user: 3-5
+    bus.dip_boot   = (transmute(u32)config.dipoff & 0b1000_0011)       // only boot and hdd switches here
+    bus.dip_user   = (transmute(u32)config.dipoff & 0b0001_1100) >> 2  // user: 3-5
 
-    bus.model    = BUS_C256{
-        base     = bus,
-        sdma     = DMA{},
-        vdma     = DMA{},
-        sys_stat = PLATFORM_ID | 0x10 // 0x10 for expansion card present - XXX - parametrize that
+    bus.model      = BUS_C256{
+        base       = bus,
+        sdma       = DMA{},
+        vdma       = DMA{},
+        sys_stat   = PLATFORM_ID | 0x10 // 0x10 for expansion card present - XXX - parametrize that
     }
 
     //b            := BUS_C256{sdma = DMA{}, vdma = DMA{}}
@@ -92,8 +93,9 @@ delete_bus_c256 :: proc(bus: ^Bus) {
 // $f0:0000 - $f7:ffff - 512KB System Flash
 // $f8:0000 - $ff:ffff - 512KB User Flash (if populated)
 
-read_bus_c256 :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
-    b  := &bus.model.(BUS_C256)  // temporary workaround
+read_bus_c256  :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
+    bus.req.ra  = ra
+    b          := &bus.model.(BUS_C256)  // temporary workaround
 
     //if bus.debug do emu.debug_read(bus.name, mode, ra, ra)
 
@@ -147,7 +149,8 @@ read_bus_c256 :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
 }
 
 write_bus_c256 :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
-    b  := &bus.model.(BUS_C256)  // temporary workaround
+    bus.req.ra  = ra
+    b          := &bus.model.(BUS_C256)  // temporary workaround
 
     if bus.debug do emu.debug_write(bus.name, mode, ra, ra, val)
 

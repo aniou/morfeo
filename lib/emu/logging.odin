@@ -26,6 +26,19 @@ format_addr :: proc(addr: u32) -> (out: string) {
     return
 }
 
+// XXX: make it configurable, for different lst
+//      002105r - ca65
+//      .42bd   - 64tass
+//      .123456
+format_pc :: proc(addr: u32) -> (out: string) {
+    switch {
+    case addr < 0x00_FFFF: out = fmt.aprintf(".%04x",                       u16(addr & 0xFFFF))
+    case addr < 0xFF_FFFF: out = fmt.aprintf(".%02x%04x",   u8(addr >> 16), u16(addr & 0xFFFF))
+    case                 : out = fmt.aprintf("%04x:%04x",  u16(addr >> 16), u16(addr & 0xFFFF))  // only ca65?
+    }
+    return
+}
+
 debug_read  :: proc(dev: string, m: MODE, addr, ra: u32, val: Maybe(u32) = nil) {
     saddr  := format_addr(addr)
     sra    := format_addr(ra)
@@ -47,7 +60,7 @@ debug_write :: proc(dev: string, m: MODE, addr, ra: u32, val: u32) {
     mode,_ := fmt.enum_value_to_string(m)
     sval   := format_val(m, val)
 
-    log.debugf("%-6s %-9s write  %9s  to   ra %9s  ea %9s", dev,  mode,  sval,  saddr,  sra)
+    log.debugf("%-6s %-9s write  %9s  ra %9s  ea %9s", dev,  mode,  sval,  saddr,  sra)
 
     delete(sval)
     delete(saddr)
@@ -62,24 +75,24 @@ error_read  :: proc(dev: string, req: ^BREQ, e: ERR, m: MODE, addr:     u32, loc
 
     err      :  string
     switch e {
-    case .BAD_MODE: err = "not supported  "
-    case .NOT_IMPL: err = "not implemented"
+    case .BAD_MODE: err = "not supp"
+    case .NOT_IMPL: err = "not impl"
     }
 
     spc      : string
     if req.has_pc {
         pc   := req.pc | (req.pc_bank << 16)
-        spc   = format_addr(pc)
+        spc   = format_pc(pc)
     } else {
         spc  = "-"
     }
 
-    log.errorf("%-6s pc %9s %-9s read              from ra %9s  ea %9s  %s  (%s:%d)", 
+    log.errorf("%-6s pc %9s %-9s read               ra %9s  ea %9s  %s  (%s:%d)", 
                 dev,  spc,  mode,  sra,  saddr,  err,  loc.procedure, loc.line
     )
     delete(sra)
     delete(saddr)
-    delete(spc)
+    if req.has_pc do delete(spc)
 }
 
 error_write :: proc(dev: string, req: ^BREQ, e: ERR, m: MODE, addr,val: u32, loc:=#caller_location) {
@@ -90,14 +103,14 @@ error_write :: proc(dev: string, req: ^BREQ, e: ERR, m: MODE, addr,val: u32, loc
 
     err      :  string
     switch e {
-    case .BAD_MODE: err = "not supported  "
-    case .NOT_IMPL: err = "not implemented"
+    case .BAD_MODE: err = "not supp"
+    case .NOT_IMPL: err = "not impl"
     }
 
     spc      : string
     if req.has_pc {
         pc   := req.pc | (req.pc_bank << 16)
-        spc   = format_addr(pc)
+        spc   = format_pc(pc)
     } else {
         spc  = "-"
     }
@@ -107,7 +120,7 @@ error_write :: proc(dev: string, req: ^BREQ, e: ERR, m: MODE, addr,val: u32, loc
     )
     delete(sra)
     delete(saddr)
-    delete(spc)
+    if req.has_pc do delete(spc)
     delete(sval)
 }
 
