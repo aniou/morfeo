@@ -12,48 +12,27 @@ import "lib:emu"
 import "core:prof/spall"
 
 BUS_A2560X :: struct {
-    using bus: ^Bus
+    using base: ^Bus
 }
 
-// XXX - incomplete!
 make_a2560x :: proc(name: string, config: ^emu.Config) -> ^Bus {
     bus        := new(Bus)
     bus.name    = name
-    bus.model   = BUS_A2560X{bus = bus}
+    bus.model   = BUS_A2560X{base = bus}
+
+    bus.delete  = delete_a2560x
+    bus.read    =   read_a2560x
+    bus.write   =  write_a2560x
+
     return bus
 }
 
-a2560x_delete :: proc(bus: ^Bus) {
+delete_a2560x :: proc(bus: ^Bus) {
     free(bus)
     return
 }
 
-// XXX: temporary
-a2560x_read8 :: proc(bus: ^BUS_A2560X, ra: u32) -> (out: u32) {
-    out = read_a2560x(bus, .mode_8, ra)
-    return
-}
-a2560x_read16 :: proc(bus: ^BUS_A2560X, ra: u32) -> (out: u32) {
-    out = read_a2560x(bus, .mode_16be, ra)
-    return
-}
-a2560x_read32 :: proc(bus: ^BUS_A2560X, ra: u32) -> (out: u32) {
-    out = read_a2560x(bus, .mode_32be, ra)
-    return
-}
-
-a2560x_write8 :: proc(bus: ^BUS_A2560X, ra, val: u32) {
-    write_a2560x(bus, .mode_8, ra, val)
-}
-a2560x_write16 :: proc(bus: ^BUS_A2560X, ra, val: u32) {
-    write_a2560x(bus, .mode_16be, ra, val)
-}
-a2560x_write32 :: proc(bus: ^BUS_A2560X, ra, val: u32) {
-    write_a2560x(bus, .mode_32be, ra, val)
-}
-
-
-read_a2560x :: proc(bus: ^BUS_A2560X, mode: MODE, ra: u32) -> (out: u32) {
+read_a2560x :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
     //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer)
     //log.debugf("%s read       from 0x %04X:%04X", bus.name, u16(ra >> 16), u16(ra & 0x0000_ffff))
 
@@ -93,7 +72,7 @@ read_a2560x :: proc(bus: ^BUS_A2560X, mode: MODE, ra: u32) -> (out: u32) {
     return
 }
 
-write_a2560x :: proc(bus: ^BUS_A2560X, mode: MODE, ra, val: u32) {
+write_a2560x :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
     //spall.SCOPED_EVENT(&spall_ctx, &spall_buffer)
 
     //log.debugf("%s write%d %08x   to 0x %04X:%04X", bus.name, size, val, u16(ra >> 16), u16(ra & 0x0000_ffff))
@@ -131,3 +110,4 @@ write_a2560x :: proc(bus: ^BUS_A2560X, mode: MODE, ra, val: u32) {
     return
 }
 
+// eof

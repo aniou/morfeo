@@ -393,6 +393,6 @@ main :: proc() {
     p->delete()
     cleanup_config(config)
 
-    os.exit(0)
+    //os.exit(0)
 }
 

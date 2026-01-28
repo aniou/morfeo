@@ -21,14 +21,13 @@ import "core:time"
 
 import "vendor:sdl2"
 
-read_args :: proc(p: ^platform.Platform) -> (c: ^emu.Config, args_ok: bool = true) {
+read_args :: proc() -> (c: ^emu.Config, args_ok: bool = true) {
     payload: string
     ok:      bool
 
     c = new(emu.Config)
     argp := getargs.make_getargs()
     getargs.add_arg(&argp, "disk0", "",       .Optional)
-    getargs.add_arg(&argp, "rom",   "",         .Optional)
     getargs.add_arg(&argp, "gpu",   "",       .Optional)
     getargs.add_arg(&argp, "scale", "",       .Required)
     getargs.add_arg(&argp, "h",     "help",   .None)
@@ -59,25 +58,15 @@ read_args :: proc(p: ^platform.Platform) -> (c: ^emu.Config, args_ok: bool = tru
         c.gui_scale = 3
     }
 
-    // disk0 attach - XXX maybe should be moved to outside?
+    // disks
     payload, ok = getargs.get_payload(&argp, "disk0")
     if ok {
-        ok = p.bus.ata0->attach(0, payload)
-        if !ok {
-            args_ok = false
-        }
-    }
-
-    // very crude rom attach, currently at 0
-    payload, ok = getargs.get_payload(&argp, "rom")
-    if ok {
-        platform.read_file(p, payload, 0)
+        c.disk0 = payload
     }
 
     // files to load - XXX maybe should be moved to outside?
     for ; argp.arg_idx < len(os.args) ; argp.arg_idx += 1 {
-        //platform.read_intel_hex(p.bus, p.cpu, os.args[argp.arg_idx])
-        platform.read_file(p, os.args[argp.arg_idx])
+        append(&c.files, os.args[argp.arg_idx])   
     }
 
     getargs.destroy(&argp)
@@ -142,38 +131,68 @@ main_loop :: proc(p: ^platform.Platform) {
 
 
 main :: proc() {
-	// https://gist.github.com/karl-zylinski/4ccf438337123e7c8994df3b03604e33
-	when ODIN_DEBUG {
-		track: mem.Tracking_Allocator
-		mem.tracking_allocator_init(&track, context.allocator)
-		context.allocator = mem.tracking_allocator(&track)
+    // https://gist.github.com/karl-zylinski/4ccf438337123e7c8994df3b03604e33
+    when ODIN_DEBUG {
+        track: mem.Tracking_Allocator
+        mem.tracking_allocator_init(&track, context.allocator)
+        context.allocator = mem.tracking_allocator(&track)
 
-		defer {
-			if len(track.allocation_map) > 0 {
-				fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
-				for _, entry in track.allocation_map {
-					fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
-				}
-			}
-			if len(track.bad_free_array) > 0 {
-				fmt.eprintf("=== %v incorrect frees: ===\n", len(track.bad_free_array))
-				for entry in track.bad_free_array {
-					fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
-				}
-			}
-			mem.tracking_allocator_destroy(&track)
-		}
-	}
+        defer {
+            if len(track.allocation_map) > 0 {
+                fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
+                for _, entry in track.allocation_map {
+                    fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
+                }
+            }
+            if len(track.bad_free_array) > 0 {
+                fmt.eprintf("=== %v incorrect frees: ===\n", len(track.bad_free_array))
+                for entry in track.bad_free_array {
+                    fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
+                }
+            }
+            mem.tracking_allocator_destroy(&track)
+        }
+    }
 
     logger_options := log.Options{.Level};
     context.logger  = log.create_console_logger(opt = logger_options) 
 
     // init -------------------------------------------------------------
-    p := platform.a2560x_make()
+    config, ok := read_args()
+    log.debugf("%s %v", #procedure, config)
+    if !ok {
+        free(config)
+        os.exit(1)
+    }
 
-    config, ok := read_args(p)
-    if !ok do os.exit(1)
+    // create and configure platform ------------------------------------
+    p  := platform.make_a2560x(config)
+    p->init()
 
+    // ...disk images to attach
+    if config.disk0 != "" {
+        ok = p.bus.ata0->attach(0, config.disk0)
+        if !ok {
+            log.errorf("Cannot attach disk0 from file %s", config.disk0)
+            p->delete()
+            free(config)
+            os.exit(1)
+        }
+    }
+
+    // ...program files to load 
+    for f in config.files {
+        log.info(f)
+        ok = platform.read_file(p, f)
+        if !ok {
+            log.errorf("Cannot load hex file %s", f)
+            p->delete()
+            free(config)
+            os.exit(1)
+        }                                                                                                       
+    }
+
+    // init graphics ----------------------------------------------------
     init_sdl(p, config)
     
     // running ----------------------------------------------------------
@@ -183,6 +202,5 @@ main :: proc() {
     cleanup_sdl()
     p->delete()
     free(config)
-    //os.exit(0)
 }
 
