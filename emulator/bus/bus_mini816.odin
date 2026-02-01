@@ -41,7 +41,7 @@ read_mini816 :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
 
 write_mini816 :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
 
-    if bus.debug do emu.debug_write(bus.name, mode, ra, ra, val)
+    //if bus.debug do emu.debug_write(bus.name, mode, ra, ra, val)
 
     switch ra {
     case 0x00_0000 ..= 0xFF_FFFF: bus.ram0->write(mode, ra, val)

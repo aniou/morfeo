@@ -41,7 +41,7 @@ read_mini6502 :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
 
 write_mini6502 :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
 
-    if bus.debug do emu.debug_write(bus.name, mode, ra, ra, val)
+    //if bus.debug do emu.debug_write(bus.name, mode, ra, ra, val)
 
     switch ra {
     case 0x0000 ..= 0xFFFF: bus.ram0->write(mode, ra, val)

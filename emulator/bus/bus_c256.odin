@@ -152,7 +152,7 @@ write_bus_c256 :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
     bus.req.ra  = ra
     b          := &bus.model.(BUS_C256)  // temporary workaround
 
-    if bus.debug do emu.debug_write(bus.name, mode, ra, ra, val)
+    //if bus.debug do emu.debug_write(bus.name, mode, ra, ra, val)
 
     switch ra {
     case 0x00_0100 ..= 0x00_012B:    bus.inu0->write(mode, ra - 0x00_0100, val)
