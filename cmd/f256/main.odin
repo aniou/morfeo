@@ -350,8 +350,7 @@ main :: proc() {
     }
 
     // create and configure platform ------------------------------------
-    p : ^platform.Platform
-    p, ok  = platform.f256_make(config)
+    p := platform.make_f256(config)
     if !ok {
         free(config)
         os.exit(1)

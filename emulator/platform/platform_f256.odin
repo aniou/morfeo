@@ -45,7 +45,7 @@ make_f256 :: proc(config: ^emu.Config) -> ^Platform {
 
 
     p.delete    = delete_f256
-    p.init      = delete_f256
+    p.init      =   init_f256
     return p
 }
 

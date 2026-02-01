@@ -4,7 +4,7 @@ package inu
 import "lib:emu"
 
 INU_F256 :: struct {
-    using inu: ^INU,
+    using base: ^INU,
     
     mem:    [0x1c]u32,
 }
@@ -18,7 +18,7 @@ make_inu_f256 :: proc(name: string, dcb: ^emu.DeviceConfig) -> ^INU {
     inu.read     =   read_inu_f256
     inu.write    =  write_inu_f256
 
-    inu.model    = INU_F256{inu = inu}
+    inu.model    = INU_F256{base = inu}
     return inu
 } 
 

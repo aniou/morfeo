@@ -8,7 +8,7 @@ import "core:slice"
 import "lib:emu"
 
 PIC_F256 :: struct {
-    using pic: ^PIC,
+    using base: ^PIC,
 
     pending:  [IRQ_F256]bool,
     mask:     [IRQ_F256]bool,
@@ -77,7 +77,7 @@ make_pic_f256 :: proc(name: string, dcb: ^emu.DeviceConfig) -> ^PIC {
     pic.write     =   write_pic_f256
     pic.trigger   = trigger_pic_f256
     
-    pic.model     = PIC_F256{pic = pic}
+    pic.model     = PIC_F256{base = pic}
     return pic
 } 
 
