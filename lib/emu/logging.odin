@@ -115,7 +115,7 @@ error_write :: proc(dev: string, req: ^BREQ, e: ERR, m: MODE, addr,val: u32, loc
         spc  = "-"
     }
 
-    log.errorf("%-6s pc %9s %-9s write  %9s  to   ra %9s  ea %9s  %s  (%s:%d)", 
+    log.errorf("%-6s pc %9s %-9s write  %9s   ra %9s  ea %9s  %s  (%s:%d)", 
                 dev,  spc,  mode,  sval,  sra,  saddr,  err,  loc.procedure, loc.line
     )
     delete(sra)

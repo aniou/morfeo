@@ -56,9 +56,11 @@ BUS_F256 :: struct {
 // XXX: parametrize make_bus routine - common enum or smth.
 // XXX: power-on init, add ram/flash version, page 17 of manual
 make_f256 :: proc(name: string, config: ^emu.Config) -> ^Bus {
-    bus        := new(Bus)
-    bus.name    = name
-    bus.model   = BUS_F256{base = bus}
+    bus           := new(Bus)
+    bus.name       = name
+    bus.req.has_pc = true
+    bus.model      = BUS_F256{base = bus}
+
 
     bus.delete  = delete_f256
     bus.read    =   read_f256_with_mmu
@@ -117,12 +119,17 @@ read_f256_with_mmu :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
     case  0x08_0000 ..= 0x0F_FFFF: out =  bus.flash0->read(mode, bus.req.ea - 0x08_0000              ) // FLASH     512
     case  0x10_0000 ..= 0x13_FFFF: out =   bus.cart0->read(mode, bus.req.ea - 0x10_0000              ) // RAM/FLASH 256
     case  0x18_1000 ..= 0x18_101B: out =    bus.gpu0->read(mode, bus.req.ea - 0x18_1000, .MAIN       )
+    case  0x18_1622              : out =   0 // XXX: just for test
     case  0x18_1650 ..= 0x18_1657: out =  bus.timer0->read(mode, bus.req.ea - 0x18_1650              )
     case  0x18_1658 ..= 0x18_165F: out =  bus.timer1->read(mode, bus.req.ea - 0x18_1658              )
     case  0x18_1660 ..= 0x18_166E: out =    bus.pic0->read(mode, bus.req.ea - 0x18_1660              )
     case  0x18_1690 ..= 0x18_169F: out =    bus.rtc0->read(mode, bus.req.ea - 0x18_1690              ) 
+    case  0x18_16A7 ..= 0x18_16AF: out =      b.machine_id[bus.req.ea - 0x18_16A7]
+    case  0x18_16EB ..= 0x18_16EF: out =          b.pcb_id[bus.req.ea - 0x18_16EB]
     case  0x18_1800 ..= 0x18_183F: out =    bus.gpu0->read(mode, bus.req.ea - 0x18_1800, .TEXT_FG_LUT)
     case  0x18_1840 ..= 0x18_187F: out =    bus.gpu0->read(mode, bus.req.ea - 0x18_1840, .TEXT_BG_LUT)
+    case  0x18_1D63              : out =    1 // XXX: workaround, lack of SPI
+    case  0x18_1DC0 ..= 0x18_1DC3: out =    bus.kbd0->read(mode, bus.req.ea - 0x18_1DC0              )
     case  0x18_1E00 ..= 0x18_1E1B: out =    bus.inu0->read(mode, bus.req.ea - 0x18_1E00              )
     case  0x18_2000 ..= 0x18_277F: out =    bus.gpu0->read(mode, bus.req.ea - 0x18_2000, .FONT_BANK0 )
     case  0x18_3690 ..= 0x18_369F: out =    bus.rtc0->read(mode, bus.req.ea - 0x18_3690              )
@@ -168,6 +175,7 @@ write_f256_with_mmu :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
     case  0x18_1690 ..= 0x18_169F:    bus.rtc0->write(mode, bus.req.ea - 0x18_1690, val              ) 
     case  0x18_1800 ..= 0x18_183F:    bus.gpu0->write(mode, bus.req.ea - 0x18_1800, val, .TEXT_FG_LUT)
     case  0x18_1840 ..= 0x18_187F:    bus.gpu0->write(mode, bus.req.ea - 0x18_1840, val, .TEXT_BG_LUT)
+    case  0x18_1DC0 ..= 0x18_1DC3:    bus.kbd0->write(mode, bus.req.ea - 0x18_1DC0, val              )
     case  0x18_1E00 ..= 0x18_1E1B:    bus.inu0->write(mode, bus.req.ea - 0x18_1E00, val              )
     case  0x18_2000 ..= 0x18_277F:    bus.gpu0->write(mode, bus.req.ea - 0x18_2000, val, .FONT_BANK0 )
     case  0x18_3690 ..= 0x18_369F:    bus.rtc0->write(mode, bus.req.ea - 0x18_3690, val              )

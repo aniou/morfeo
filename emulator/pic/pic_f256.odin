@@ -374,8 +374,8 @@ Mask
 
 trigger_pic_f256 :: proc(pic: ^PIC, irq: IRQ)  {
     #partial switch irq {
-    //case   .KBD_A2560K: pic_f256_internal_trigger(pic, .GRP1_INT06_VIA1)
-    case   .KBD_A2560K: pic_f256_internal_trigger(pic, .GRP0_INT02_PS2_KBD)
+    case   .KBD_A2560K: pic_f256_internal_trigger(pic, .GRP1_INT06_VIA1)
+    //case   .KBD_A2560K: pic_f256_internal_trigger(pic, .GRP0_INT02_PS2_KBD)
     case  .VICKY_A_SOF: pic_f256_internal_trigger(pic, .GRP0_INT00_SOF)
     case       .TIMER0: pic_f256_internal_trigger(pic, .GRP0_INT04_TIMER0)
     case       .TIMER1: pic_f256_internal_trigger(pic, .GRP0_INT05_TIMER1)
@@ -393,7 +393,7 @@ pic_f256_internal_trigger :: proc(pic: ^PIC, irq: IRQ_F256)  {
     // there is a problem with handling SOF with rate 60Hz - maybe emulator is too slow?
     //if d.mask[irq] == false && irq != .FNX0_INT00_SOF {
     if d.mask[irq] == false {
-        //log.debugf("IRQ: %v", irq)
+        log.debugf("IRQ: %v", irq)
         d.irq_active   = true
     } else {
         //log.debugf("masked IRQ: %v", irq)
