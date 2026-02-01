@@ -132,7 +132,6 @@ read_f256_with_mmu :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
     case  0x18_1DC0 ..= 0x18_1DC3: out =    bus.kbd0->read(mode, bus.req.ea - 0x18_1DC0              )
     case  0x18_1E00 ..= 0x18_1E1B: out =    bus.inu0->read(mode, bus.req.ea - 0x18_1E00              )
     case  0x18_2000 ..= 0x18_277F: out =    bus.gpu0->read(mode, bus.req.ea - 0x18_2000, .FONT_BANK0 )
-    case  0x18_3690 ..= 0x18_369F: out =    bus.rtc0->read(mode, bus.req.ea - 0x18_3690              )
     case  0x18_4000 ..= 0x18_5FFF: out =    bus.gpu0->read(mode, bus.req.ea - 0x18_4000, .TEXT       )
     case  0x18_6000 ..= 0x18_7FFF: out =    bus.gpu0->read(mode, bus.req.ea - 0x18_6000, .TEXT_COLOR )
 
@@ -178,7 +177,6 @@ write_f256_with_mmu :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
     case  0x18_1DC0 ..= 0x18_1DC3:    bus.kbd0->write(mode, bus.req.ea - 0x18_1DC0, val              )
     case  0x18_1E00 ..= 0x18_1E1B:    bus.inu0->write(mode, bus.req.ea - 0x18_1E00, val              )
     case  0x18_2000 ..= 0x18_277F:    bus.gpu0->write(mode, bus.req.ea - 0x18_2000, val, .FONT_BANK0 )
-    case  0x18_3690 ..= 0x18_369F:    bus.rtc0->write(mode, bus.req.ea - 0x18_3690, val              )
     case  0x18_4000 ..= 0x18_5FFF:    bus.gpu0->write(mode, bus.req.ea - 0x18_4000, val, .TEXT       )
     case  0x18_6000 ..= 0x18_7FFF:    bus.gpu0->write(mode, bus.req.ea - 0x18_6000, val, .TEXT_COLOR )
 

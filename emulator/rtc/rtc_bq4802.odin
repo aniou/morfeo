@@ -35,27 +35,9 @@ MODE :: emu.OpMode
                  1 μs = 10-6 s = 1/1 000 000 s
 
   - XXX: fix situation, where a bad values are accepted by module and lead
-    to crash due following sequence:
-
-    [DEBUG] --- rtc0 bq4802 write8 e0   to 183693  RTC_ALRM_MIN   
-	[DEBUG] --- rtc0 bq4802 write8 a0   to 183692  RTC_MIN        
-	[DEBUG] --- rtc0 bq4802 write8 20   to 183691  RTC_ALRM_SEC   
-	[DEBUG] --- rtc0 bq4802 write8 00   to 183690  RTC_SEC        
-	[DEBUG] --- rtc0 bq4802 write8 e0   to 183697  RTC_ALRM_DAY   
-	[DEBUG] --- rtc0 bq4802 write8 a0   to 183696  RTC_DAY        
-	[DEBUG] --- rtc0 bq4802 write8 20   to 183695  RTC_ALRM_HOUR  
-	[DEBUG] --- rtc0 bq4802 write8 40   to 183694  RTC_HOUR       
-	[DEBUG] --- rtc0 bq4802 write8 e0   to 18369b  RTC_RATES      
-	[DEBUG] --- rtc0 bq4802 write8 a0   to 18369a  RTC_YEAR       
-	[DEBUG] --- rtc0 bq4802 write8 20   to 183699  RTC_MONTH      
-	[DEBUG] --- rtc0 bq4802 write8 80   to 183698  RTC_DAY_OF_WEEK
-	[WARN ] --- rtc0 bq4802 write8 80   to 183698  RTC_DAY_OF_WEEK does nothing
-	[DEBUG] --- rtc0 bq4802 write8 e0   to 18369f  RTC_CENTURY    
-	[DEBUG] --- rtc0 bq4802 write8 a0   to 18369e  RTC_CTRL       
-	[DEBUG] --- rtc0 bq4802 write8 20   to 18369d  RTC_FLAGS      
-	[DEBUG] --- rtc0 bq4802 write8 c0   to 18369c  RTC_ENABLES    
-	[DEBUG] --- rtc0 bq4802 140100-20-100 (4) 40:100:1 (uti: false)
-	[DEBUG] --- rtc0 bq4802 140100-20-100 (4) 40:100:2 (uti: false)
+    to crash. Try to limit this to clock values because there is probably
+    a case, where Gadget uses alarm registers as temporary holders for smth
+    non-connected.
 
 */
 
@@ -147,10 +129,9 @@ RTC :: struct {
     req:    ^emu.BusRequest,
     pic:    ^pic.PIC,
 
+    delete:   proc(^RTC),
     read:     proc(^RTC, MODE, u32) -> u32,
     write:    proc(^RTC, MODE, u32,    u32),
-    delete:   proc(^RTC),
-
 
     rate       : BQ4802_Rates,
     flag       : BQ4802_Flags,
@@ -261,7 +242,8 @@ bq4802_write :: proc(r: ^RTC, mode: MODE, addr, val: u32) {
         emu.error_write(r.name, r.req, .BAD_MODE, mode, addr, val)
     } 
 
-    log.debugf("%s bq4802 write%d %02x   to %x  %-15s", r.name, mode, val, r.req.ra, addr_name(addr))
+    //log.debugf("%s bq4802 write%d %02x   to %x  %-15s", r.name, mode, val, r.req.ra, addr_name(addr))
+    emu.debug_write(r.name, mode, r.req, val, addr_name(addr))
     switch Register_bq4802(addr) {
     case .RTC_SEC        : r.pub.second   = time_from_bcd(val)
     case .RTC_ALRM_SEC   : r.alarm.second = time_from_bcd(val)
