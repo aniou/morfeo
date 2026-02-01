@@ -69,7 +69,7 @@ scancode : SCAN_SET = {
 
     .key_equals         = {   6, 0x60,    0,  0x01},
     .key_bracket_right  = {   6, 0x60,    0,  0x02},
-    .key_kp_asterisk    = {   6, 0x60,    0,  0x04},
+    .key_apostrophe     = {   6, 0x60,    0,  0x04},
     .key_home           = {   6, 0x60,    0,  0x08},
     .key_shift_right    = {   6, 0x60,    0,  0x10},
     .key_alt_right      = {   6, 0x60,    0,  0x20},
@@ -82,13 +82,12 @@ scancode : SCAN_SET = {
     .key_control_left   = {   7, 0x70,    0,  0x04},
     .key_2              = {   7, 0x70,    0,  0x08},
     .key_space          = {   7, 0x70,    0,  0x10},
-    .key_apostrophe     = {   7, 0x70,    0,  0x20},  // for foenix key
+    .key_grave          = {   7, 0x70,    0,  0x20},  // for foenix key
     .key_q              = {   7, 0x70,    0,  0x40},
     .key_esc            = {   7, 0x70,    0,  0x80},  // for run/stop key
 
 	// non-mapped keys
     .key_none           = {   8, 0x00,    0,  0x00},
-    .key_grave          = {   8, 0x00,    0,  0x00},
     .key_backslash      = {   8, 0x00,    0,  0x00},
     .key_gui_left       = {   8, 0x00,    0,  0x00},
     .key_alt_left       = {   8, 0x00,    0,  0x00},
@@ -126,6 +125,7 @@ scancode : SCAN_SET = {
     .key_kp_7           = {   8, 0x00,    0,  0x00},
     .key_kp_8           = {   8, 0x00,    0,  0x00},
     .key_kp_9           = {   8, 0x00,    0,  0x00},
+    .key_kp_asterisk    = {   8, 0x00,    0,  0x00},
     .key_acpi_power     = {   8, 0x00,    0,  0x00},
     .key_acpi_sleep     = {   8, 0x00,    0,  0x00},
     .key_acpi_wake      = {   8, 0x00,    0,  0x00},
