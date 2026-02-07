@@ -44,12 +44,21 @@ debug_read  :: proc(dev: string, m: MODE, req: ^BREQ, addr: u32, val: Maybe(u32)
     sea    := format_addr(req.ea)
     sra    := format_addr(req.ra)
     mode,_ := fmt.enum_value_to_string(m)
+
+    spc      : string
+    if req.has_pc {
+        pc   := req.pc | (req.pc_bank << 16)
+        spc   = format_pc(pc)
+    } else {
+        spc  = "-"
+    }
+
     if val != nil {
         sval   := format_val(m, val.?)
-        log.debugf("%-6s %-9s read   %9s  from ra %9s  ea %9s  addr %9s", dev, mode, sval, sra, sea, saddr)
+        log.debugf("%-6s pc %9s %-9s read   %9s   ra %9s  ea %9s  addr %9s", dev, spc, mode, sval, sra, sea, saddr)
         delete(sval)
     } else {
-        log.debugf("%-6s %-9s read  %-9s   from ra %9s  ea %9s  addr %9s", dev,  mode,  "attempt",  saddr,  sra, sea, addr)
+        log.debugf("%-6s pc %9s %-9s read  %-9s    ra %9s  ea %9s  addr %9s", dev, spc,  mode,  "attempt",  saddr,  sra, sea, addr)
     }
     delete(saddr)
     delete(sea)
@@ -71,7 +80,7 @@ debug_write :: proc(dev: string, m: MODE, req: ^BREQ, addr, val: u32, comment :=
         spc  = "-"
     }
 
-    log.debugf("%-6s pc %9s %-9s write  %9s   ra %9s  ea %9s  addr: %9s  %s  (%s:%d)", 
+    log.debugf("%-6s pc %9s %-9s write  %9s   ra %9s  ea %9s  addr %9s  %s  (%s:%d)", 
                 dev,  spc,  mode,  sval,  sra,  sea,  saddr,  comment,  loc.procedure, loc.line
     )
 
