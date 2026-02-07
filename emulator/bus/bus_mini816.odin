@@ -28,14 +28,14 @@ delete_mini816 :: proc(bus: ^Bus) {
 
 read_mini816 :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
 
-    //if bus.debug do emu.debug_read(bus.name, mode, ra, ra)
+    if bus.debug do emu.debug_read(bus.name, mode, &bus.req, ra)
 
     switch ra {
     case 0x00_0000 ..= 0xFF_FFFF: out = bus.ram0->read(mode, ra)        // ea == ra here
     case                        : emu.error_read(bus.name, &bus.req, .NOT_IMPL, mode, ra)
     }
 
-    if bus.debug do emu.debug_read(bus.name, mode, ra, ra, out)
+    if bus.debug do emu.debug_read(bus.name, mode, &bus.req, ra, out)
     return
 }
 

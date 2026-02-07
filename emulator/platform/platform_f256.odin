@@ -15,6 +15,7 @@ import "emulator:pic"
 import "emulator:ps2"
 import "emulator:rtc"
 import "emulator:ram"
+import "emulator:sdc"
 import "emulator:timer"
 
 make_f256 :: proc(config: ^emu.Config) -> ^Platform {
@@ -42,6 +43,7 @@ make_f256 :: proc(config: ^emu.Config) -> ^Platform {
     p.bus.timer0 = timer.make_timer_f256("timer0", dcb,  pic0,  id   = 0       )
     p.bus.timer1 = timer.make_timer_f256("timer1", dcb,  pic0,  id   = 1       )
     p.bus.rtc0   =   rtc.make_bq4802    ("rtc0",   dcb,  pic0                  )
+    p.bus.sdc0   =   sdc.make_sdc_spi   ("sdc0",   dcb                         )
 
 
     p.delete    = delete_f256
@@ -57,6 +59,7 @@ delete_f256 :: proc(p: ^Platform) {
     p.bus.ram2->delete()
     p.bus.ram3->delete()
     p.bus.inu0->delete()
+    p.bus.sdc0->delete()
     // p.bus.rtc->delete()
          p.cpu->delete()
          p.bus->delete()

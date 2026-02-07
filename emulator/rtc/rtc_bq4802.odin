@@ -243,7 +243,7 @@ bq4802_write :: proc(r: ^RTC, mode: MODE, addr, val: u32) {
     } 
 
     //log.debugf("%s bq4802 write%d %02x   to %x  %-15s", r.name, mode, val, r.req.ra, addr_name(addr))
-    emu.debug_write(r.name, mode, r.req, val, addr_name(addr))
+    emu.debug_write(r.name, mode, r.req, addr, val, addr_name(addr))
     switch Register_bq4802(addr) {
     case .RTC_SEC        : r.pub.second   = time_from_bcd(val)
     case .RTC_ALRM_SEC   : r.alarm.second = time_from_bcd(val)

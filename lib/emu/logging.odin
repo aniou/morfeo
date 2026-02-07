@@ -39,22 +39,25 @@ format_pc :: proc(addr: u32) -> (out: string) {
     return
 }
 
-debug_read  :: proc(dev: string, m: MODE, addr, ra: u32, val: Maybe(u32) = nil) {
+debug_read  :: proc(dev: string, m: MODE, req: ^BREQ, addr: u32, val: Maybe(u32) = nil) {
     saddr  := format_addr(addr)
-    sra    := format_addr(ra)
+    sea    := format_addr(req.ea)
+    sra    := format_addr(req.ra)
     mode,_ := fmt.enum_value_to_string(m)
     if val != nil {
         sval   := format_val(m, val.?)
-        log.debugf("%-6s %-9s read   %9s  from ra %9s  ea %9s", dev,  mode,       sval,  saddr,  sra)
+        log.debugf("%-6s %-9s read   %9s  from ra %9s  ea %9s  addr %9s", dev, mode, sval, sra, sea, saddr)
         delete(sval)
     } else {
-        log.debugf("%-6s %-9s read  %-9s   from ra %9s  ea %9s", dev,  mode,  "attempt",  saddr,  sra)
+        log.debugf("%-6s %-9s read  %-9s   from ra %9s  ea %9s  addr %9s", dev,  mode,  "attempt",  saddr,  sra, sea, addr)
     }
     delete(saddr)
+    delete(sea)
     delete(sra)
 }
 
-debug_write :: proc(dev: string, m: MODE, req: ^BREQ, val: u32, comment := "", loc:=#caller_location) {
+debug_write :: proc(dev: string, m: MODE, req: ^BREQ, addr, val: u32, comment := "", loc:=#caller_location) {
+    saddr  := format_addr(addr)
     sea    := format_addr(req.ea)
     sra    := format_addr(req.ra)
     mode,_ := fmt.enum_value_to_string(m)
@@ -68,11 +71,12 @@ debug_write :: proc(dev: string, m: MODE, req: ^BREQ, val: u32, comment := "", l
         spc  = "-"
     }
 
-    log.debugf("%-6s pc %9s %-9s write  %9s   ra %9s  ea %9s  %s  (%s:%d)", 
-                dev,  spc,  mode,  sval,  sra,  sea,  comment,  loc.procedure, loc.line
+    log.debugf("%-6s pc %9s %-9s write  %9s   ra %9s  ea %9s  addr: %9s  %s  (%s:%d)", 
+                dev,  spc,  mode,  sval,  sra,  sea,  saddr,  comment,  loc.procedure, loc.line
     )
 
     delete(sval)
+    delete(saddr)
     delete(sea)
     delete(sra)
     if req.has_pc do delete(spc)

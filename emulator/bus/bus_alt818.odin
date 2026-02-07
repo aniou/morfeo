@@ -46,7 +46,7 @@ read_alt816 :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
     case                        : emu.error_read(bus.name, &bus.req, .NOT_IMPL, mode, ra)
     }
 
-    if bus.debug do emu.debug_read(bus.name, mode, ra, ra, out)
+    if bus.debug do emu.debug_read(bus.name, mode, &bus.req, ra, out)
     return
 }
 
