@@ -124,6 +124,7 @@ read_f256_with_mmu :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
     case  0x18_1658 ..= 0x18_165F: out =  bus.timer1->read(mode, bus.req.ea - 0x18_1658              )
     case  0x18_1660 ..= 0x18_166E: out =    bus.pic0->read(mode, bus.req.ea - 0x18_1660              )
     case  0x18_1690 ..= 0x18_169F: out =    bus.rtc0->read(mode, bus.req.ea - 0x18_1690              ) 
+    case  0x18_16A0              : out =    0x80 // XXX: workaround, SD_CD = true *see 17.1 table [manual]
     case  0x18_16A7 ..= 0x18_16AF: out =      b.machine_id[bus.req.ea - 0x18_16A7]
     case  0x18_16EB ..= 0x18_16EF: out =          b.pcb_id[bus.req.ea - 0x18_16EB]
     case  0x18_1800 ..= 0x18_183F: out =    bus.gpu0->read(mode, bus.req.ea - 0x18_1800, .TEXT_FG_LUT)
