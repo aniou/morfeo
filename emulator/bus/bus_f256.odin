@@ -131,7 +131,8 @@ read_f256_with_mmu :: proc(bus: ^Bus, mode: MODE, ra: u32) -> (out: u32) {
     case  0x18_1840 ..= 0x18_187F: out =    bus.gpu0->read(mode, bus.req.ea - 0x18_1840, .TEXT_BG_LUT)
     case  0x18_1C00 ..= 0x18_1C01: out =    0 // XXX: fake VIA
     case  0x18_1D00 ..= 0x18_1D01: out =    bus.sdc0->read(mode, bus.req.ea - 0x18_1D00              )
-    case  0x18_1D63              : out =    1 // XXX: workaround, lack of SPI
+    case  0x18_1D63              : out =    1 // XXX: workaround, lack of SPI FLASH
+    case  0x18_1D68              : out =    0 // XXX: workaround, lack of SPI FLASH
     case  0x18_1DC0 ..= 0x18_1DC3: out =    bus.kbd0->read(mode, bus.req.ea - 0x18_1DC0              )
     case  0x18_1E00 ..= 0x18_1E1B: out =    bus.inu0->read(mode, bus.req.ea - 0x18_1E00              )
     case  0x18_2000 ..= 0x18_277F: out =    bus.gpu0->read(mode, bus.req.ea - 0x18_2000, .FONT_BANK0 )
@@ -178,6 +179,7 @@ write_f256_with_mmu :: proc(bus: ^Bus, mode: MODE, ra, val: u32) {
     case  0x18_1800 ..= 0x18_183F:    bus.gpu0->write(mode, bus.req.ea - 0x18_1800, val, .TEXT_FG_LUT)
     case  0x18_1840 ..= 0x18_187F:    bus.gpu0->write(mode, bus.req.ea - 0x18_1840, val, .TEXT_BG_LUT)
     case  0x18_1D00 ..= 0x18_1D01:    bus.sdc0->write(mode, bus.req.ea - 0x18_1D00, val              )
+    case  0x18_1D42 ..= 0x18_1D43:    // none - workaround for lack of K2 LCD display
     case  0x18_1DC0 ..= 0x18_1DC3:    bus.kbd0->write(mode, bus.req.ea - 0x18_1DC0, val              )
     case  0x18_1E00 ..= 0x18_1E1B:    bus.inu0->write(mode, bus.req.ea - 0x18_1E00, val              )
     case  0x18_2000 ..= 0x18_277F:    bus.gpu0->write(mode, bus.req.ea - 0x18_2000, val, .FONT_BANK0 )
