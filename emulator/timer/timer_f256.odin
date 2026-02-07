@@ -43,7 +43,7 @@ Timer_f256_cmp :: bit_field u32 {
 }
 
 TIMER_F256 :: struct {
-    using timer: ^TIMER,
+    using base: ^TIMER,
 
     irq:          pic.IRQ,             // irq type to send when counter is equal
     pic_ctrl:    ^pic.PIC,              // XXX: move to TIMER?
@@ -70,9 +70,11 @@ make_timer_f256 :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC, id:
     timer.read     =   read_timer_f256
     timer.write    =  write_timer_f256
     timer.tick     =   tick_timer_f256_externally
-    t             := TIMER_F256{timer = timer}
 
+    timer.model    = TIMER_F256{base = timer}
+    t             := &timer.model.(TIMER_F256)
     t.pic_ctrl     = pic
+
     t.shutdown     = false          // used to stop threads
     t.ctrl.enabled = false
     t.sleep        = 35 * time.Nanosecond
@@ -85,15 +87,13 @@ make_timer_f256 :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC, id:
 
     // TIMER2 is ticked by start of frame (in fact - from SDL code)
     if id != 1 {
-        if c := thread.create_and_start_with_data(timer, timer_f256_worker_proc); c != nil {
+        if c := thread.create_and_start_with_data(t, timer_f256_worker_proc); c != nil {
             t.clock      = c
             log.debugf("TIMER thread %v", t.clock)
         } else {
             log.errorf("%s TIMER cannot create clock thread", t.name)
         }
     }
-
-    timer.model  = t
     return timer
 }
 
@@ -193,8 +193,9 @@ timer_f256_worker_proc :: proc(p: rawptr) {
         logger_options := log.Options{.Level};
         context.logger  = log.create_console_logger(opt = logger_options)
 
-        d := transmute(^TIMER)p
-        t := &d.model.(TIMER_F256)
+        //d := transmute(^TIMER)p
+        //t := &d.model.(TIMER_F256)
+        t   := transmute(^TIMER_F256)p
         log.debugf("%s TIMER thread created, shutdown is %v", t.name, t.shutdown)
         for !t.shutdown {
             time.sleep(t.sleep)
