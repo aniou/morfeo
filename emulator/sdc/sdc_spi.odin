@@ -67,7 +67,7 @@ make_sdc_spi :: proc(name:string, dcb: ^emu.DeviceConfig) -> (sdc: ^SDC) {
     sdc          = new(SDC)
     sdc.name     = name
     sdc.req      = dcb.req
-    sdc.debug    = true
+    sdc.debug    = false
 
     sdc.delete   = delete_sdc_spi
     sdc.read     =   read_sdc_spi
@@ -104,7 +104,7 @@ read_sdc_spi :: proc(sdc: ^SDC, mode: MODE, addr: u32) -> (out: u32) {
         return
     }
 
-    emu.debug_read(sdc.name, mode, sdc.req, addr, out)
+    if sdc.debug do emu.debug_read(sdc.name, mode, sdc.req, addr, out)
 
     return
 }
@@ -115,7 +115,7 @@ write_sdc_spi :: proc(sdc: ^SDC, mode: MODE, addr, val: u32) {
         return
     }
 
-    emu.debug_write(sdc.name, mode, sdc.req, addr, val)
+    if sdc.debug do emu.debug_write(sdc.name, mode, sdc.req, addr, val)
     switch addr {
     case 0:
         // sdc.spi_busy is read-only
@@ -127,7 +127,7 @@ write_sdc_spi :: proc(sdc: ^SDC, mode: MODE, addr, val: u32) {
             if  queue.len(sdc.outbuf) == 0 {                                                                                         
                 sdc.out = 0xFF
             } else {
-				log.debugf("%s queue len %d", sdc.name, queue.len(sdc.outbuf))
+				if sdc.debug do log.debugf("%s queue len %d", sdc.name, queue.len(sdc.outbuf))
                 sdc.out = queue.pop_front(&sdc.outbuf)
             }
         case: 
