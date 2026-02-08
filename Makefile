@@ -17,7 +17,7 @@ build_flags      += $(odin_defs)
 
 #all: a2560x test_w65c02s test_65c816 c256fmx c256u c256u+
 all: help
-default: alt_816
+default: f256k2
 
 c256: c256fmx c256u c256u+
 

@@ -71,6 +71,7 @@ OpMode :: enum u8 {
 BusError :: enum u8 {
     BAD_MODE,
     NOT_IMPL,
+    UNK_VALUE,
 }
 
 // request data, used for debug purposes

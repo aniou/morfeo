@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-02-08
+- refactoring is almost finished
+- first, successfull reading from SDCARD!
+
+
 ## 2026-01-19
 - [bugfix] fixes for a flag size handling in 65c816 in emulation 
   mode

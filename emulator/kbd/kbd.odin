@@ -52,7 +52,7 @@ make_kbd :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC) -> ^KBD {
     k.write        =  write_kbd
     k.send_key     =   send_kbd_key
 
-    k.debug        = true
+    k.debug        = false
 
     for a in 0..=7 {
         k.key_state[a][0] = u32(a << 4)

@@ -39,7 +39,7 @@ format_pc :: proc(addr: u32) -> (out: string) {
     return
 }
 
-debug_read  :: proc(dev: string, m: MODE, req: ^BREQ, addr: u32, val: Maybe(u32) = nil) {
+debug_read  :: proc(dev: string, m: MODE, req: ^BREQ, addr: u32, val: Maybe(u32) = nil, comment := "", loc:=#caller_location) {
     saddr  := format_addr(addr)
     sea    := format_addr(req.ea)
     sra    := format_addr(req.ra)
@@ -55,10 +55,12 @@ debug_read  :: proc(dev: string, m: MODE, req: ^BREQ, addr: u32, val: Maybe(u32)
 
     if val != nil {
         sval   := format_val(m, val.?)
-        log.debugf("%-6s pc %9s %-9s read   %9s   ra %9s  ea %9s  addr %9s", dev, spc, mode, sval, sra, sea, saddr)
+        log.debugf("%-6s pc %9s %-9s read   %9s   ra %9s  ea %9s  addr %9s  %s  (%s:%d)", 
+                    dev, spc, mode, sval, sra, sea, saddr, comment,  loc.procedure, loc.line)
         delete(sval)
     } else {
-        log.debugf("%-6s pc %9s %-9s read  %-9s    ra %9s  ea %9s  addr %9s", dev, spc,  mode,  "attempt",  saddr,  sra, sea, addr)
+        log.debugf("%-6s pc %9s %-9s read  %-9s    ra %9s  ea %9s  addr %9s  %s  (%s:%d)", 
+                    dev, spc,  mode,  "attempt",  saddr,  sra, sea, saddr, comment,  loc.procedure, loc.line)
     }
     delete(saddr)
     delete(sea)
@@ -100,6 +102,7 @@ error_read  :: proc(dev: string, req: ^BREQ, e: ERR, m: MODE, addr:     u32, loc
     switch e {
     case .BAD_MODE: err = "not supp"
     case .NOT_IMPL: err = "not impl"
+    case .UNK_VALUE: err = "unk val "
     }
 
     spc      : string
@@ -126,8 +129,9 @@ error_write :: proc(dev: string, req: ^BREQ, e: ERR, m: MODE, addr,val: u32, loc
 
     err      :  string
     switch e {
-    case .BAD_MODE: err = "not supp"
-    case .NOT_IMPL: err = "not impl"
+    case .BAD_MODE:  err = "not supp"
+    case .NOT_IMPL:  err = "not impl"
+    case .UNK_VALUE: err = "unk val "
     }
 
     spc      : string
