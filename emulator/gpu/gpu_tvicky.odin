@@ -105,6 +105,14 @@ GPU_tVicky :: struct {
 
     pointer_enabled:    bool,
     pointer_selected:   bool,
+
+    font_set1:          bool,
+    font_ovly:          bool,
+    monitor_sleep:      bool,
+    font_dbl_y:         bool,
+    font_dbl_x:         bool,
+    clock_70Hz:         bool,
+
 }
 
 // --------------------------------------------------------------------
@@ -187,41 +195,41 @@ make_tvicky :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC) -> ^GPU
 
     // initial character (text) foreground LUT
     g.c_tclut_fg = [16]u32 {
-		0xff000000,
-		0xff800000,
-		0xff008000,
-		0xff000080,
-		0xff808000,
-		0xff008080,
-		0xff800080,
-		0xff808080,
-		0xffff4500,
-		0xff8b4513,
-		0xff200000,
-		0xff002000,
-		0xff000020,
-		0xff202020,
-		0xff606060,
-		0xffffffff,
+        0xff000000,
+        0xff800000,
+        0xff008000,
+        0xff000080,
+        0xff808000,
+        0xff008080,
+        0xff800080,
+        0xff808080,
+        0xffff4500,
+        0xff8b4513,
+        0xff200000,
+        0xff002000,
+        0xff000020,
+        0xff202020,
+        0xff606060,
+        0xffffffff,
     }
 
     g.c_tclut_bg = [16]u32 {
-		0xff000000,
-		0xff800000,
-		0xff008000,
-		0xff000080,
-		0xff202000,
-		0xff002020,
-		0xff200020,
-		0xff202020,
-		0xffd2691e,
-		0xff8b4513,
-		0xff200000,
-		0xff002000,
-		0xff000040,
-		0xff303030,
-		0xff404040,
-		0xffffffff,
+        0xff000000,
+        0xff800000,
+        0xff008000,
+        0xff000080,
+        0xff202000,
+        0xff002020,
+        0xff200020,
+        0xff202020,
+        0xffd2691e,
+        0xff8b4513,
+        0xff200000,
+        0xff002000,
+        0xff000040,
+        0xff303030,
+        0xff404040,
+        0xffffffff,
     }
 
     gpu.model  = g
@@ -363,7 +371,14 @@ write_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, val: u32) {
         d.tile_enabled    = (val & TVKY_MCR_TILE )         != 0
         d.sprite_enabled  = (val & TVKY_MCR_SPRITE )       != 0
         d.gamma_enabled   = (val & TVKY_MCR_GAMMA_ENABLE)  != 0
-        d.gpu_enabled     = (val & TVKY_MCR_VIDEO_DISABLE) == 0
+        d.gpu_enabled     = (val & TVKY_MCR_VIDEO_DISABLE) == 0     // XXX: is this supported?
+    case .TVKY_MCR_H:
+        d.font_set1       = (val & 0x20) != 0                       // more readable than names
+        d.font_ovly       = (val & 0x10) != 0
+        d.monitor_sleep   = (val & 0x08) != 0                       // not supported yet
+        d.font_dbl_y      = (val & 0x04) != 0
+        d.font_dbl_x      = (val & 0x02) != 0
+        d.clock_70Hz      = (val & 0x01) != 0                       // not supported yet
     case .TVKY_BCR:
         d.border_enabled = (val & TVKY_BCR_ENABLE )       != 0
 
@@ -512,6 +527,8 @@ tvicky_render_text :: proc(gpu: ^GPU) {
         font_pos:           u32 // position in font array (char * 64 + char_line * 8)
         fb_pos:             u32 // position in destination framebuffer
         font_row_pos:       u32 // position of line in current font (=font_line*8 because every line has 8 bytes)
+        visible_text_cols:  u32 // number of text columns, depended from font_dbl_x
+        visible_text_rows:  u32 // number of text rows,    depended from font_dbl_y
 
         // that particular counters are used in loops and are mentione here for reference
         //i:                  u32 // counter
@@ -535,13 +552,18 @@ tvicky_render_text :: proc(gpu: ^GPU) {
             g.starting_fb_row_pos = 0
         }
         fb_row_pos = g.starting_fb_row_pos
+
+        visible_text_cols  = g.text_cols / 2 if g.font_dbl_x else g.text_cols
+        visible_text_rows  = g.text_rows / 2 if g.font_dbl_y else g.text_rows
+        visible_fb_lines  := 2               if g.font_dbl_y else 1
+
         //fb_row_pos = 0
         //fmt.printf("border %v text_rows %d text_cols %d\n", g.border_enabled, g.text_rows, g.text_cols)
-        for text_y in u32(0) ..< g.text_rows { // over lines of text
-                text_row_pos = text_y * g.text_cols
-                for text_x in u32(0) ..< g.text_cols { // pre-calculate data for x-axis
-                        fnttmp[text_x] = g.text[text_row_pos+text_x] * 64 // position in font array
-                        dsttmp[text_x] = text_x * 8                     // position of char in dest FB
+        for text_y in u32(0) ..< visible_text_rows { // over lines of text
+                text_row_pos = text_y * g.text_cols  // in memory they are placed like in 80x60
+                for text_x in u32(0) ..< visible_text_cols { // pre-calculate data for x-axis
+                        fnttmp[text_x] = g.text[text_row_pos+text_x] * 64           // position in font array
+                        dsttmp[text_x] = text_x * 16 if g.font_dbl_x else text_x * 8  // position of char in dest FB
 
                         f := g.fg[text_row_pos+text_x] // fg and bg colors
                         b := g.bg[text_row_pos+text_x]
@@ -556,27 +578,35 @@ tvicky_render_text :: proc(gpu: ^GPU) {
                         if g.overlay_enabled == false {
                                 bgctmp[text_x] = g.c_tclut_bg[b]
                         } else {
-                                bgctmp[text_x] = 0x000000FF                    // full alph
+                                bgctmp[text_x] = 0x000000FF                    // full alpha
                         }
                 }
                 for font_line in u32(0)..<8 { // for every line of text - over 8 lines of font
-                        font_row_pos = font_line * 8
-                        for text_x in u32(0)..<g.text_cols { // for each line iterate over columns of text
+                    font_row_pos = font_line * 8
+                    for l in 0..<visible_fb_lines {
+                        for text_x in u32(0)..<visible_text_cols { // for each line iterate over columns of text
                                 font_pos = fnttmp[text_x] + font_row_pos
                                 fb_pos   = dsttmp[text_x] + fb_row_pos
                                 for i in u32(0)..<8 { // for every font iterate over 8 pixels of font
+                                    if g.font_dbl_x {
                                         if g.font[font_pos+i] == 0 {
-                                           /*
-                                            if g.text_cols == 128 {
-//                                              fmt.printf("fb_row_pos %d pos %d text_x %d i %d\n", fb_row_pos, fb_pos+i, text_x, i)
-                                            } */
+                                            g.TFB[fb_pos+(i*2)  ] = bgctmp[text_x]
+                                            g.TFB[fb_pos+(i*2)+1] = bgctmp[text_x]
+                                        } else {
+                                            g.TFB[fb_pos+(i*2)  ] = fgctmp[text_x]
+                                            g.TFB[fb_pos+(i*2)+1] = fgctmp[text_x]
+                                        }
+                                    } else {
+                                        if g.font[font_pos+i] == 0 {
                                             g.TFB[fb_pos+i] = bgctmp[text_x]
                                         } else {
                                             g.TFB[fb_pos+i] = fgctmp[text_x]
                                         }
+                                    }
                                 }
                         }
                         fb_row_pos += u32(g.screen_x_size)
+                    }
                 }
         }
         // render text - end
