@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 2026-02-08
 - refactoring is almost finished
 - first, successfull reading from SDCARD!
-
+- support for double-sized text
 
 ## 2026-01-19
 - [bugfix] fixes for a flag size handling in 65c816 in emulation 
