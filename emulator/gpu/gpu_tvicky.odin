@@ -431,13 +431,29 @@ write_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, val: u32) {
 
 @private
 read_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr: u32) -> (out: u32) {
-    if mode != .mode_32be {
+    if mode != .mode_8 {
         emu.error_read(d.name, d.req, .BAD_MODE, mode, addr)
         return
     }
 
     reg  := Register_tVicky(addr)
     #partial switch reg {
+    case .TVKY_MCR_L:
+        out |= 0x01 if d.text_enabled    else 0
+        out |= 0x02 if d.overlay_enabled else 0
+        out |= 0x04 if d.graphic_enabled else 0
+        out |= 0x08 if d.bitmap_enabled  else 0
+        out |= 0x10 if d.tile_enabled    else 0
+        out |= 0x20 if d.sprite_enabled  else 0
+        out |= 0x40 if d.gamma_enabled   else 0
+        //out |= 0x80 if d.gpu_enabled     else 0
+    case .TVKY_MCR_H:
+        out |= 0x01 if d.clock_70Hz      else 0
+        out |= 0x02 if d.font_dbl_x      else 0
+        out |= 0x04 if d.font_dbl_y      else 0
+        out |= 0x08 if d.monitor_sleep   else 0
+        out |= 0x10 if d.font_ovly       else 0
+        out |= 0x20 if d.font_set1       else 0
     case                 :
         emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
     }
@@ -520,94 +536,97 @@ tvicky_render_bm1 :: proc(gpu: ^GPU) {
 */
 
 tvicky_render_text :: proc(gpu: ^GPU) {
-        g         := &gpu.model.(GPU_tVicky)
-        
-        text_row_pos:       u32 // beginning of current text row in text memory
-        fb_row_pos:         u32 // beginning of current FB   row in memory
-        font_pos:           u32 // position in font array (char * 64 + char_line * 8)
-        fb_pos:             u32 // position in destination framebuffer
-        font_row_pos:       u32 // position of line in current font (=font_line*8 because every line has 8 bytes)
-        visible_text_cols:  u32 // number of text columns, depended from font_dbl_x
-        visible_text_rows:  u32 // number of text rows,    depended from font_dbl_y
+    g         := &gpu.model.(GPU_tVicky)
+    
+    text_row_pos:       u32 // beginning of current text row in text memory
+    fb_row_pos:         u32 // beginning of current FB   row in memory
+    font_pos:           u32 // position in font array (char * 64 + char_line * 8)
+    fb_pos:             u32 // position in destination framebuffer
+    font_row_pos:       u32 // position of line in current font (=font_line*8 because every line has 8 bytes)
+    text_cols:          u32 // number of text columns, depended from font_dbl_x
+    text_rows:          u32 // number of text rows,    depended from font_dbl_y
 
-        // that particular counters are used in loops and are mentione here for reference
-        //i:                  u32 // counter
-        //text_x, text_y:     u32 // row and column of text
-        //font_line:          u32 // line in current font
+    // that particular counters are used in loops and are mentione here for reference
+    //i:                  u32 // counter
+    //text_x, text_y:     u32 // row and column of text
+    //font_line:          u32 // line in current font
 
-        // placeholders recalculated per row of text, holds values for text_cols loop
-        // current max size is 128 columns for 1024x768
-        fnttmp: [128]u32    // position in font array, from char value
-        fgctmp: [128]u32    // foreground color cache (rgba) for one line
-        bgctmp: [128]u32    // background color cache (rgba) for one line
-        dsttmp: [128]u32    // position in destination memory array
+    // placeholders recalculated per row of text, holds values for text_cols loop
+    // current max size is 128 columns for 1024x768
+    fnttmp: [128]u32    // position in font array, from char value
+    fgctmp: [128]u32    // foreground color cache (rgba) for one line
+    bgctmp: [128]u32    // background color cache (rgba) for one line
+    dsttmp: [128]u32    // position in destination memory array
 
-        // render text - start
-        // I prefer to keep it because it allow to simply re-drawing single line in future,
-        // by manupipulating starting point (now 0) and end clause (now <g.text_rows)
-        // xxx - bad workaround
-        if g.border_enabled {
-            g.starting_fb_row_pos = u32(g.screen_x_size) * u32(g.border_y_size) + u32(g.border_x_size)
-        } else {
-            g.starting_fb_row_pos = 0
+    // render text - start
+    // I prefer to keep it because it allow to simply re-drawing single line in future,
+    // by manupipulating starting point (now 0) and end clause (now <g.text_rows)
+    // xxx - bad workaround
+    if g.border_enabled {
+        g.starting_fb_row_pos = u32(g.screen_x_size) * u32(g.border_y_size) + u32(g.border_x_size)
+    } else {
+        g.starting_fb_row_pos = 0
+    }
+    fb_row_pos = g.starting_fb_row_pos
+
+    text_cols  = g.text_cols / 2 if g.font_dbl_x else g.text_cols
+    text_rows  = g.text_rows / 2 if g.font_dbl_y else g.text_rows
+    fb_lines  := 2               if g.font_dbl_y else 1
+
+    //fb_row_pos = 0
+    //fmt.printf("border %v text_rows %d text_cols %d\n", g.border_enabled, g.text_rows, g.text_cols)
+    for text_y in u32(0) ..< text_rows { // over lines of text
+
+        text_row_pos = text_y * text_cols  // in memory they are placed like in 80x60
+
+        for text_x in u32(0) ..< text_cols { // pre-calculate data for x-axis
+            fnttmp[text_x] = g.text[text_row_pos+text_x] * 64           // position in font array
+            dsttmp[text_x] = text_x * 16 if g.font_dbl_x else text_x * 8  // position of char in dest FB
+
+            f := g.fg[text_row_pos+text_x] // fg and bg colors
+            b := g.bg[text_row_pos+text_x]
+
+            if g.cursor_visible && g.cursor_enabled && (g.cursor_y == text_y) && (g.cursor_x == text_x) {
+                //f = g.cursor_fg - on tiny vicky there is no separate cursor color
+                //b = g.cursor_bg
+                fnttmp[text_x] = g.cursor_character * 64 // XXX precalculate?
+            }
+
+            fgctmp[text_x] = g.c_tclut_fg[f]
+            if g.overlay_enabled == false {
+                bgctmp[text_x] = g.c_tclut_bg[b]
+            } else {
+                bgctmp[text_x] = 0x000000FF                    // full alpha
+            }
         }
-        fb_row_pos = g.starting_fb_row_pos
 
-        visible_text_cols  = g.text_cols / 2 if g.font_dbl_x else g.text_cols
-        visible_text_rows  = g.text_rows / 2 if g.font_dbl_y else g.text_rows
-        visible_fb_lines  := 2               if g.font_dbl_y else 1
-
-        //fb_row_pos = 0
-        //fmt.printf("border %v text_rows %d text_cols %d\n", g.border_enabled, g.text_rows, g.text_cols)
-        for text_y in u32(0) ..< visible_text_rows { // over lines of text
-                text_row_pos = text_y * g.text_cols  // in memory they are placed like in 80x60
-                for text_x in u32(0) ..< visible_text_cols { // pre-calculate data for x-axis
-                        fnttmp[text_x] = g.text[text_row_pos+text_x] * 64           // position in font array
-                        dsttmp[text_x] = text_x * 16 if g.font_dbl_x else text_x * 8  // position of char in dest FB
-
-                        f := g.fg[text_row_pos+text_x] // fg and bg colors
-                        b := g.bg[text_row_pos+text_x]
-
-                        if g.cursor_visible && g.cursor_enabled && (g.cursor_y == text_y) && (g.cursor_x == text_x) {
-                                //f = g.cursor_fg - on tiny vicky there is no separate cursor color
-                                //b = g.cursor_bg
-                                fnttmp[text_x] = g.cursor_character * 64 // XXX precalculate?
-                        }
-
-                        fgctmp[text_x] = g.c_tclut_fg[f]
-                        if g.overlay_enabled == false {
-                                bgctmp[text_x] = g.c_tclut_bg[b]
-                        } else {
-                                bgctmp[text_x] = 0x000000FF                    // full alpha
-                        }
-                }
-                for font_line in u32(0)..<8 { // for every line of text - over 8 lines of font
-                    font_row_pos = font_line * 8
-                    for l in 0..<visible_fb_lines {
-                        for text_x in u32(0)..<visible_text_cols { // for each line iterate over columns of text
-                                font_pos = fnttmp[text_x] + font_row_pos
-                                fb_pos   = dsttmp[text_x] + fb_row_pos
-                                for i in u32(0)..<8 { // for every font iterate over 8 pixels of font
-                                    if g.font_dbl_x {
-                                        if g.font[font_pos+i] == 0 {
-                                            g.TFB[fb_pos+(i*2)  ] = bgctmp[text_x]
-                                            g.TFB[fb_pos+(i*2)+1] = bgctmp[text_x]
-                                        } else {
-                                            g.TFB[fb_pos+(i*2)  ] = fgctmp[text_x]
-                                            g.TFB[fb_pos+(i*2)+1] = fgctmp[text_x]
-                                        }
-                                    } else {
-                                        if g.font[font_pos+i] == 0 {
-                                            g.TFB[fb_pos+i] = bgctmp[text_x]
-                                        } else {
-                                            g.TFB[fb_pos+i] = fgctmp[text_x]
-                                        }
-                                    }
-                                }
-                        }
-                        fb_row_pos += u32(g.screen_x_size)
+        for font_line in u32(0)..<8 { // for every line of text - over 8 lines of font
+            font_row_pos = font_line * 8
+            for l in 0..<fb_lines {
+                for text_x in u32(0)..<text_cols { // for each line iterate over columns of text
+                    font_pos = fnttmp[text_x] + font_row_pos
+                    fb_pos   = dsttmp[text_x] + fb_row_pos
+                    for i in u32(0)..<8 { // for every font iterate over 8 pixels of font
+                        if g.font_dbl_x {
+                            if g.font[font_pos+i] == 0 {
+                                g.TFB[fb_pos+(i*2)  ] = bgctmp[text_x]
+                                g.TFB[fb_pos+(i*2)+1] = bgctmp[text_x]
+                            } else {
+                                g.TFB[fb_pos+(i*2)  ] = fgctmp[text_x]
+                                g.TFB[fb_pos+(i*2)+1] = fgctmp[text_x]
+                            }
+                         } else {
+                             if g.font[font_pos+i] == 0 {
+                                g.TFB[fb_pos+i] = bgctmp[text_x]
+                             } else {
+                                g.TFB[fb_pos+i] = fgctmp[text_x]
+                             }
+                         }
                     }
                 }
+                fb_row_pos += u32(g.screen_x_size)
+            }
         }
+    }
         // render text - end
 }
