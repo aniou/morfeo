@@ -541,7 +541,8 @@ tvicky_render_text :: proc(gpu: ^GPU) {
     text_row_pos:       u32 // beginning of current text row in text memory
     fb_row_pos:         u32 // beginning of current FB   row in memory
     font_pos:           u32 // position in font array (char * 64 + char_line * 8)
-    fb_pos:             u32 // position in destination framebuffer
+    fb_pos:             u32 // line starting position in destination framebuffer
+    fb_dest:            u32 // current position in destination framebuffer
     font_row_pos:       u32 // position of line in current font (=font_line*8 because every line has 8 bytes)
     text_cols:          u32 // number of text columns, depended from font_dbl_x
     text_rows:          u32 // number of text rows,    depended from font_dbl_y
@@ -557,6 +558,7 @@ tvicky_render_text :: proc(gpu: ^GPU) {
     fgctmp: [128]u32    // foreground color cache (rgba) for one line
     bgctmp: [128]u32    // background color cache (rgba) for one line
     dsttmp: [128]u32    // position in destination memory array
+    pixel:       u32    // pixel value
 
     // render text - start
     // I prefer to keep it because it allow to simply re-drawing single line in future,
@@ -607,26 +609,17 @@ tvicky_render_text :: proc(gpu: ^GPU) {
                     font_pos = fnttmp[text_x] + font_row_pos
                     fb_pos   = dsttmp[text_x] + fb_row_pos
                     for i in u32(0)..<8 { // for every font iterate over 8 pixels of font
-                        if g.font_dbl_x {
-                            if g.font[font_pos+i] == 0 {
-                                g.TFB[fb_pos+(i*2)  ] = bgctmp[text_x]
-                                g.TFB[fb_pos+(i*2)+1] = bgctmp[text_x]
-                            } else {
-                                g.TFB[fb_pos+(i*2)  ] = fgctmp[text_x]
-                                g.TFB[fb_pos+(i*2)+1] = fgctmp[text_x]
-                            }
-                         } else {
-                             if g.font[font_pos+i] == 0 {
-                                g.TFB[fb_pos+i] = bgctmp[text_x]
-                             } else {
-                                g.TFB[fb_pos+i] = fgctmp[text_x]
-                             }
-                         }
+
+                        fb_dest = fb_pos + (i*2) if g.font_dbl_x            else fb_pos + i
+                        pixel   = bgctmp[text_x] if g.font[font_pos+i] == 0 else fgctmp[text_x]
+
+                                           g.TFB[fb_dest  ] = pixel
+                        if g.font_dbl_x do g.TFB[fb_dest+1] = pixel
+
                     }
                 }
                 fb_row_pos += u32(g.screen_x_size)
-            }
-        }
-    }
-        // render text - end
+            } // 1 or 2 lines (if double y)
+        } // render text for font_line
+    } // render text - end
 }
