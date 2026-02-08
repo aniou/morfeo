@@ -364,21 +364,21 @@ write_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, val: u32) {
     register  := Register_tVicky(addr)
     #partial switch register {
     case .TVKY_MCR_L:
-        d.text_enabled    = (val & TVKY_MCR_TEXT )         != 0
-        d.overlay_enabled = (val & TVKY_MCR_TEXT_OVERLAY ) != 0
-        d.graphic_enabled = (val & TVKY_MCR_GRAPHIC )      != 0
-        d.bitmap_enabled  = (val & TVKY_MCR_BITMAP )       != 0
-        d.tile_enabled    = (val & TVKY_MCR_TILE )         != 0
-        d.sprite_enabled  = (val & TVKY_MCR_SPRITE )       != 0
-        d.gamma_enabled   = (val & TVKY_MCR_GAMMA_ENABLE)  != 0
-        d.gpu_enabled     = (val & TVKY_MCR_VIDEO_DISABLE) == 0     // XXX: is this supported?
+        d.text_enabled    = (val & 0x01) != 0
+        d.overlay_enabled = (val & 0x02) != 0
+        d.graphic_enabled = (val & 0x04) != 0
+        d.bitmap_enabled  = (val & 0x08) != 0
+        d.tile_enabled    = (val & 0x10) != 0
+        d.sprite_enabled  = (val & 0x20) != 0
+        d.gamma_enabled   = (val & 0x40) != 0
+        d.gpu_enabled     = (val & 0x80) == 0     // XXX: is this supported?
     case .TVKY_MCR_H:
-        d.font_set1       = (val & 0x20) != 0                       // more readable than names
-        d.font_ovly       = (val & 0x10) != 0
-        d.monitor_sleep   = (val & 0x08) != 0                       // not supported yet
-        d.font_dbl_y      = (val & 0x04) != 0
+        d.clock_70Hz      = (val & 0x01) != 0     // not supported yet
         d.font_dbl_x      = (val & 0x02) != 0
-        d.clock_70Hz      = (val & 0x01) != 0                       // not supported yet
+        d.font_dbl_y      = (val & 0x04) != 0
+        d.monitor_sleep   = (val & 0x08) != 0     // not supported yet
+        d.font_ovly       = (val & 0x10) != 0
+        d.font_set1       = (val & 0x20) != 0     // more readable than names
     case .TVKY_BCR:
         d.border_enabled = (val & TVKY_BCR_ENABLE )       != 0
 
