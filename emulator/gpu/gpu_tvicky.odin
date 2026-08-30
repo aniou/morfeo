@@ -615,7 +615,10 @@ tvicky_render_text :: proc(gpu: ^GPU) {
                 // XXX: how about last column?
                 if g.border_scroll_x != 0 {
                     for x in u32(0) ..< left_clear {
-                        g.TFB[fb_row_pos + x] = 0
+                        g.TFB[fb_row_pos + x] = bgctmp[0]
+                    }
+                    for x in u32(g.screen_x_size) - left_offset ..< u32(g.screen_x_size) {
+                        g.TFB[fb_row_pos + x] = bgctmp[text_cols - 1]
                     }
                 }
 
