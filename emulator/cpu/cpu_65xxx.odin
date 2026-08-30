@@ -1,3 +1,4 @@
+#+feature using-stmt
 
 // general ideas for future:
 // 1. use 32bit-wide register everywhere to avoid casts
