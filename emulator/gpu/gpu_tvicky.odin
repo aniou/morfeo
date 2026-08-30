@@ -451,6 +451,9 @@ read_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr: u32) -> (out: u32
         out |= 0x08 if d.monitor_sleep   else 0
         out |= 0x10 if d.font_ovly       else 0
         out |= 0x20 if d.font_set1       else 0
+    case .TVKY_BCR:
+        out |= 0x01 if d.border_enabled  else 0
+        out |= d.border_scroll_x << 4
     case                 :
         emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
     }
@@ -543,6 +546,7 @@ tvicky_render_text :: proc(gpu: ^GPU) {
     font_row_pos:       u32 // position of line in current font (=font_line*8 because every line has 8 bytes)
     text_cols:          u32 // number of text columns, depended from font_dbl_x
     text_rows:          u32 // number of text rows,    depended from font_dbl_y
+    text_start:         u32 // 0 if .border_scroll_x == 0 else 1
 
     // that particular counters are used in loops and are mentione here for reference
     //i:                  u32 // counter
@@ -568,9 +572,12 @@ tvicky_render_text :: proc(gpu: ^GPU) {
     }
     fb_row_pos = g.starting_fb_row_pos
 
-    text_cols  = g.text_cols / 2 if g.font_dbl_x else g.text_cols
-    text_rows  = g.text_rows / 2 if g.font_dbl_y else g.text_rows
-    fb_lines  := 2               if g.font_dbl_y else 1
+    text_cols    = g.text_cols / 2       if g.font_dbl_x           else g.text_cols
+    left_offset := g.border_scroll_x * 2 if g.font_dbl_x           else g.border_scroll_x  // XXX: pre-calculate
+    left_clear  := 16 - left_offset      if g.font_dbl_x           else 8 - left_offset    // XXX: pre-calculate
+    text_rows    = g.text_rows / 2       if g.font_dbl_y           else g.text_rows
+    fb_lines    := 2                     if g.font_dbl_y           else 1
+    text_start   = 1                     if g.border_scroll_x != 0 else 0
 
     //fb_row_pos = 0
     //fmt.printf("border %v text_rows %d text_cols %d\n", g.border_enabled, g.text_rows, g.text_cols)
@@ -602,13 +609,24 @@ tvicky_render_text :: proc(gpu: ^GPU) {
         for font_line in u32(0)..<8 { // for every line of text - over 8 lines of font
             font_row_pos = font_line * 8
             for l in 0..<fb_lines {
-                for text_x in u32(0)..<text_cols { // for each line iterate over columns of text
+
+                // clear first column, like in first 2x K2 core
+                // XXX: check it with newer version
+                // XXX: how about last column?
+                if g.border_scroll_x != 0 {
+                    for x in u32(0) ..< left_clear {
+                        g.TFB[fb_row_pos + x] = 0
+                    }
+                }
+
+                for text_x in text_start ..< text_cols { // for each line iterate over columns of text
                     font_pos = fnttmp[text_x] + font_row_pos
                     fb_pos   = dsttmp[text_x] + fb_row_pos
                     for i in u32(0)..<8 { // for every font iterate over 8 pixels of font
 
-                        fb_dest = fb_pos + (i*2) if g.font_dbl_x            else fb_pos + i
-                        pixel   = bgctmp[text_x] if g.font[font_pos+i] == 0 else fgctmp[text_x]
+                        fb_dest  = fb_pos + (i*2) if g.font_dbl_x            else fb_pos + i
+                        fb_dest -= left_offset  // precalculated from font_dbl_x 
+                        pixel    = bgctmp[text_x] if g.font[font_pos+i] == 0 else fgctmp[text_x]
 
                                            g.TFB[fb_dest  ] = pixel
                         if g.font_dbl_x do g.TFB[fb_dest+1] = pixel
