@@ -4,6 +4,35 @@
 Universal emulator framework, capable of emulating various sets
 of CPUs, GPUs and memory models. Support for RTC, PS2, PATA included!
 
+
+## Warning!
+
+There is a manual change in ``lib/odin-ini-parser/`` - a crude workaround
+for a changes in Odin language. Marked on my TODO.
+
+```
+diff --git a/lexer.odin b/lexer.odin
+index 1c8d3ca..0822b00 100644
+--- a/lexer.odin
++++ b/lexer.odin
+@@ -1,3 +1,5 @@
++#+feature using-stmt
++
+ package ini
+
+ import "core:bytes"
+diff --git a/parser.odin b/parser.odin
+index 79f50ae..21ebdc6 100644
+--- a/parser.odin
++++ b/parser.odin
+@@ -1,3 +1,5 @@
++#+feature using-stmt
++
+ package ini
+
+ import "core:strings"
+```
+
 ## Supported CPUs
 - m68k (Musashi Core)
 - WDC 65c816
