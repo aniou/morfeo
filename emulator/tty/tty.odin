@@ -28,8 +28,8 @@ TTY  :: struct {
     read:     proc(^TTY, MODE, u32) -> u32,
     write:    proc(^TTY, MODE, u32,    u32),
 
-    master:     os.Handle,
-    slave:      os.Handle,
+    master:     ^os.File,
+    slave:      ^os.File,
     pty_name:   [128]u8,
 }
 
@@ -72,7 +72,7 @@ read_tty :: proc(tty: ^TTY, mode: MODE, addr: u32) -> (out: u32) {
     v : [1]u8
 
     _, err := os.read(tty.master, v[0:])
-    if err != 0 {
+    if err != nil {
         log.errorf("TTY read error: %s", err)
         return 0
     }

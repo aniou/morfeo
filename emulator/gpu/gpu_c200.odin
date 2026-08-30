@@ -95,9 +95,6 @@ GPU_C200 :: struct {
     text_cols:           u32,
     text_rows:           u32,
     resolution:          u32,   // for tracking resolution changes
-    cursor_enabled:      bool,
-    bm0_enabled:         bool,
-    bm1_enabled:         bool,
     overlay_enabled:     bool,
 
     evid_name:          [0x10]u32,

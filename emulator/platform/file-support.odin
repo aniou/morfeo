@@ -98,13 +98,14 @@ read_srec :: proc(p: ^Platform, filepath: string) -> (ok: bool) {
     data           : []u32  // s-record in the form of integer values
     content        : []byte // content of file to parse
     finished       : bool = false // set by record 01
+    err            : os.Error
 
     defer delete(content, context.allocator)
 
-    content, ok = os.read_entire_file(filepath, context.allocator)
-    if ! ok {
+    content, err = os.read_entire_file(filepath, context.allocator)  // XXX: clean-up that logic
+    if err != nil {
         log.errorf("could not read file %s", filepath)
-        return
+        return false
     }
     it := string(content)
     loop: for line in strings.split_lines_iterator(&it) {
@@ -253,13 +254,14 @@ read_intel_hex :: proc(p: ^Platform, filepath: string, move_segment: u32 = 0) ->
     finished       : bool = false // set by record 01
     in_segment     : bool = false // there is a segment procesing?
     mirrored       : bool = false // is segment re-routed from $18: or $38: to $00:
+    err            : os.Error
 
 	defer delete(content, context.allocator)
 
-	content, ok = os.read_entire_file(filepath, context.allocator)
-	if !ok {
+	content, err = os.read_entire_file(filepath, context.allocator)
+	if err != nil {
         log.errorf("could not read file %s", filepath)
-		return
+		return false
 	}
 
 	it := string(content)
@@ -357,8 +359,8 @@ read_intel_hex :: proc(p: ^Platform, filepath: string, move_segment: u32 = 0) ->
 }
 
 read_raw_binary :: proc(p: ^Platform, filepath: string, position: u32 = 0) -> (ok: bool) {
-    data, status := os.read_entire_file_from_filename(filepath)
-    if !status {
+    data, err := os.read_entire_file(filepath, context.allocator)
+    if err != nil {
         log.errorf("read file %s failed: %s", filepath, os.error_string)
         return false
     }
@@ -382,8 +384,8 @@ File_Type :: enum {
 // I'dont like it, but wait for a moment for a bus code to settle
 // and provide something more elegant then
 read_file_f256 :: proc(p: ^Platform, fpath: string) -> (ok: bool = true) {
-    data, status := os.read_entire_file_from_filename(fpath)
-    if !status {
+    data, err := os.read_entire_file(fpath, context.allocator)
+    if err != nil {
         log.errorf("%s read file %s failed: %s", #procedure, fpath, os.error_string)
         return false
     }
@@ -402,9 +404,9 @@ read_file_f256 :: proc(p: ^Platform, fpath: string) -> (ok: bool = true) {
         //}
 
         tmp          := string(tok[1])
-        fname        := filepath.join({directory, tok[1]})
-        data, status2:= os.read_entire_file_from_filename(fname)        // fucking hate this
-        if !status2 {
+        fname, _     := filepath.join({directory, tok[1]})
+        data, err    := os.read_entire_file(fname, context.allocator)
+        if err != nil {
             log.errorf("%s read file %s failed: %s", #procedure, fname, os.error_string)
             return false
         }

@@ -59,7 +59,7 @@ SDC :: struct {
     state:          SDC_SPI_State,
 
     card_present:   bool,         // is there disk or not?
-    card_fd:        os.Handle,    // file descriptor for image
+    card_fd:        ^os.File,     // file descriptor for image
 
 }
 
@@ -154,8 +154,8 @@ read_sector_sdc_spi :: proc(sdc: ^SDC, sector: u32) {
 	offset := i64(sector * 512)
 	
 
-    _, err := os.seek(sdc.card_fd, offset, 0)     // XXX - block size always as 512?
-    if err != 0 {
+    _, err := os.seek(sdc.card_fd, offset, .Start)     // XXX - block size always as 512?
+    if err != nil {
         log.errorf("%s sdcread seek error position %d %s", sdc.name, offset, err )
         queue.push_back(&sdc.outbuf, 0x40) // parameter error
         sdc.state = .TRANSFER
@@ -163,7 +163,7 @@ read_sector_sdc_spi :: proc(sdc: ^SDC, sector: u32) {
 	}
 
 	_, err = os.read(sdc.card_fd, data[0 : 512])
-    if err != 0 {
+    if err != nil {
         log.errorf("%s drive read error %s", sdc.name, err )
         queue.push_back(&sdc.outbuf, 0xFF) 
         sdc.state = .TRANSFER
@@ -184,14 +184,14 @@ read_sector_sdc_spi :: proc(sdc: ^SDC, sector: u32) {
 }
 
 attach_sdc_spi_card :: proc(sdc: ^SDC, path: string) -> bool {
-    s, err1 := os.stat(path)
-    if err1 != 0 {
+    s, err1 := os.stat(path, context.allocator)
+    if err1 != nil {
         log.errorf("%s stat %s failed, error %d", sdc.name, path, err1)
         return false
     }
 
     f, err2 := os.open(path, flags = os.O_RDWR)
-    if err2 != 0 {
+    if err2 != nil {
         log.errorf("%s open %s failed, error %d", sdc.name, path, err2)
         return false
     }

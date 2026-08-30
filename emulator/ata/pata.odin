@@ -150,7 +150,7 @@ DRIVE :: struct {
     state:           STATE,
 
     attached:        bool,         // is there disk or not?
-    fd:              os.Handle,    // file descriptor for image
+    fd:              ^os.File,     // file descriptor for image
     offset:          u32,          // current file position
     data:            [512*256]u8,
     ident:           [256]u16,     // identification space
@@ -326,14 +326,14 @@ pata_write8 :: proc(p: ^PATA, addr: u32, val: u8) {
 }
 
 pata_attach_disk :: proc(p: ^PATA, number: int, path: string) -> bool {
-    s, err1 := os.stat(path)
-    if err1 != 0 {
+    s, err1 := os.stat(path, context.allocator)
+    if err1 != nil {
         log.errorf("%s stat %s failed, error %d", p.name, path, err1)
         return false
     }
 
     f, err2 := os.open(path, flags = os.O_RDWR)
-    if err2 != 0 {
+    if err2 != nil {
         log.errorf("%s open %s failed, error %d", p.name, path, err2)
         return false
     }
@@ -459,8 +459,8 @@ pata_cmd_read_sectors :: proc(p: ^PATA) {
     }
 
     drive.status  |= ST_DRQ
-    _, err := os.seek(drive.fd, offset * 512, 0)     // XXX - block size always as 512?
-    if err != 0 {
+    _, err := os.seek(drive.fd, offset * 512, .Start)     // XXX - block size always as 512?
+    if err != nil {
         log.errorf("%s drive %d read seek error %s", p.name, p.selected, err )
         drive.status  |= ST_ERR
         drive.status &~= ST_DSC
@@ -480,7 +480,7 @@ pata_cmd_read_sectors :: proc(p: ^PATA) {
         data_to_read = 256 * 512    
     }
     _, err = os.read(drive.fd, drive.data[0 : data_to_read])
-    if err != 0 {
+    if err != nil {
         log.errorf("pata: %s drive %d read error %s", p.name, p.selected, err )
         drive.status |= ST_ERR
         drive.err     = .ERR_UNCORRECTABLE_DATA
@@ -519,9 +519,9 @@ pata_cmd_write_sectors :: proc(p: ^PATA) {
     }
 
     drive.status  |= ST_DRQ
-    _, err := os.seek(drive.fd, offset * 512, 0)     // XXX - block size always as 512?
+    _, err := os.seek(drive.fd, offset * 512, .Start)     // XXX - block size always as 512?
     log.debugf("%s drive %d write seek to position %d", p.name, p.selected, offset * 512)
-    if err != 0 {
+    if err != nil {
         log.errorf("%s drive %d write seek error %s", p.name, p.selected, err )
         drive.status  |= ST_ERR
         drive.status &~= ST_DSC
@@ -574,7 +574,7 @@ pata_put_data_into_buffer :: proc(p: ^PATA, val: u8) {
 pata_write_sectors_to_disk :: proc(p: ^PATA) -> (error: bool = false) {
     drive := &p.drive[p.selected]
     _, err := os.write(drive.fd, drive.data[0 : drive.data_amount])
-    if err != 0 {
+    if err != nil {
         log.errorf("pata: %s drive %d write error %s", p.name, p.selected, err )
         drive.status |= ST_ERR
         drive.err     = .ERR_UNCORRECTABLE_DATA

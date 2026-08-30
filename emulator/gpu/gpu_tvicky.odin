@@ -100,10 +100,8 @@ GPU_tVicky :: struct {
     bm1_start_addr:      u32,
     pixel_size:          u32,      // 1 for normal, 2 for double - XXX: not used yet
     resolution:          u32,      // for tracking resolution changes
-    cursor_enabled:      bool,
     overlay_enabled:     bool,
 
-    pointer_enabled:    bool,
     pointer_selected:   bool,
 
     font_set1:          bool,
@@ -112,6 +110,7 @@ GPU_tVicky :: struct {
     font_dbl_y:         bool,
     font_dbl_x:         bool,
     clock_70Hz:         bool,
+    border_scroll_x:    u32,        // in fact - a text scroll X?
 
 }
 
@@ -169,6 +168,7 @@ make_tvicky :: proc(name: string, dcb: ^emu.DeviceConfig, pic: ^pic.PIC) -> ^GPU
     g.border_color_r      = 0x20
     g.border_x_size       = 0x20
     g.border_y_size       = 0x20
+    g.border_scroll_x     = 0x00
     g.starting_fb_row_pos = 0x00
     g.text_cols           = 0x00
     g.text_rows           = 0x00
@@ -380,11 +380,8 @@ write_tvicky_register :: proc(d: ^GPU_tVicky, mode: MODE, addr, val: u32) {
         d.font_ovly       = (val & 0x10) != 0
         d.font_set1       = (val & 0x20) != 0     // more readable than names
     case .TVKY_BCR:
-        d.border_enabled = (val & TVKY_BCR_ENABLE )       != 0
-
-        if (val & TVKY_BCR_X_SCROLL) != 0 {                                                                                                 
-            emu.error_read(d.name, d.req, .NOT_IMPL, mode, addr)
-        }
+        d.border_enabled  = (val & TVKY_BCR_ENABLE )  != 0
+        d.border_scroll_x = (val & TVKY_BCR_X_SCROLL) >> 4
 
     case .TVKY_BRD_COL_B: d.border_color_b =  u8(val); if d.border_enabled do tvicky_recalculate_screen(d)
     case .TVKY_BRD_COL_G: d.border_color_g =  u8(val); if d.border_enabled do tvicky_recalculate_screen(d)

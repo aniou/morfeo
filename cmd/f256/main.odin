@@ -25,22 +25,22 @@ DEFAULT_CFG :: "conf/" + emu.TARGET + ".ini"
 
 read_ini :: proc(file_path: string) -> Maybe(ini.INI) {
     log.infof("config: reading config file %s", file_path)
-    bytes, ok := os.read_entire_file_from_filename(file_path)
+    bytes, err := os.read_entire_file(file_path, context.allocator)
     defer delete(bytes)
 
-    if !ok {
+    if err != nil {
         log.errorf("read_ini: could not read %q\n", file_path)
         return nil
     }
 
     ini, res := ini.parse(bytes)
-    using res.pos
+    rp := res.pos
     switch res.err {
     case .EOF:              return ini
-    case .IllegalToken:     log.errorf("Illegal token encountered in %q at %d:%d", file_path, line+1, col+1)
-    case .KeyWithoutEquals: log.errorf("Key token found, but not assigned in %q at %d:%d", file_path, line+1, col+1)
-    case .ValueWithoutKey:  log.errorf("Value token found, but not preceeded by a key token in %q at %d:%d", file_path, line+1, col+1)
-    case .UnexpectedEquals: log.errorf("Equals sign found in an unexpected location in %q at %d:%d", file_path, line+1, col+1)
+    case .IllegalToken:     log.errorf("Illegal token encountered in %q at %d:%d", file_path, rp.line+1, rp.col+1)
+    case .KeyWithoutEquals: log.errorf("Key token found, but not assigned in %q at %d:%d", file_path, rp.line+1, rp.col+1)
+    case .ValueWithoutKey:  log.errorf("Value token found, but not preceeded by a key token in %q at %d:%d", file_path, rp.line+1, rp.col+1)
+    case .UnexpectedEquals: log.errorf("Equals sign found in an unexpected location in %q at %d:%d", file_path, rp.line+1, rp.col+1)
     }
 
     return nil

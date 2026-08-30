@@ -196,7 +196,6 @@ GPU_Vicky2 :: struct {
     bm1_start_addr:      u32,
     pixel_size:          u32,       // 1 for normal, 2 for double - XXX: not used yet
     resolution:          u32,       // for tracking resolution changes
-    cursor_enabled:      bool,
     overlay_enabled:     bool,
 
     pointer_selected:    MOUSE_PTR, // pointer 0 or pointer 1 selected

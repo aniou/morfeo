@@ -1,3 +1,5 @@
+#+feature using-stmt
+
 package bus
 
 import "core:log"
